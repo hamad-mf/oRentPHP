@@ -1,0 +1,32 @@
+<?php
+require_once __DIR__ . '/../config/db.php';
+
+$id = (int) ($_GET['id'] ?? 0);
+$pdo = db();
+
+$v = $pdo->prepare('SELECT * FROM vehicles WHERE id = ?');
+$v->execute([$id]);
+$vehicle = $v->fetch();
+if (!$vehicle) {
+    flash('error', 'Vehicle not found.');
+    redirect('index.php');
+}
+
+// Guard: cannot delete rented vehicles
+if ($vehicle['status'] === 'rented') {
+    flash('error', "Cannot delete a vehicle that is currently rented ({$vehicle['license_plate']}).");
+    redirect('index.php');
+}
+
+// Delete documents files
+$docs = $pdo->prepare('SELECT file_path FROM documents WHERE vehicle_id = ?');
+$docs->execute([$id]);
+foreach ($docs->fetchAll() as $doc) {
+    $path = __DIR__ . '/../' . $doc['file_path'];
+    if (file_exists($path))
+        @unlink($path);
+}
+
+$pdo->prepare('DELETE FROM vehicles WHERE id = ?')->execute([$id]);
+flash('success', "{$vehicle['brand']} {$vehicle['model']} has been removed from the fleet.");
+redirect('index.php');
