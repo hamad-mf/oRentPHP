@@ -4,6 +4,26 @@ $pdo = db();
 $search = trim($_GET['search'] ?? '');
 $status = $_GET['status'] ?? '';
 $dueToday = isset($_GET['due_today']);
+$fromDate = trim((string) ($_GET['from_date'] ?? ''));
+$toDate = trim((string) ($_GET['to_date'] ?? ''));
+
+$isValidDate = static function (string $date): bool {
+    if ($date === '') {
+        return false;
+    }
+    $dt = DateTime::createFromFormat('Y-m-d', $date);
+    return $dt instanceof DateTime && $dt->format('Y-m-d') === $date;
+};
+
+if (!$isValidDate($fromDate)) {
+    $fromDate = '';
+}
+if (!$isValidDate($toDate)) {
+    $toDate = '';
+}
+if ($fromDate !== '' && $toDate !== '' && $fromDate > $toDate) {
+    [$fromDate, $toDate] = [$toDate, $fromDate];
+}
 
 $where = ['1=1'];
 $params = [];
@@ -15,6 +35,14 @@ if ($search !== '') {
 if ($status !== '') {
     $where[] = 'r.status = ?';
     $params[] = $status;
+}
+if ($fromDate !== '') {
+    $where[] = 'DATE(r.end_date) >= ?';
+    $params[] = $fromDate;
+}
+if ($toDate !== '') {
+    $where[] = 'DATE(r.start_date) <= ?';
+    $params[] = $toDate;
 }
 if ($dueToday) {
     $where[] = "r.status = 'active' AND DATE(r.end_date) = CURDATE()";
@@ -85,7 +113,7 @@ require_once __DIR__ . '/../includes/header.php';
                 $active = $status === $val;
                 $cnt = $counts[$val === '' ? 'all' : $val];
                 ?>
-                <a href="?<?= http_build_query(array_filter(['status' => $val, 'search' => $search])) ?>"
+                <a href="?<?= http_build_query(array_filter(['status' => $val, 'search' => $search, 'from_date' => $fromDate, 'to_date' => $toDate])) ?>"
                     class="px-4 py-2 rounded-lg text-sm transition-all <?= $active ? 'bg-mb-accent text-white' : 'text-mb-subtle hover:text-white hover:bg-mb-black/50' ?>">
                     <?= $lbl ?> <span class="ml-1 text-xs opacity-70">
                         <?= $cnt ?>
@@ -97,10 +125,12 @@ require_once __DIR__ . '/../includes/header.php';
 
     <!-- Toolbar -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <form method="GET" class="flex items-center gap-3 flex-1">
+        <form method="GET" class="flex flex-wrap items-center gap-3 flex-1">
             <?php if ($status): ?><input type="hidden" name="status" value="<?= e($status) ?>">
             <?php endif; ?>
-            <div class="relative flex-1 max-w-sm">
+            <?php if ($dueToday): ?><input type="hidden" name="due_today" value="1">
+            <?php endif; ?>
+            <div class="relative flex-1 min-w-[220px] max-w-sm">
                 <input type="text" name="search" value="<?= e($search) ?>" placeholder="Search client or vehicle..."
                     class="w-full bg-mb-surface border border-mb-subtle/20 rounded-full py-2 pl-10 pr-4 text-white placeholder-mb-subtle focus:outline-none focus:border-mb-accent text-sm transition-colors">
                 <svg class="w-4 h-4 text-mb-subtle absolute left-4 top-2.5" fill="none" stroke="currentColor"
@@ -109,8 +139,18 @@ require_once __DIR__ . '/../includes/header.php';
                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
             </div>
+            <div class="flex items-center gap-2">
+                <span class="text-mb-subtle text-xs uppercase tracking-wide">From</span>
+                <input type="date" name="from_date" value="<?= e($fromDate) ?>"
+                    class="bg-mb-surface border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors">
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-mb-subtle text-xs uppercase tracking-wide">To</span>
+                <input type="date" name="to_date" value="<?= e($toDate) ?>"
+                    class="bg-mb-surface border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors">
+            </div>
             <button type="submit" class="text-mb-silver hover:text-white text-sm transition-colors">Search</button>
-            <?php if ($search || $status): ?><a href="index.php"
+            <?php if ($search || $status || $fromDate || $toDate || $dueToday): ?><a href="index.php"
                     class="text-mb-subtle hover:text-white text-sm transition-colors">Clear</a>
             <?php endif; ?>
         </form>
@@ -184,21 +224,26 @@ require_once __DIR__ . '/../includes/header.php';
                                 <td class="px-6 py-4 text-right text-mb-accent font-medium">
                                     <?php
                                     $basePrice = (float) $r['total_price'];
+                                    $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
+                                    $baseCollectedAtDelivery = max(0, $basePrice - $voucherApplied);
+                                    $returnVoucherApplied = max(0, (float) ($r['return_voucher_applied'] ?? 0));
                                     $overdueAmt = (float) $r['overdue_amount'];
                                     $kmOverageChg = (float) ($r['km_overage_charge'] ?? 0);
                                     $damageChg = (float) ($r['damage_charge'] ?? 0);
                                     $discType = $r['discount_type'] ?? null;
                                     $discVal = (float) ($r['discount_value'] ?? 0);
 
-                                    $baseForDiscount = $basePrice + $overdueAmt + $kmOverageChg + $damageChg;
+                                    $returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg;
                                     $discountAmt = 0;
                                     if ($discType === 'percent') {
-                                        $discountAmt = round($baseForDiscount * min($discVal, 100) / 100, 2);
+                                        $discountAmt = round($returnChargesBeforeDiscount * min($discVal, 100) / 100, 2);
                                     } elseif ($discType === 'amount') {
-                                        $discountAmt = min($discVal, $baseForDiscount);
+                                        $discountAmt = min($discVal, $returnChargesBeforeDiscount);
                                     }
-                                    $grandTotal = $baseForDiscount - $discountAmt;
-                                    echo '$' . number_format($grandTotal, 2);
+                                    $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
+                                    $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
+                                    $totalCollected = $baseCollectedAtDelivery + $cashDueAtReturn;
+                                    echo '$' . number_format($totalCollected, 2);
                                     ?>
                                 </td>
                                 <td class="px-6 py-4">

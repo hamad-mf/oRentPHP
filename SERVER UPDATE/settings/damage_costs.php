@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $items = $pdo->query("SELECT * FROM damage_costs ORDER BY item_name ASC")->fetchAll();
 
-$pageTitle = 'Damage Costs Settings';
+$pageTitle = 'Settings';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
@@ -41,10 +41,14 @@ require_once __DIR__ . '/../includes/header.php';
     <!-- Navigation Tabs -->
     <div class="flex gap-1 bg-mb-surface border border-mb-subtle/20 p-1 rounded-full w-fit">
         <a href="general.php"
-            class="px-6 py-2 rounded-full text-sm font-medium transition-all text-mb-silver hover:text-white">General</a>
+            class="px-6 py-2 rounded-full text-sm font-medium transition-all text-mb-silver hover:text-white">Return
+            Charges</a>
         <a href="damage_costs.php"
             class="px-6 py-2 rounded-full text-sm font-medium transition-all bg-mb-accent text-white shadow-lg shadow-mb-accent/20">Damage
             Costs</a>
+        <a href="lead_sources.php"
+            class="px-6 py-2 rounded-full text-sm font-medium transition-all text-mb-silver hover:text-white">Lead
+            Sources</a>
     </div>
     <div class="flex items-center justify-between">
         <h2 class="text-2xl font-light text-white tracking-wide">Damage Costs Management</h2>

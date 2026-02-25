@@ -8,7 +8,7 @@
         email VARCHAR(255) DEFAULT NULL,
         inquiry_type ENUM('daily','weekly','monthly','other') DEFAULT 'daily',
         vehicle_interest VARCHAR(255) DEFAULT NULL,
-        source ENUM('walk_in','phone','whatsapp','instagram','referral','website','other') DEFAULT 'phone',
+        source VARCHAR(100) NOT NULL DEFAULT 'phone',
         status ENUM('new','contacted','interested','negotiation','closed_won','closed_lost') DEFAULT 'new',
         lost_reason TEXT DEFAULT NULL,
         assigned_to VARCHAR(100) DEFAULT NULL,
@@ -19,6 +19,9 @@
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (converted_client_id) REFERENCES clients(id) ON DELETE SET NULL
     ) ENGINE=InnoDB;
+
+    ALTER TABLE leads
+        MODIFY COLUMN source VARCHAR(100) NOT NULL DEFAULT 'phone';
 
     CREATE TABLE IF NOT EXISTS lead_followups (
         id INT AUTO_INCREMENT PRIMARY KEY,

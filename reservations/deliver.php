@@ -6,10 +6,28 @@ $pdo = db();
 $rStmt = $pdo->prepare('SELECT r.*, c.name AS client_name, v.brand, v.model, v.license_plate FROM reservations r JOIN clients c ON r.client_id=c.id JOIN vehicles v ON r.vehicle_id=v.id WHERE r.id=?');
 $rStmt->execute([$id]);
 $r = $rStmt->fetch();
-if (!$r || !in_array($r['status'], ['pending', 'confirmed'])) {
-    flash('error', 'This reservation cannot be delivered in its current state.');
+if (!$r || $r['status'] !== 'confirmed') {
+    flash('error', 'Only confirmed reservations can be delivered. Please confirm the reservation first.');
     redirect('index.php');
 }
+
+// Deposit Migration/Schema Check
+try {
+    $hasDepositCol = (int) $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'reservations' AND COLUMN_NAME = 'deposit_amount'")->fetchColumn();
+    if ($hasDepositCol === 0) {
+        $pdo->exec("ALTER TABLE reservations ADD COLUMN deposit_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+        $pdo->exec("ALTER TABLE reservations ADD COLUMN deposit_returned DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+    }
+} catch (Throwable $e) {
+}
+
+require_once __DIR__ . '/../includes/settings_helpers.php';
+settings_ensure_table($pdo);
+$depositPct = (float) settings_get($pdo, 'deposit_percentage', '0');
+
+$voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
+$baseCollectNow = max(0, (float) $r['total_price'] - $voucherApplied);
+$suggestedDeposit = round($baseCollectNow * ($depositPct / 100), 2);
 
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -18,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $notes = trim($_POST['notes'] ?? '');
     $kmLimit = $_POST['km_limit'] !== '' ? (int) $_POST['km_limit'] : null;
     $extraKmPrice = $_POST['extra_km_price'] !== '' ? (float) $_POST['extra_km_price'] : null;
+    $depositAmt = max(0, (float) ($_POST['deposit_amount'] ?? 0));
 
     if ($fuel < 0 || $fuel > 100)
         $errors['fuel_level'] = 'Fuel level must be 0–100.';
@@ -46,10 +65,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $pdo->prepare("UPDATE reservations SET status='active', km_limit=?, extra_km_price=? WHERE id=?")
-            ->execute([$kmLimit, $extraKmPrice, $id]);
+        $pdo->prepare("UPDATE reservations SET status='active', km_limit=?, extra_km_price=?, deposit_amount=? WHERE id=?")
+            ->execute([$kmLimit, $extraKmPrice, $depositAmt, $id]);
         $pdo->prepare("UPDATE vehicles SET status='rented' WHERE id=?")->execute([$r['vehicle_id']]);
-        flash('success', 'Vehicle delivered. Reservation is now active.');
+        $msg = 'Vehicle delivered. Amount collected at delivery: $' . number_format($baseCollectNow, 2) . '.';
+        if ($voucherApplied > 0) {
+            $msg .= ' Voucher used: $' . number_format($voucherApplied, 2) . '.';
+        }
+        $msg .= ' Reservation is now active.';
+        flash('success', $msg);
         redirect("show.php?id=$id");
     }
 }
@@ -92,6 +116,28 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         </div>
 
+        <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+            <p class="text-xs uppercase tracking-wider text-green-400 mb-1">Charge At Delivery</p>
+            <div class="space-y-1 text-sm">
+                <div class="flex justify-between text-mb-silver">
+                    <span>Base Rental Value</span>
+                    <span>$<?= number_format((float) $r['total_price'], 2) ?></span>
+                </div>
+                <?php if ($voucherApplied > 0): ?>
+                    <div class="flex justify-between text-green-400">
+                        <span>Voucher Applied</span>
+                        <span>-$<?= number_format($voucherApplied, 2) ?></span>
+                    </div>
+                <?php endif; ?>
+                <div class="flex justify-between text-white font-semibold pt-1 border-t border-green-500/20">
+                    <span>Collect Now</span>
+                    <span>$<?= number_format($baseCollectNow, 2) ?></span>
+                </div>
+            </div>
+            <p class="text-xs text-mb-subtle mt-1">At return, only extra charges (late, KM overage, damage, etc.) will
+                be calculated.</p>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <!-- Readings -->
             <div class="space-y-6">
@@ -118,6 +164,26 @@ require_once __DIR__ . '/../includes/header.php';
                             style="width:<?= e($_POST['fuel_level'] ?? 100) ?>%"></div>
                     </div>
                 </div>
+
+                <!-- Deposit Section -->
+                <div class="pt-4 border-t border-mb-subtle/10 space-y-4">
+                    <h3 class="text-white font-light border-l-2 border-mb-accent pl-3">Delivery Deposit</h3>
+                    <p class="text-xs text-mb-subtle">Enter the security deposit amount collected from the client.</p>
+                    <div>
+                        <label class="block text-sm text-mb-silver mb-2">Delivery Deposit Collected ($)</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
+                            <input type="number" name="deposit_amount" id="depositAmount" step="0.01" min="0" required
+                                class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm"
+                                placeholder="0.00" value="<?= e($_POST['deposit_amount'] ?? $suggestedDeposit) ?>">
+                        </div>
+                        <?php if ($depositPct > 0): ?>
+                            <p class="text-xs text-mb-accent/60 mt-1">Suggested rate: <?= $depositPct ?>% of delivery
+                                collection ($<?= number_format($baseCollectNow, 2) ?>)</p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
                 <div>
                     <label for="notes" class="block text-sm font-medium text-mb-silver mb-2">Inspection Notes</label>
                     <textarea name="notes" id="notes" rows="4"
@@ -151,11 +217,22 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="space-y-4">
                 <h3 class="text-white text-lg font-light border-l-2 border-mb-accent pl-3">Vehicle Condition Photos</h3>
                 <p class="text-xs text-mb-subtle">Upload clear photos for each area.</p>
-                <?php foreach (['Front', 'Back', 'Left', 'Right', 'Interior'] as $area): ?>
+                <?php
+                $photoViews = [
+                    'front' => 'Front',
+                    'back' => 'Back',
+                    'left' => 'Left',
+                    'right' => 'Right',
+                    'interior' => 'Interior',
+                    'odometer' => 'Photo of Odometer',
+                    'with_customer' => 'Photo with Customer',
+                ];
+                foreach ($photoViews as $areaKey => $areaLabel):
+                    ?>
                     <div
                         class="bg-mb-black/30 p-4 rounded-lg border border-mb-subtle/10 hover:border-mb-accent/30 transition-colors">
-                        <label class="block text-sm font-medium text-mb-silver mb-2"><?= $area ?> View</label>
-                        <input type="file" name="photos[<?= strtolower($area) ?>]" accept="image/*" class="block w-full text-sm text-mb-silver
+                        <label class="block text-sm font-medium text-mb-silver mb-2"><?= $areaLabel ?> View</label>
+                        <input type="file" name="photos[<?= $areaKey ?>]" accept="image/*" class="block w-full text-sm text-mb-silver
                                    file:mr-4 file:py-2 file:px-4
                                    file:rounded-full file:border-0
                                    file:text-xs file:font-semibold
@@ -184,10 +261,10 @@ require_once __DIR__ . '/../includes/header.php';
 <?php
 $extraScripts = '<script>
 const slider = document.getElementById("fuelSlider");
-const valEl  = document.getElementById("fuelVal");
+const valEl  = document.getElementById("fuel-val");
 const barEl  = document.getElementById("fuelBar");
 function updateFuel(v) {
-    valEl.textContent = v;
+    valEl.textContent = v + "%";
     barEl.style.width = v + "%";
     barEl.className = "h-2 rounded-full " + (v>=75?"bg-green-500":v>=50?"bg-yellow-400":v>=25?"bg-orange-400":"bg-red-500");
 }

@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS clients (
     is_blacklisted TINYINT(1) NOT NULL DEFAULT 0,
     blacklist_reason TEXT DEFAULT NULL,
     notes TEXT DEFAULT NULL,
+    voucher_balance DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
@@ -72,10 +73,28 @@ CREATE TABLE IF NOT EXISTS reservations (
     damage_charge DECIMAL(10,2) DEFAULT 0.00,
     discount_type ENUM('percent','amount') DEFAULT NULL,
     discount_value DECIMAL(10,2) DEFAULT 0.00,
+    voucher_applied DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    return_voucher_applied DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    early_return_credit DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    voucher_credit_issued DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- â”€â”€ Client Voucher Transactions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+CREATE TABLE IF NOT EXISTS client_voucher_transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    client_id INT NOT NULL,
+    reservation_id INT DEFAULT NULL,
+    type ENUM('credit','debit') NOT NULL,
+    amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    note VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_client_created (client_id, created_at),
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    FOREIGN KEY (reservation_id) REFERENCES reservations(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- ── Vehicle Inspections ───────────────────────────────────────
@@ -192,5 +211,7 @@ CREATE TABLE IF NOT EXISTS system_settings (
 
 -- Default late return hourly charge
 INSERT IGNORE INTO system_settings (`key`, `value`) VALUES ('late_return_rate_per_hour', '0');
+INSERT IGNORE INTO system_settings (`key`, `value`) VALUES
+('lead_sources', '[{"value":"walk_in","label":"Walk-in"},{"value":"phone","label":"Phone Call"},{"value":"whatsapp","label":"WhatsApp"},{"value":"instagram","label":"Instagram"},{"value":"referral","label":"Referral"},{"value":"website","label":"Website"},{"value":"other","label":"Other"}]');
 
 SET FOREIGN_KEY_CHECKS = 1;

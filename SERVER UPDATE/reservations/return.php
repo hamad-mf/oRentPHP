@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/voucher_helpers.php';
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
+voucher_ensure_schema($pdo);
 
-$rStmt = $pdo->prepare('SELECT r.*, c.name AS client_name, v.brand, v.model, v.license_plate, v.daily_rate FROM reservations r JOIN clients c ON r.client_id=c.id JOIN vehicles v ON r.vehicle_id=v.id WHERE r.id=?');
+$rStmt = $pdo->prepare('SELECT r.*, c.name AS client_name, c.rating AS client_rating_current, c.voucher_balance AS client_voucher_balance, v.brand, v.model, v.license_plate, v.daily_rate FROM reservations r JOIN clients c ON r.client_id=c.id JOIN vehicles v ON r.vehicle_id=v.id WHERE r.id=?');
 $rStmt->execute([$id]);
 $r = $rStmt->fetch();
 if (!$r || $r['status'] !== 'active') {
@@ -23,15 +25,71 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS system_settings (`key` VARCHAR(100) NOT N
 $pdo->exec("INSERT IGNORE INTO system_settings (`key`, `value`) VALUES ('late_return_rate_per_hour', '0')");
 $lateRatePerHour = (float) $pdo->query("SELECT `value` FROM system_settings WHERE `key`='late_return_rate_per_hour'")->fetchColumn();
 
-// Calculate overdue
-$today = new DateTime(date('Y-m-d'));
-$endDate = new DateTime($r['end_date']);
-$overdueDays = 0;
-$overdueAmt = 0;
-if ($today > $endDate) {
-    $overdueDays = (int) $today->diff($endDate)->days;
-    $overdueAmt = $overdueDays * (float) $r['daily_rate'];
-}
+$startDt = new DateTime($r['start_date']);
+$scheduledEndDt = new DateTime($r['end_date']);
+$voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
+$baseCollectedAtDelivery = max(0, (float) $r['total_price'] - $voucherApplied);
+$clientVoucherBalance = max(0, (float) ($r['client_voucher_balance'] ?? 0));
+
+$parseActualReturnDateTime = static function (string $date, int $hour12, int $minute, string $ampm): DateTime {
+    $date = trim($date);
+    if ($date === '') {
+        return new DateTime();
+    }
+
+    $hour12 = max(1, min(12, $hour12));
+    $minute = max(0, min(59, $minute));
+    $ampm = strtoupper($ampm) === 'PM' ? 'PM' : 'AM';
+
+    $hour24 = $hour12 % 12;
+    if ($ampm === 'PM') {
+        $hour24 += 12;
+    }
+
+    $dt = DateTime::createFromFormat('Y-m-d H:i:s', sprintf('%s %02d:%02d:00', $date, $hour24, $minute));
+    if (!$dt) {
+        return new DateTime();
+    }
+    return $dt;
+};
+
+$calculateOverdue = static function (DateTime $scheduledEnd, DateTime $actualReturn, float $dailyRate): array {
+    $scheduledDate = new DateTime($scheduledEnd->format('Y-m-d 00:00:00'));
+    $actualDate = new DateTime($actualReturn->format('Y-m-d 00:00:00'));
+
+    if ($actualDate <= $scheduledDate) {
+        return ['days' => 0, 'amount' => 0.0];
+    }
+
+    $days = (int) $scheduledDate->diff($actualDate)->days;
+    return ['days' => $days, 'amount' => round($days * $dailyRate, 2)];
+};
+
+$calculateEarlyReturnCredit = static function (DateTime $startDate, DateTime $scheduledEnd, DateTime $actualReturn, float $basePrice): float {
+    if ($actualReturn >= $scheduledEnd || $basePrice <= 0) {
+        return 0.0;
+    }
+
+    $effectiveActual = $actualReturn < $startDate ? clone $startDate : clone $actualReturn;
+    $totalSeconds = max(1, $scheduledEnd->getTimestamp() - $startDate->getTimestamp());
+    $unusedSeconds = max(0, $scheduledEnd->getTimestamp() - $effectiveActual->getTimestamp());
+    if ($unusedSeconds <= 0) {
+        return 0.0;
+    }
+
+    return round($basePrice * ($unusedSeconds / $totalSeconds), 2);
+};
+
+$initialActualDt = $parseActualReturnDateTime(
+    trim($_POST['actual_return_date'] ?? date('Y-m-d')),
+    (int) ($_POST['actual_return_hour'] ?? date('g')),
+    (int) ($_POST['actual_return_min'] ?? floor(date('i') / 5) * 5),
+    (string) ($_POST['actual_return_ampm'] ?? date('A'))
+);
+$initialOverdue = $calculateOverdue($scheduledEndDt, $initialActualDt, (float) $r['daily_rate']);
+$overdueDays = (int) ($initialOverdue['days'] ?? 0);
+$overdueAmt = (float) ($initialOverdue['amount'] ?? 0);
+$initialEarlyVoucherCredit = $calculateEarlyReturnCredit($startDt, $scheduledEndDt, $initialActualDt, (float) $r['total_price']);
 
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -46,28 +104,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $actualReturnHour = (int) ($_POST['actual_return_hour'] ?? 12);
     $actualReturnMin = (int) ($_POST['actual_return_min'] ?? 0);
     $actualReturnAMPM = $_POST['actual_return_ampm'] ?? 'AM';
+    $clientRating = (int) ($_POST['client_rating'] ?? 0);
+    $returnVoucherRequest = max(0, (float) ($_POST['return_voucher_amount'] ?? 0));
+    $returnVoucherApplied = 0.0;
 
-    // Late return charge calculation
+    $actualDt = $parseActualReturnDateTime($actualReturnDate, $actualReturnHour, $actualReturnMin, $actualReturnAMPM);
+    $actualEndSave = $actualDt->format('Y-m-d H:i:s');
+
+    // Overdue daily charge (calendar-day based)
+    $calcOverdue = $calculateOverdue($scheduledEndDt, $actualDt, (float) $r['daily_rate']);
+    $overdueDays = (int) ($calcOverdue['days'] ?? 0);
+    $overdueAmt = (float) ($calcOverdue['amount'] ?? 0);
+
+    // Late return hourly charge (time-based, with grace period)
     $lateChg = 0;
-    $actualDtSt = date('Y-m-d H:i:s'); // Fallback
-    if ($actualReturnDate && $lateRatePerHour > 0) {
-        $h24 = $actualReturnHour;
-        if ($actualReturnAMPM === 'PM' && $h24 < 12)
-            $h24 += 12;
-        if ($actualReturnAMPM === 'AM' && $h24 === 12)
-            $h24 = 0;
-        $actualDtSt = sprintf('%s %02d:%02d:00', $actualReturnDate, $h24, $actualReturnMin);
-        $actualDt = new DateTime($actualDtSt);
-        $scheduledEnd = new DateTime($r['end_date']);
-        if ($actualDt > $scheduledEnd) {
-            $lateMinutes = (int) round(($actualDt->getTimestamp() - $scheduledEnd->getTimestamp()) / 60);
-            if ($lateMinutes >= 30) {
-                // Pro-rated calculation: minutes * (Rate / 60)
-                $lateChg = round($lateMinutes * ($lateRatePerHour / 60), 2);
-            }
+    if ($lateRatePerHour > 0 && $actualDt > $scheduledEndDt) {
+        $lateMinutes = (int) round(($actualDt->getTimestamp() - $scheduledEndDt->getTimestamp()) / 60);
+        if ($lateMinutes >= 30) {
+            $lateChg = round($lateMinutes * ($lateRatePerHour / 60), 2);
         }
     }
-    $actualEndSave = $actualDtSt;
 
     // KM overage calc
     $kmOverageChg = 0;
@@ -75,61 +131,142 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $kmOverageChg = ($kmDriven - $r['km_limit']) * (float) $r['extra_km_price'];
     }
 
-    // Discount calc
-    $baseForDiscount = (float) $r['total_price'] + $overdueAmt + $kmOverageChg + $damageChg + $lateChg;
+    // Discount applies only to return-time charges (base rental is collected at delivery)
+    $returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg + $lateChg;
     $discountAmt = 0;
     if ($discType === 'percent') {
-        $discountAmt = round($baseForDiscount * min($discVal, 100) / 100, 2);
+        $discountAmt = round($returnChargesBeforeDiscount * min($discVal, 100) / 100, 2);
     } elseif ($discType === 'amount') {
-        $discountAmt = min($discVal, $baseForDiscount);
+        $discountAmt = min($discVal, $returnChargesBeforeDiscount);
     }
+    $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
+    if ($returnVoucherRequest > 0) {
+        if ($returnVoucherRequest > $clientVoucherBalance) {
+            $errors['return_voucher_amount'] = 'Voucher amount cannot exceed client voucher balance ($' . number_format($clientVoucherBalance, 2) . ').';
+        } elseif ($returnVoucherRequest > $amountDueAtReturn) {
+            $errors['return_voucher_amount'] = 'Voucher amount cannot exceed return amount due ($' . number_format($amountDueAtReturn, 2) . ').';
+        } else {
+            $returnVoucherApplied = round(min($returnVoucherRequest, $clientVoucherBalance, $amountDueAtReturn), 2);
+        }
+    }
+    $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
+    $earlyVoucherCredit = $calculateEarlyReturnCredit($startDt, $scheduledEndDt, $actualDt, (float) $r['total_price']);
 
     if ($fuel < 0 || $fuel > 100)
         $errors['fuel_level'] = 'Fuel level must be 0–100.';
     if ($miles < 0)
         $errors['mileage'] = 'Mileage must be 0 or more.';
+    if ($clientRating < 1 || $clientRating > 5)
+        $errors['client_rating'] = 'Please rate the client (1 to 5 stars) before completing return.';
 
     if (empty($errors)) {
-        $iStmt = $pdo->prepare('INSERT INTO vehicle_inspections (reservation_id,type,fuel_level,mileage,notes) VALUES (?,?,?,?,?)');
-        $iStmt->execute([$id, 'return', $fuel, $miles, $notes]);
-        $inspectionId = $pdo->lastInsertId();
+        $voucherCreditIssued = 0.0;
+        $returnVoucherAppliedActual = 0.0;
+        $newVoucherBalance = null;
 
-        // Handle Photos
-        if (isset($_FILES['photos'])) {
-            $dir = __DIR__ . '/../uploads/inspections/';
-            if (!is_dir($dir))
-                mkdir($dir, 0777, true);
-            foreach ($_FILES['photos']['name'] as $area => $name) {
-                if ($_FILES['photos']['error'][$area] === UPLOAD_ERR_OK) {
-                    $ext = pathinfo($name, PATHINFO_EXTENSION);
-                    $filename = 'insp_' . $inspectionId . '_' . $area . '_' . time() . '.' . $ext;
-                    if (move_uploaded_file($_FILES['photos']['tmp_name'][$area], $dir . $filename)) {
-                        $pStmt = $pdo->prepare('INSERT INTO inspection_photos (inspection_id, view_name, file_path) VALUES (?,?,?)');
-                        $pStmt->execute([$inspectionId, $area, 'uploads/inspections/' . $filename]);
+        try {
+            $pdo->beginTransaction();
+
+            $iStmt = $pdo->prepare('INSERT INTO vehicle_inspections (reservation_id,type,fuel_level,mileage,notes) VALUES (?,?,?,?,?)');
+            $iStmt->execute([$id, 'return', $fuel, $miles, $notes]);
+            $inspectionId = (int) $pdo->lastInsertId();
+
+            // Handle Photos
+            if (isset($_FILES['photos'])) {
+                $dir = __DIR__ . '/../uploads/inspections/';
+                if (!is_dir($dir)) {
+                    mkdir($dir, 0777, true);
+                }
+                foreach ($_FILES['photos']['name'] as $area => $name) {
+                    if ($_FILES['photos']['error'][$area] === UPLOAD_ERR_OK) {
+                        $ext = pathinfo($name, PATHINFO_EXTENSION);
+                        $filename = 'insp_' . $inspectionId . '_' . $area . '_' . time() . '.' . $ext;
+                        if (move_uploaded_file($_FILES['photos']['tmp_name'][$area], $dir . $filename)) {
+                            $pStmt = $pdo->prepare('INSERT INTO inspection_photos (inspection_id, view_name, file_path) VALUES (?,?,?)');
+                            $pStmt->execute([$inspectionId, $area, 'uploads/inspections/' . $filename]);
+                        }
                     }
                 }
             }
+
+            if ($returnVoucherApplied > 0) {
+                $returnVoucherAppliedActual = voucher_apply_debit(
+                    $pdo,
+                    (int) $r['client_id'],
+                    $returnVoucherApplied,
+                    $id,
+                    'Applied on return charges for reservation #' . $id
+                );
+                $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherAppliedActual);
+            }
+
+            if ($earlyVoucherCredit > 0) {
+                $voucherCreditIssued = $earlyVoucherCredit;
+                $newVoucherBalance = voucher_add_credit(
+                    $pdo,
+                    (int) $r['client_id'],
+                    $voucherCreditIssued,
+                    $id,
+                    'Early return credit for reservation #' . $id
+                );
+            }
+
+            $pdo->prepare("UPDATE reservations SET status='completed', actual_end_date=?, overdue_amount=?,
+                km_driven=?, km_overage_charge=?, damage_charge=?, discount_type=?, discount_value=?,
+                return_voucher_applied=?, early_return_credit=?, voucher_credit_issued=? WHERE id=?")
+                ->execute([
+                    $actualEndSave,
+                    $overdueAmt + $lateChg,
+                    $kmDriven,
+                    $kmOverageChg,
+                    $damageChg,
+                    $discType,
+                    $discVal,
+                    $returnVoucherAppliedActual,
+                    $earlyVoucherCredit,
+                    $voucherCreditIssued,
+                    $id,
+                ]);
+            $pdo->prepare("UPDATE vehicles SET status='available' WHERE id=?")->execute([$r['vehicle_id']]);
+            $pdo->prepare("UPDATE clients SET rating=? WHERE id=?")->execute([$clientRating, $r['client_id']]);
+
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            $errors['db'] = 'Could not complete return. Please try again.';
         }
 
-        $pdo->prepare("UPDATE reservations SET status='completed', actual_end_date=?, overdue_amount=?,
-            km_driven=?, km_overage_charge=?, damage_charge=?, discount_type=?, discount_value=? WHERE id=?")
-            ->execute([$actualEndSave, $overdueAmt + $lateChg, $kmDriven, $kmOverageChg, $damageChg, $discType, $discVal, $id]);
-        $pdo->prepare("UPDATE vehicles SET status='available' WHERE id=?")->execute([$r['vehicle_id']]);
-
-        $grandTotal = (float) $r['total_price'] + $overdueAmt + $lateChg + $kmOverageChg + $damageChg - $discountAmt;
-        $msg = 'Vehicle returned. Grand Total: $' . number_format($grandTotal, 2);
-        if ($overdueAmt > 0)
-            $msg .= " | Overdue: +$" . number_format($overdueAmt, 2);
-        if ($lateChg > 0)
-            $msg .= " | Late Return: +$" . number_format($lateChg, 2);
-        if ($kmOverageChg > 0)
-            $msg .= " | KM Overage: +$" . number_format($kmOverageChg, 2);
-        if ($damageChg > 0)
-            $msg .= " | Damage: +$" . number_format($damageChg, 2);
-        if ($discountAmt > 0)
-            $msg .= " | Discount: -$" . number_format($discountAmt, 2);
-        flash('success', $msg);
-        redirect("bill.php?id=$id");
+        if (empty($errors)) {
+            $msg = 'Vehicle returned. Amount due at return: $' . number_format($cashDueAtReturn, 2);
+            $msg .= ' | Base collected at delivery: $' . number_format($baseCollectedAtDelivery, 2);
+            if ($voucherApplied > 0) {
+                $msg .= ' | Voucher used on booking: $' . number_format($voucherApplied, 2);
+            }
+            if ($returnVoucherAppliedActual > 0) {
+                $msg .= ' | Voucher used on return: -$' . number_format($returnVoucherAppliedActual, 2);
+            }
+            if ($voucherCreditIssued > 0) {
+                $msg .= ' | Early return voucher credit: +$' . number_format($voucherCreditIssued, 2);
+                if ($newVoucherBalance !== null) {
+                    $msg .= ' (Balance: $' . number_format((float) $newVoucherBalance, 2) . ')';
+                }
+            }
+            $msg .= ' | Client Rating: ' . $clientRating . '/5';
+            if ($overdueAmt > 0)
+                $msg .= " | Overdue: +$" . number_format($overdueAmt, 2);
+            if ($lateChg > 0)
+                $msg .= " | Late Return: +$" . number_format($lateChg, 2);
+            if ($kmOverageChg > 0)
+                $msg .= " | KM Overage: +$" . number_format($kmOverageChg, 2);
+            if ($damageChg > 0)
+                $msg .= " | Damage: +$" . number_format($damageChg, 2);
+            if ($discountAmt > 0)
+                $msg .= " | Discount: -$" . number_format($discountAmt, 2);
+            flash('success', $msg);
+            redirect("bill.php?id=$id");
+        }
     }
 }
 
@@ -159,7 +296,9 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     <?php endif; ?>
 
-    <form method="POST" enctype="multipart/form-data" class="space-y-8">
+    <form method="POST" enctype="multipart/form-data" class="space-y-8" id="returnForm">
+        <input type="hidden" name="client_rating" id="clientRatingInput"
+            value="<?= e($_POST['client_rating'] ?? ($r['client_rating_current'] ?? '')) ?>">
         <!-- Header Info -->
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-lg p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
@@ -347,14 +486,42 @@ require_once __DIR__ . '/../includes/header.php';
                         </div>
                     </div>
 
+                    <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-sm text-mb-silver">Apply Voucher on Return Charges</label>
+                            <span class="text-xs text-emerald-300">Available: $<?= number_format($clientVoucherBalance, 2) ?></span>
+                        </div>
+                        <input type="number" name="return_voucher_amount" id="returnVoucherAmount" min="0" step="0.01"
+                            placeholder="0.00" value="<?= e($_POST['return_voucher_amount'] ?? '') ?>" oninput="updateSummary()"
+                            class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors">
+                        <p class="text-xs text-mb-subtle">This will reduce amount due at return using existing voucher balance.</p>
+                        <p id="returnVoucherValidation" class="hidden text-red-400 text-xs"></p>
+                        <?php if (isset($errors['return_voucher_amount'])): ?>
+                            <p class="text-red-400 text-xs mt-1">
+                                <?= e($errors['return_voucher_amount']) ?>
+                            </p>
+                        <?php endif; ?>
+                    </div>
+
                     <!-- Live Total Preview -->
                     <div class="bg-mb-black/50 border border-mb-subtle/20 rounded-lg p-4 space-y-2 text-sm">
-                        <div class="flex justify-between text-mb-silver"><span>Base
-                                Rental</span><span>$<?= number_format($r['total_price'], 2) ?></span></div>
-                        <?php if ($overdueAmt > 0): ?>
-                            <div class="flex justify-between text-red-400"><span>Overdue (<?= $overdueDays ?>
-                                    days)</span><span>+$<?= number_format($overdueAmt, 2) ?></span></div>
+                        <?php if ($voucherApplied > 0): ?>
+                            <div class="flex justify-between text-green-400">
+                                <span>Voucher Used on Booking</span>
+                                <span>-$<?= number_format($voucherApplied, 2) ?></span>
+                            </div>
                         <?php endif; ?>
+                        <div class="flex justify-between text-mb-silver">
+                            <span>Base Collected at Delivery</span>
+                            <span>$<?= number_format($baseCollectedAtDelivery, 2) ?></span>
+                        </div>
+                        <div id="previewOverdueRow"
+                            class="justify-between text-red-400 <?= $overdueAmt > 0 ? 'flex' : 'hidden' ?>">
+                            <span id="previewOverdueLabel">Overdue (<?= $overdueDays ?> day<?= $overdueDays === 1 ? '' : 's' ?>
+                                @ $<?= number_format((float) $r['daily_rate'], 2) ?>/day)</span>
+                            <span
+                                id="previewOverdueAmt"><?= $overdueAmt > 0 ? '+$' . number_format($overdueAmt, 2) : '' ?></span>
+                        </div>
                         <div id="previewLateRow" class="justify-between text-orange-400 hidden"><span
                                 id="previewLateLabel">Late Return</span><span id="previewLateAmt"></span></div>
                         <div id="previewKmRow" class="justify-between text-yellow-400 hidden"><span
@@ -363,11 +530,20 @@ require_once __DIR__ . '/../includes/header.php';
                                 Charges</span><span id="previewDmgAmt"></span></div>
                         <div id="previewDiscRow" class="justify-between text-green-400 hidden"><span
                                 id="previewDiscLabel">Discount</span><span id="previewDiscAmt"></span></div>
+                        <div id="previewReturnVoucherRow" class="justify-between text-emerald-300 hidden">
+                            <span>Voucher Applied on Return</span>
+                            <span id="previewReturnVoucherAmt"></span>
+                        </div>
+                        <div id="previewEarlyCreditRow"
+                            class="justify-between text-emerald-300 <?= $initialEarlyVoucherCredit > 0 ? 'flex' : 'hidden' ?>">
+                            <span>Early Return Voucher Credit (next booking)</span>
+                            <span
+                                id="previewEarlyCreditAmt"><?= $initialEarlyVoucherCredit > 0 ? '+$' . number_format($initialEarlyVoucherCredit, 2) : '' ?></span>
+                        </div>
                         <div
                             class="flex justify-between text-white font-semibold pt-2 border-t border-mb-subtle/10 text-base">
-                            <span>Grand Total</span>
-                            <span
-                                id="grandTotalDisplay">$<?= number_format((float) $r['total_price'] + $overdueAmt, 2) ?></span>
+                            <span>Amount Due at Return</span>
+                            <span id="grandTotalDisplay">$<?= number_format($overdueAmt, 2) ?></span>
                         </div>
                     </div>
                 </div>
@@ -377,11 +553,22 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="space-y-4">
                 <h3 class="text-white text-lg font-light border-l-2 border-green-500 pl-3">Return Condition Photos</h3>
                 <p class="text-xs text-mb-subtle">Upload clear photos to document return condition.</p>
-                <?php foreach (['Front', 'Back', 'Left', 'Right', 'Interior'] as $area): ?>
+                <?php
+                $photoViews = [
+                    'front' => 'Front',
+                    'back' => 'Back',
+                    'left' => 'Left',
+                    'right' => 'Right',
+                    'interior' => 'Interior',
+                    'odometer' => 'Photo of Odometer',
+                    'with_customer' => 'Photo with Customer',
+                ];
+                foreach ($photoViews as $areaKey => $areaLabel):
+                    ?>
                     <div
                         class="bg-mb-black/30 p-4 rounded-lg border border-mb-subtle/10 hover:border-green-500/30 transition-colors">
-                        <label class="block text-sm font-medium text-mb-silver mb-2"><?= $area ?> View</label>
-                        <input type="file" name="photos[<?= strtolower($area) ?>]" accept="image/*" class="block w-full text-sm text-mb-silver
+                        <label class="block text-sm font-medium text-mb-silver mb-2"><?= $areaLabel ?> View</label>
+                        <input type="file" name="photos[<?= $areaKey ?>]" accept="image/*" class="block w-full text-sm text-mb-silver
                                    file:mr-4 file:py-2 file:px-4
                                    file:rounded-full file:border-0
                                    file:text-xs file:font-semibold
@@ -394,21 +581,55 @@ require_once __DIR__ . '/../includes/header.php';
 
         <div class="flex items-center justify-end gap-4 pt-8 border-t border-mb-subtle/10">
             <a href="show.php?id=<?= $id ?>" class="text-mb-silver hover:text-white transition-colors">Cancel</a>
-            <button type="submit"
+            <button type="button" id="openRatingModalBtn"
                 class="bg-green-600 text-white px-8 py-3 rounded-full hover:bg-green-500 transition-colors font-medium shadow-lg shadow-green-900/20">
                 Complete Return
             </button>
         </div>
     </form>
+
+    <div id="ratingModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-5">
+            <div>
+                <h3 class="text-white text-lg font-light border-l-2 border-green-500 pl-3">Rate Client</h3>
+                <p class="text-sm text-mb-subtle mt-2">Before completing return, rate this client for this rental.</p>
+            </div>
+
+            <div class="space-y-2">
+                <?php for ($star = 5; $star >= 1; $star--): ?>
+                    <label
+                        class="flex items-center justify-between bg-mb-black/40 border border-mb-subtle/20 rounded-lg px-4 py-3 cursor-pointer hover:border-mb-accent transition-colors">
+                        <div class="flex items-center gap-3">
+                            <input type="radio" name="client_rating_modal" value="<?= $star ?>" class="accent-mb-accent">
+                            <span class="text-white"><?= $star ?> Star<?= $star > 1 ? 's' : '' ?></span>
+                        </div>
+                        <span class="text-yellow-400 text-sm"><?= str_repeat('★', $star) ?></span>
+                    </label>
+                <?php endfor; ?>
+            </div>
+
+            <p id="ratingError" class="hidden text-red-400 text-sm">Select a client rating to continue.</p>
+
+            <div class="flex items-center justify-end gap-3 pt-2">
+                <button type="button"
+                    class="closeRatingModalBtn text-mb-silver hover:text-white transition-colors px-4 py-2">Cancel</button>
+                <button type="button" id="confirmRatingBtn"
+                    class="bg-green-600 text-white px-6 py-2 rounded-full hover:bg-green-500 transition-colors font-medium">Save
+                    Rating &amp; Complete</button>
+            </div>
+        </div>
+    </div>
 </div>
 <?php
 $kmLimit = (int) ($r['km_limit'] ?? 0);
 $extraKmPrice = (float) ($r['extra_km_price'] ?? 0);
-$baseTotal = (float) $r['total_price'] + $overdueAmt;
-$scheduledEndIso = date('Y-m-d\TH:i', strtotime($r['end_date']));
+$baseRentalValue = (float) $r['total_price'];
 $extraScripts = '<script>
-const KM_LIMIT=' . $kmLimit . ', KM_PRICE=' . $extraKmPrice . ', BASE=' . ((float) $r["total_price"] + $overdueAmt) . ';
+const KM_LIMIT=' . $kmLimit . ', KM_PRICE=' . $extraKmPrice . ', DAILY_RATE=' . ((float) $r['daily_rate']) . ';
 const LATE_RATE=' . $lateRatePerHour . ';
+const BASE_PRICE=' . $baseRentalValue . ';
+const CLIENT_VOUCHER_BALANCE=' . $clientVoucherBalance . ';
+const START_DATE = new Date("' . $r['start_date'] . '".replace(" ","T"));
 const SCHEDULED_END = new Date("' . $r['end_date'] . '".replace(" ","T"));
 
 function getActualDate() {
@@ -432,12 +653,36 @@ function calcLateCharge() {
     return lateMinutes * (LATE_RATE / 60);
 }
 
+function calcOverdueCharge() {
+    var actual = getActualDate();
+    var scheduledDate = new Date(SCHEDULED_END.getFullYear(), SCHEDULED_END.getMonth(), SCHEDULED_END.getDate());
+    var actualDate = new Date(actual.getFullYear(), actual.getMonth(), actual.getDate());
+    if (actualDate <= scheduledDate) return { days: 0, amount: 0 };
+    var dayMs = 24 * 60 * 60 * 1000;
+    var days = Math.round((actualDate - scheduledDate) / dayMs);
+    if (days < 0) days = 0;
+    return { days: days, amount: days * DAILY_RATE };
+}
+
+function calcEarlyReturnCredit() {
+    var actual = getActualDate();
+    if (actual >= SCHEDULED_END || BASE_PRICE <= 0) return 0;
+    var effectiveActual = actual < START_DATE ? START_DATE : actual;
+    var totalMs = SCHEDULED_END - START_DATE;
+    if (totalMs <= 0) return 0;
+    var unusedMs = SCHEDULED_END - effectiveActual;
+    if (unusedMs <= 0) return 0;
+    return BASE_PRICE * (unusedMs / totalMs);
+}
+
 function updateSummary(){
     var kmDrivenEl=document.getElementById("kmDriven");
     var dmgHiddenEl=document.getElementById("damageCharge");
     var discType=document.getElementById("discountType").value;
     var discVal=parseFloat(document.getElementById("discountValue").value)||0;
     var kmDriven=kmDrivenEl?parseFloat(kmDrivenEl.value)||0:0;
+    var returnVoucherInput=document.getElementById("returnVoucherAmount");
+    var returnVoucherValidation=document.getElementById("returnVoucherValidation");
 
     // Damage from checkboxes or manual input
     var dmg = 0;
@@ -455,12 +700,52 @@ function updateSummary(){
     if(KM_LIMIT>0 && kmDriven>KM_LIMIT){ kmOverage=(kmDriven-KM_LIMIT)*KM_PRICE; }
 
     var lateChg = calcLateCharge();
+    var overdue = calcOverdueCharge();
+    var overdueChg = overdue.amount;
+    var earlyCredit = calcEarlyReturnCredit();
 
-    var total=BASE+kmOverage+dmg+lateChg;
+    var totalBeforeDiscount=overdueChg+kmOverage+dmg+lateChg;
     var disc=0;
-    if(discType==="percent") disc=Math.round(total*Math.min(discVal,100)/100*100)/100;
-    else if(discType==="amount") disc=Math.min(discVal,total);
-    total-=disc;
+    if(discType==="percent") disc=Math.round(totalBeforeDiscount*Math.min(discVal,100)/100*100)/100;
+    else if(discType==="amount") disc=Math.min(discVal,totalBeforeDiscount);
+    var totalAfterDiscount=Math.max(0,totalBeforeDiscount-disc);
+
+    var returnVoucherReq=returnVoucherInput?(parseFloat(returnVoucherInput.value)||0):0;
+    if(returnVoucherReq<0) returnVoucherReq=0;
+    var returnVoucherMax=Math.max(0,Math.min(CLIENT_VOUCHER_BALANCE,totalAfterDiscount));
+    var voucherError="";
+    if(returnVoucherReq>CLIENT_VOUCHER_BALANCE){
+        voucherError="Voucher cannot exceed available balance ($"+CLIENT_VOUCHER_BALANCE.toFixed(2)+").";
+    }else if(returnVoucherReq>totalAfterDiscount){
+        voucherError="Voucher cannot exceed return amount due ($"+totalAfterDiscount.toFixed(2)+").";
+    }
+    if(returnVoucherInput){
+        returnVoucherInput.max=returnVoucherMax.toFixed(2);
+        returnVoucherInput.setCustomValidity(voucherError);
+    }
+    if(returnVoucherValidation){
+        if(voucherError){
+            returnVoucherValidation.textContent=voucherError;
+            returnVoucherValidation.classList.remove("hidden");
+        }else{
+            returnVoucherValidation.textContent="";
+            returnVoucherValidation.classList.add("hidden");
+        }
+    }
+    var returnVoucherApplied=voucherError?0:Math.min(returnVoucherReq,returnVoucherMax);
+    var total=Math.max(0,totalAfterDiscount-returnVoucherApplied);
+
+    // Overdue row
+    var overdueRow=document.getElementById("previewOverdueRow");
+    if(overdueRow){
+        if(overdueChg>0){
+            overdueRow.classList.remove("hidden"); overdueRow.classList.add("flex");
+            document.getElementById("previewOverdueLabel").textContent="Overdue ("+overdue.days+" day"+(overdue.days===1?"":"s")+" @ $"+DAILY_RATE.toFixed(2)+"/day)";
+            document.getElementById("previewOverdueAmt").textContent="+$"+overdueChg.toFixed(2);
+        }else{
+            overdueRow.classList.add("hidden"); overdueRow.classList.remove("flex");
+        }
+    }
 
     // Late charge row
     var lateRow=document.getElementById("previewLateRow");
@@ -496,6 +781,31 @@ function updateSummary(){
     // Discount row
     var discRow=document.getElementById("previewDiscRow");
     if(discRow){if(disc>0){discRow.classList.remove("hidden");discRow.classList.add("flex");document.getElementById("previewDiscLabel").textContent=discType==="percent"?"Discount ("+discVal+"%):":"Discount:";document.getElementById("previewDiscAmt").textContent="-$"+disc.toFixed(2);}else{discRow.classList.add("hidden");discRow.classList.remove("flex");}}
+    // Return voucher row
+    var returnVoucherRow=document.getElementById("previewReturnVoucherRow");
+    if(returnVoucherRow){
+        if(returnVoucherApplied>0){
+            returnVoucherRow.classList.remove("hidden");
+            returnVoucherRow.classList.add("flex");
+            document.getElementById("previewReturnVoucherAmt").textContent="-$"+returnVoucherApplied.toFixed(2);
+        }else{
+            returnVoucherRow.classList.add("hidden");
+            returnVoucherRow.classList.remove("flex");
+            document.getElementById("previewReturnVoucherAmt").textContent="";
+        }
+    }
+    var earlyCreditRow=document.getElementById("previewEarlyCreditRow");
+    if(earlyCreditRow){
+        if(earlyCredit>0){
+            earlyCreditRow.classList.remove("hidden");
+            earlyCreditRow.classList.add("flex");
+            document.getElementById("previewEarlyCreditAmt").textContent="+$"+earlyCredit.toFixed(2);
+        }else{
+            earlyCreditRow.classList.add("hidden");
+            earlyCreditRow.classList.remove("flex");
+            document.getElementById("previewEarlyCreditAmt").textContent="";
+        }
+    }
     document.getElementById("grandTotalDisplay").textContent="$"+total.toFixed(2);
 }
 const slider=document.getElementById("fuelSlider");
@@ -504,6 +814,91 @@ const barEl=document.getElementById("fuelBar");
 function updateFuel(v){valEl.textContent=v+"%";barEl.style.width=v+"%";barEl.className="h-2 rounded-full "+(v>=75?"bg-green-500":v>=50?"bg-yellow-400":v>=25?"bg-orange-400":"bg-red-500");}
 slider.addEventListener("input",()=>updateFuel(slider.value));
 updateFuel(slider.value);
+
+const returnVoucherInput=document.getElementById("returnVoucherAmount");
+if(returnVoucherInput){
+    returnVoucherInput.addEventListener("blur", function(){
+        var val=parseFloat(returnVoucherInput.value || 0);
+        if(!isFinite(val) || val <= 0){
+            returnVoucherInput.value="";
+        }else{
+            returnVoucherInput.value=val.toFixed(2);
+        }
+        updateSummary();
+    });
+}
+
+const returnForm=document.getElementById("returnForm");
+const ratingModal=document.getElementById("ratingModal");
+const openRatingModalBtn=document.getElementById("openRatingModalBtn");
+const closeRatingModalBtns=document.querySelectorAll(".closeRatingModalBtn");
+const confirmRatingBtn=document.getElementById("confirmRatingBtn");
+const ratingError=document.getElementById("ratingError");
+const clientRatingInput=document.getElementById("clientRatingInput");
+
+function openRatingModal(){
+    if(!ratingModal) return;
+    ratingModal.classList.remove("hidden");
+    if(ratingError) ratingError.classList.add("hidden");
+}
+function closeRatingModal(){
+    if(!ratingModal) return;
+    ratingModal.classList.add("hidden");
+    if(ratingError) ratingError.classList.add("hidden");
+}
+
+if(returnForm){
+    returnForm.addEventListener("submit", function(e){
+        updateSummary();
+        if(!returnForm.checkValidity()){
+            e.preventDefault();
+            returnForm.reportValidity();
+            return;
+        }
+        if(!clientRatingInput || !clientRatingInput.value){
+            e.preventDefault();
+            openRatingModal();
+        }
+    });
+}
+if(openRatingModalBtn){
+    openRatingModalBtn.addEventListener("click", function(){
+        openRatingModal();
+    });
+}
+closeRatingModalBtns.forEach(function(btn){
+    btn.addEventListener("click", closeRatingModal);
+});
+if(ratingModal){
+    ratingModal.addEventListener("click", function(e){
+        if(e.target===ratingModal) closeRatingModal();
+    });
+}
+
+var presetRating = clientRatingInput ? clientRatingInput.value : "";
+if(presetRating){
+    var presetRadio = document.querySelector("input[name=\\"client_rating_modal\\"][value=\\""+presetRating+"\\"]");
+    if(presetRadio) presetRadio.checked = true;
+}
+if(confirmRatingBtn){
+    confirmRatingBtn.addEventListener("click", function(){
+        var selected = document.querySelector("input[name=\\"client_rating_modal\\"]:checked");
+        if(!selected){
+            if(ratingError) ratingError.classList.remove("hidden");
+            return;
+        }
+        if(clientRatingInput) clientRatingInput.value = selected.value;
+        closeRatingModal();
+        if(returnForm){
+            if(returnForm.requestSubmit){
+                returnForm.requestSubmit();
+            }else{
+                returnForm.submit();
+            }
+        }
+    });
+}
+
 updateSummary();
 </script>';
 require_once __DIR__ . '/../includes/footer.php';

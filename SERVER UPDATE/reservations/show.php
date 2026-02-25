@@ -34,20 +34,26 @@ $overdue = isOverdue($r['end_date'], $r['status']);
 
 // Totals calculation (match bill.php)
 $basePrice = (float) $r['total_price'];
+$voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
+$baseCollectedAtDelivery = max(0, $basePrice - $voucherApplied);
+$returnVoucherApplied = max(0, (float) ($r['return_voucher_applied'] ?? 0));
 $overdueAmt = (float) $r['overdue_amount'];
 $kmOverageChg = (float) ($r['km_overage_charge'] ?? 0);
 $damageChg = (float) ($r['damage_charge'] ?? 0);
 $discType = $r['discount_type'] ?? null;
 $discVal = (float) ($r['discount_value'] ?? 0);
+$earlyVoucherCredit = max(0, (float) ($r['voucher_credit_issued'] ?? ($r['early_return_credit'] ?? 0)));
 
-$baseForDiscount = $basePrice + $overdueAmt + $kmOverageChg + $damageChg;
+$returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg;
 $discountAmt = 0;
 if ($discType === 'percent') {
-    $discountAmt = round($baseForDiscount * min($discVal, 100) / 100, 2);
+    $discountAmt = round($returnChargesBeforeDiscount * min($discVal, 100) / 100, 2);
 } elseif ($discType === 'amount') {
-    $discountAmt = min($discVal, $baseForDiscount);
+    $discountAmt = min($discVal, $returnChargesBeforeDiscount);
 }
-$grandTotal = $baseForDiscount - $discountAmt;
+$amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
+$cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
+$totalCollected = $baseCollectedAtDelivery + $cashDueAtReturn;
 
 $success = getFlash('success');
 $pageTitle = 'Reservation #' . $id;
@@ -180,9 +186,15 @@ function fuelBar(int $pct): string
 
             <!-- Pricing Summary -->
             <div class="border-t border-mb-subtle/10 pt-4 space-y-2">
+                <?php if ($voucherApplied > 0): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-green-500/80">Voucher Used on Booking</span>
+                        <span class="text-green-500/80">-$<?= number_format($voucherApplied, 2) ?></span>
+                    </div>
+                <?php endif; ?>
                 <div class="flex justify-between text-sm">
-                    <span class="text-mb-subtle">Base Price</span>
-                    <span class="text-white">$<?= number_format($basePrice, 2) ?></span>
+                    <span class="text-mb-subtle">Base Collected at Delivery</span>
+                    <span class="text-white">$<?= number_format($baseCollectedAtDelivery, 2) ?></span>
                 </div>
 
                 <?php if ($overdueAmt > 0): ?>
@@ -208,14 +220,30 @@ function fuelBar(int $pct): string
 
                 <?php if ($discountAmt > 0): ?>
                     <div class="flex justify-between text-sm">
-                        <span class="text-green-500/80">Discount<?= $discType === 'percent' ? " ($discVal%)" : "" ?></span>
+                        <span class="text-green-500/80">Return Discount<?= $discType === 'percent' ? " ($discVal%)" : "" ?></span>
                         <span class="text-green-500/80">-$<?= number_format($discountAmt, 2) ?></span>
+                    </div>
+                <?php endif; ?>
+                <?php if ($returnVoucherApplied > 0): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-emerald-300">Voucher Applied on Return</span>
+                        <span class="text-emerald-300">-$<?= number_format($returnVoucherApplied, 2) ?></span>
+                    </div>
+                <?php endif; ?>
+                <?php if ($earlyVoucherCredit > 0): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-emerald-300">Early Return Voucher Credit (next booking)</span>
+                        <span class="text-emerald-300">+$<?= number_format($earlyVoucherCredit, 2) ?></span>
                     </div>
                 <?php endif; ?>
 
                 <div class="flex justify-between font-medium text-base border-t border-mb-subtle/10 pt-2">
-                    <span class="text-mb-silver">Grand Total</span>
-                    <span class="text-mb-accent">$<?= number_format($grandTotal, 2) ?></span>
+                    <span class="text-mb-silver">Amount Due at Return</span>
+                    <span class="text-mb-accent">$<?= number_format($cashDueAtReturn, 2) ?></span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-mb-subtle">Total Collected for This Rental</span>
+                    <span class="text-mb-accent">$<?= number_format($totalCollected, 2) ?></span>
                 </div>
             </div>
         </div>
@@ -281,7 +309,7 @@ function fuelBar(int $pct): string
                                     <div
                                         class="absolute inset-x-0 bottom-0 bg-black/60 py-1 px-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <p class="text-[10px] text-white/80 lowercase truncate text-center">
-                                            <?= e($p['view_name']) ?></p>
+                                            <?= e(ucwords(str_replace('_', ' ', (string) $p['view_name']))) ?></p>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -337,7 +365,7 @@ function fuelBar(int $pct): string
                                     <div
                                         class="absolute inset-x-0 bottom-0 bg-black/60 py-1 px-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <p class="text-[10px] text-white/80 lowercase truncate text-center">
-                                            <?= e($p['view_name']) ?></p>
+                                            <?= e(ucwords(str_replace('_', ' ', (string) $p['view_name']))) ?></p>
                                     </div>
                                 </div>
                             <?php endforeach; ?>

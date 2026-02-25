@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/settings_helpers.php';
 $pdo = db();
 
 $id = (int) ($_REQUEST['id'] ?? 0);
@@ -12,6 +13,10 @@ if (!$lead) {
 }
 
 $errors = [];
+$leadSourcesMap = lead_sources_get_map($pdo);
+if (!empty($lead['source']) && !array_key_exists($lead['source'], $leadSourcesMap)) {
+    $leadSourcesMap[$lead['source']] = lead_source_guess_label($lead['source']);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Quick AJAX status-only update from pipeline
@@ -52,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $inquiry = $_POST['inquiry_type'] ?? 'daily';
     $vehicle = trim($_POST['vehicle_interest'] ?? '');
-    $source = $_POST['source'] ?? 'phone';
+    $source = $_POST['source'] ?? $lead['source'];
     $assigned = trim($_POST['assigned_to'] ?? '');
     $notes = trim($_POST['notes'] ?? '');
     $status = $_POST['status'] ?? $lead['status'];
@@ -64,6 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['phone'] = 'Phone is required.';
     if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL))
         $errors['email'] = 'Invalid email format.';
+    if (!array_key_exists($source, $leadSourcesMap))
+        $errors['source'] = 'Please select a valid lead source.';
     if ($status === 'closed_lost' && !$lostReason)
         $errors['lost_reason'] = 'Please document the reason for closing as lost.';
 
@@ -162,12 +169,17 @@ require_once __DIR__ . '/../includes/header.php';
                     <label class="block text-sm text-mb-silver mb-2">Lead Source</label>
                     <select name="source"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent text-sm">
-                        <?php foreach (['walk_in' => 'Walk-in', 'phone' => 'Phone', 'whatsapp' => 'WhatsApp', 'instagram' => 'Instagram', 'referral' => 'Referral', 'website' => 'Website', 'other' => 'Other'] as $v => $l): ?>
-                            <option value="<?= $v ?>" <?= $lead['source'] === $v ? 'selected' : '' ?>>
+                        <?php foreach ($leadSourcesMap as $v => $l): ?>
+                            <option value="<?= e($v) ?>" <?= $lead['source'] === $v ? 'selected' : '' ?>>
                                 <?= $l ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <?php if ($errors['source'] ?? ''): ?>
+                        <p class="text-red-400 text-xs mt-1">
+                            <?= e($errors['source']) ?>
+                        </p>
+                    <?php endif; ?>
                 </div>
                 <div>
                     <label class="block text-sm text-mb-silver mb-2">Status</label>

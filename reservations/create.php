@@ -1,8 +1,11 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/voucher_helpers.php';
 $pdo = db();
 
-$clients = $pdo->query("SELECT id, name FROM clients WHERE is_blacklisted=0 ORDER BY name")->fetchAll();
+voucher_ensure_schema($pdo);
+
+$clients = $pdo->query("SELECT id, name, voucher_balance FROM clients WHERE is_blacklisted=0 ORDER BY name")->fetchAll();
 $vehicles = $pdo->query("SELECT id, brand, model, license_plate, daily_rate, monthly_rate, rate_1day, rate_7day, rate_15day, rate_30day FROM vehicles WHERE status='available' ORDER BY brand")->fetchAll();
 
 $hiddenCount = $pdo->query("SELECT COUNT(*) FROM clients WHERE is_blacklisted=1")->fetchColumn();
@@ -32,6 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $endDate = $eD ? sprintf('%s %02d:%02d:00', $eD, $eH, $eM) : '';
 
     $totalPrice = (float) ($_POST['total_price'] ?? 0);
+    $voucherRequest = max(0, (float) ($_POST['voucher_amount'] ?? 0));
+    $voucherApplied = 0.0;
+    $clientVoucherBalance = 0.0;
 
     if (!$clientId)
         $errors['client_id'] = 'Please select a client.';
@@ -48,23 +54,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Guard: reject blacklisted
     if (!isset($errors['client_id'])) {
-        $chk = $pdo->prepare('SELECT is_blacklisted FROM clients WHERE id=?');
+        $chk = $pdo->prepare('SELECT is_blacklisted, voucher_balance FROM clients WHERE id=?');
         $chk->execute([$clientId]);
         $cl = $chk->fetch();
         if ($cl && $cl['is_blacklisted'])
             $errors['client_id'] = 'This client is blacklisted and cannot make reservations.';
+        if ($cl) {
+            $clientVoucherBalance = max(0, (float) ($cl['voucher_balance'] ?? 0));
+        }
+    }
+
+    if (!isset($errors['client_id']) && $voucherRequest > 0) {
+        if ($voucherRequest > $totalPrice) {
+            $errors['voucher_amount'] = 'Voucher amount cannot exceed total price.';
+        } elseif ($voucherRequest > $clientVoucherBalance) {
+            $errors['voucher_amount'] = 'Voucher amount cannot exceed client voucher balance ($' . number_format($clientVoucherBalance, 2) . ').';
+        } else {
+            $voucherApplied = round(min($voucherRequest, $totalPrice, $clientVoucherBalance), 2);
+        }
     }
 
     if (empty($errors)) {
-        $stmt = $pdo->prepare('INSERT INTO reservations (client_id,vehicle_id,rental_type,start_date,end_date,total_price,status) VALUES (?,?,?,?,?,?,?)');
-        $stmt->execute([$clientId, $vehicleId, $rentalType, $startDate, $endDate, $totalPrice, 'confirmed']);
-        $id = $pdo->lastInsertId();
-        // Get client name
-        $cn = $pdo->prepare('SELECT name FROM clients WHERE id=?');
-        $cn->execute([$clientId]);
-        $clientName = $cn->fetchColumn();
-        flash('success', "Reservation confirmed for $clientName.");
-        redirect("show.php?id=$id");
+        try {
+            $pdo->beginTransaction();
+
+            $stmt = $pdo->prepare('INSERT INTO reservations (client_id,vehicle_id,rental_type,start_date,end_date,total_price,voucher_applied,status) VALUES (?,?,?,?,?,?,?,?)');
+            $stmt->execute([$clientId, $vehicleId, $rentalType, $startDate, $endDate, $totalPrice, $voucherApplied, 'confirmed']);
+            $id = (int) $pdo->lastInsertId();
+
+            if ($voucherApplied > 0) {
+                voucher_apply_debit($pdo, $clientId, $voucherApplied, $id, 'Applied on reservation #' . $id);
+            }
+
+            $pdo->commit();
+
+            // Get client name
+            $cn = $pdo->prepare('SELECT name FROM clients WHERE id=?');
+            $cn->execute([$clientId]);
+            $clientName = $cn->fetchColumn();
+
+            $msg = "Reservation confirmed for $clientName.";
+            if ($voucherApplied > 0) {
+                $payNow = max(0, $totalPrice - $voucherApplied);
+                $msg .= ' Voucher used: $' . number_format($voucherApplied, 2) . '. Collect at delivery: $' . number_format($payNow, 2) . '.';
+            }
+            flash('success', $msg);
+            redirect("show.php?id=$id");
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            $errors['db'] = 'Could not create reservation. Please try again.';
+        }
     }
 }
 
@@ -117,7 +158,9 @@ require_once __DIR__ . '/../includes/header.php';
                             required>
                             <option value="">-- Select Client --</option>
                             <?php foreach ($clients as $cl): ?>
-                                <option value="<?= $cl['id'] ?>" <?= (($_POST['client_id'] ?? '') == $cl['id']) ? 'selected' : '' ?>>
+                                <option value="<?= $cl['id'] ?>"
+                                    data-voucher-balance="<?= number_format((float) ($cl['voucher_balance'] ?? 0), 2, '.', '') ?>"
+                                    <?= (($_POST['client_id'] ?? '') == $cl['id']) ? 'selected' : '' ?>>
                                     <?= e($cl['name']) ?>
                                 </option>
                             <?php endforeach; ?>
@@ -127,6 +170,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?= e($errors['client_id']) ?>
                             </p>
                         <?php endif; ?>
+                        <p class="text-xs text-green-400 mt-2" id="clientVoucherInfo">Client voucher balance: $0.00</p>
                     </div>
 
                     <div>
@@ -256,6 +300,23 @@ require_once __DIR__ . '/../includes/header.php';
                             value="<?= e($_POST['total_price'] ?? '') ?>" step="0.01" min="0" required
                             class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent text-sm">
                     </div>
+
+                    <div>
+                        <label class="block text-sm text-mb-silver mb-2">Use Voucher (Optional)</label>
+                        <input type="number" name="voucher_amount" id="voucherAmount"
+                            value="<?= e($_POST['voucher_amount'] ?? '') ?>" step="0.01" min="0"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500/60 text-sm"
+                            placeholder="0.00">
+                        <p class="text-xs text-mb-subtle mt-1">
+                            Voucher reduces amount collected at delivery. Remaining voucher stays in client account.
+                        </p>
+                        <?php if (isset($errors['voucher_amount'])): ?>
+                            <p class="text-red-400 text-xs mt-1">
+                                <?= e($errors['voucher_amount']) ?>
+                            </p>
+                        <?php endif; ?>
+                        <p id="voucherError" class="text-red-400 text-xs mt-1" style="display:none"></p>
+                    </div>
                 </div>
             </div>
 
@@ -279,9 +340,21 @@ require_once __DIR__ . '/../includes/header.php';
                             id="calcDays">—</span></div>
                     <div class="flex justify-between text-xs text-mb-subtle"><span>Rate/Day</span><span
                             id="calcRate">—</span></div>
+                    <div class="flex justify-between text-xs text-mb-subtle">
+                        <span>Available Voucher</span>
+                        <span id="calcVoucherBalance">$0.00</span>
+                    </div>
+                    <div id="calcVoucherRow" class="hidden justify-between text-xs text-green-400">
+                        <span>Voucher Applied</span>
+                        <span id="calcVoucherApplied">-$0.00</span>
+                    </div>
                     <div class="border-t border-mb-subtle/20 pt-2 flex justify-between text-sm font-medium">
                         <span class="text-mb-silver">Estimated Total</span>
                         <span class="text-mb-accent" id="calcTotal">$0</span>
+                    </div>
+                    <div class="flex justify-between text-sm font-medium">
+                        <span class="text-mb-silver">Collect at Delivery</span>
+                        <span class="text-green-400" id="calcCollectNow">$0</span>
                     </div>
                 </div>
             </div>
@@ -301,9 +374,16 @@ require_once __DIR__ . '/../includes/header.php';
 $extraScripts = <<<JS
 <script>
 const vehicleSelect = document.getElementById('vehicleSelect');
+const clientSelect = document.getElementById('clientSelect');
 const startDate = document.getElementById('startDate');
 const endDate = document.getElementById('endDate');
 const totalPrice = document.getElementById('totalPrice');
+const voucherAmount = document.getElementById('voucherAmount');
+const calcVoucherBalance = document.getElementById('calcVoucherBalance');
+const calcVoucherRow = document.getElementById('calcVoucherRow');
+const calcVoucherApplied = document.getElementById('calcVoucherApplied');
+const calcCollectNow = document.getElementById('calcCollectNow');
+const clientVoucherInfo = document.getElementById('clientVoucherInfo');
 
 function getTimestamp(prefix) {
     const dVal = document.getElementById(prefix + 'Date').value;
@@ -320,7 +400,10 @@ function getTimestamp(prefix) {
 
 function calcPrice() {
     const opt = vehicleSelect.options[vehicleSelect.selectedIndex];
-    if (!opt || !opt.value) return;
+    if (!opt || !opt.value) {
+        updateVoucherPreview();
+        return;
+    }
     const daily = parseFloat(opt.dataset.daily || 0);
     const type  = getSelectedType();
     const FIXED_DAYS = { '1day': 1, '7day': 7, '15day': 15, '30day': 30 };
@@ -365,11 +448,91 @@ function calcPrice() {
     document.getElementById('calcRate').textContent  = '$' + parseFloat(rate).toFixed(2);
     document.getElementById('calcTotal').textContent = '$' + total.toFixed(2);
     totalPrice.value = total.toFixed(2);
+    updateVoucherPreview();
 }
 
 function onRentalTypeChange() { calcPrice(); }
 function getSelectedType() {
     return document.querySelector('input[name="rental_type"]:checked')?.value || 'daily';
+}
+
+function getSelectedClientVoucherBalance() {
+    const opt = clientSelect.options[clientSelect.selectedIndex];
+    if (!opt || !opt.value) {
+        return 0;
+    }
+    return parseFloat(opt.dataset.voucherBalance || 0);
+}
+
+const voucherError = document.getElementById('voucherError');
+
+function showVoucherError(msg) {
+    if (!voucherError) return;
+    voucherError.textContent = msg;
+    voucherError.style.display = 'block';
+    if (voucherAmount) voucherAmount.style.borderColor = 'rgb(239 68 68 / 0.6)';
+}
+
+function clearVoucherError() {
+    if (!voucherError) return;
+    voucherError.textContent = '';
+    voucherError.style.display = 'none';
+    if (voucherAmount) voucherAmount.style.borderColor = '';
+}
+
+function getVoucherRequested() {
+    const v = parseFloat(voucherAmount?.value || 0);
+    return isFinite(v) && v > 0 ? v : 0;
+}
+
+function validateVoucher() {
+    if (!voucherAmount) return true;
+    const total = parseFloat(totalPrice.value || 0) || 0;
+    const balance = getSelectedClientVoucherBalance();
+    const requested = getVoucherRequested();
+
+    voucherAmount.max = Math.max(0, Math.min(total, balance)).toFixed(2);
+
+    if (requested <= 0) { clearVoucherError(); return true; }
+    if (requested > total) {
+        showVoucherError('Voucher cannot exceed total price ($' + total.toFixed(2) + ')');
+        return false;
+    }
+    if (requested > balance) {
+        showVoucherError('Voucher exceeds client balance ($' + balance.toFixed(2) + ')');
+        return false;
+    }
+    clearVoucherError();
+    return true;
+}
+
+function updateVoucherPreview() {
+    const total = parseFloat(totalPrice.value || 0) || 0;
+    const balance = getSelectedClientVoucherBalance();
+    const requested = getVoucherRequested();
+    const isValid = validateVoucher();
+    const applied = isValid ? Math.min(requested, total, balance) : 0;
+
+    if (calcVoucherBalance) {
+        calcVoucherBalance.textContent = '$' + balance.toFixed(2);
+    }
+    if (clientVoucherInfo) {
+        clientVoucherInfo.textContent = 'Client voucher balance: $' + balance.toFixed(2);
+    }
+    if (calcVoucherRow && calcVoucherApplied) {
+        if (applied > 0) {
+            calcVoucherRow.classList.remove('hidden');
+            calcVoucherRow.classList.add('flex');
+            calcVoucherApplied.textContent = '-$' + applied.toFixed(2);
+        } else {
+            calcVoucherRow.classList.add('hidden');
+            calcVoucherRow.classList.remove('flex');
+            calcVoucherApplied.textContent = '-$0.00';
+        }
+    }
+    if (calcCollectNow) {
+        calcCollectNow.textContent = '$' + Math.max(0, total - applied).toFixed(2);
+    }
 }
 
 function updateVehicleInfo() {
@@ -389,12 +552,30 @@ function updateVehicleInfo() {
 }
 
 $(vehicleSelect).on('change', updateVehicleInfo);
+$(clientSelect).on('change', updateVoucherPreview);
 // Bind all components
 ['start', 'end'].forEach(p => {
     ['Date', 'Hour', 'Min', 'AMPM'].forEach(c => {
         document.getElementById(p + c).addEventListener('change', calcPrice);
     });
 });
+if (voucherAmount) {
+    voucherAmount.addEventListener('input', updateVoucherPreview);
+    voucherAmount.addEventListener('blur', function () {
+        validateVoucher();
+        updateVoucherPreview();
+    });
+}
+totalPrice.addEventListener('input', updateVoucherPreview);
+document.getElementById('resForm').addEventListener('submit', function (e) {
+    if (!validateVoucher()) {
+        e.preventDefault();
+        voucherAmount && voucherAmount.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return false;
+    }
+});
+updateVehicleInfo();
+updateVoucherPreview();
 </script>
 JS;
 require_once __DIR__ . '/../includes/footer.php';

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/settings_helpers.php';
 $pdo = db();
 
 $id = (int) ($_GET['id'] ?? 0);
@@ -26,6 +27,8 @@ $success = getFlash('success');
 $error = getFlash('error');
 
 $now = new DateTime();
+$leadSourcesMap = lead_sources_get_map($pdo);
+$sourceLabel = $leadSourcesMap[$lead['source']] ?? lead_source_guess_label((string) $lead['source']);
 $statusColors = [
     'new' => 'bg-sky-500/10 text-sky-400 border border-sky-500/30',
     'contacted' => 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30',
@@ -97,7 +100,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <?= ucfirst(str_replace('_', ' ', $lead['inquiry_type'])) ?>
                     </span>
                     <span>📌
-                        <?= ucfirst(str_replace('_', ' ', $lead['source'])) ?>
+                        <?= e($sourceLabel) ?>
                     </span>
                     <?php if ($lead['vehicle_interest']): ?><span>🚗
                             <?= e($lead['vehicle_interest']) ?>

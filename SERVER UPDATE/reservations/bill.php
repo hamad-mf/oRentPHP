@@ -27,21 +27,27 @@ $start = strtotime($r['start_date']);
 $end = strtotime($r['end_date']);
 $days = max(1, (int) ceil(($end - $start) / 86400));
 $basePrice = (float) $r['total_price'];
+$voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
+$baseCollectedAtDelivery = max(0, $basePrice - $voucherApplied);
+$returnVoucherApplied = max(0, (float) ($r['return_voucher_applied'] ?? 0));
 $overdueAmt = (float) $r['overdue_amount'];
 $kmOverageChg = (float) ($r['km_overage_charge'] ?? 0);
 $damageChg = (float) ($r['damage_charge'] ?? 0);
 $discType = $r['discount_type'] ?? null;
 $discVal = (float) ($r['discount_value'] ?? 0);
+$earlyVoucherCredit = max(0, (float) ($r['voucher_credit_issued'] ?? ($r['early_return_credit'] ?? 0)));
 
-// Recalculate discount amount
-$baseForDiscount = $basePrice + $overdueAmt + $kmOverageChg + $damageChg;
+// Recalculate totals: base rental is collected at delivery, return collects only extra charges
+$returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg;
 $discountAmt = 0;
 if ($discType === 'percent') {
-    $discountAmt = round($baseForDiscount * min($discVal, 100) / 100, 2);
+    $discountAmt = round($returnChargesBeforeDiscount * min($discVal, 100) / 100, 2);
 } elseif ($discType === 'amount') {
-    $discountAmt = min($discVal, $baseForDiscount);
+    $discountAmt = min($discVal, $returnChargesBeforeDiscount);
 }
-$grandTotal = $baseForDiscount - $discountAmt;
+$amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
+$cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
+$totalCollected = $baseCollectedAtDelivery + $cashDueAtReturn;
 
 // Format datetime helper
 function fdt(?string $dt): string
@@ -637,6 +643,7 @@ function fdt(?string $dt): string
                 <tbody>
                     <tr>
                         <td>
+                            Base Collected at Delivery:
                             <?= e($r['brand']) ?>
                             <?= e($r['model']) ?> ×
                             <?= $days ?> day
@@ -644,9 +651,15 @@ function fdt(?string $dt): string
                             <?= number_format($r['daily_rate'], 2) ?>/day
                         </td>
                         <td class="val">$
-                            <?= number_format($basePrice, 2) ?>
+                            <?= number_format($baseCollectedAtDelivery, 2) ?>
                         </td>
                     </tr>
+                    <?php if ($voucherApplied > 0): ?>
+                        <tr style="color:#16a34a">
+                            <td>Voucher Used on Booking</td>
+                            <td class="val">-$<?= number_format($voucherApplied, 2) ?></td>
+                        </tr>
+                    <?php endif; ?>
                     <?php if ($overdueAmt > 0): ?>
                         <tr class="overdue-row">
                             <td>⚠ Overdue Charges</td>
@@ -671,16 +684,32 @@ function fdt(?string $dt): string
                     <?php endif; ?>
                     <?php if ($discountAmt > 0): ?>
                         <tr style="color:#16a34a">
-                            <td>🎫 Discount<?= $discType === 'percent' ? ' (' . $discVal . '%)' : '' ?></td>
+                            <td>🎫 Return Discount<?= $discType === 'percent' ? ' (' . $discVal . '%)' : '' ?></td>
                             <td class="val">-$<?= number_format($discountAmt, 2) ?></td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php if ($returnVoucherApplied > 0): ?>
+                        <tr style="color:#10b981">
+                            <td>Voucher Applied on Return</td>
+                            <td class="val">-$<?= number_format($returnVoucherApplied, 2) ?></td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php if ($earlyVoucherCredit > 0): ?>
+                        <tr style="color:#10b981">
+                            <td>Early Return Voucher Credit (for next booking)</td>
+                            <td class="val">+$<?= number_format($earlyVoucherCredit, 2) ?></td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
                 <tfoot>
                     <tr class="total-row">
-                        <td>Grand Total</td>
+                        <td>Amount Due at Return</td>
+                        <td class="val">$<?= number_format($cashDueAtReturn, 2) ?></td>
+                    </tr>
+                    <tr class="total-row" style="background:#f8fafc;color:#1e293b">
+                        <td>Total Collected for This Rental</td>
                         <td class="val">$
-                            <?= number_format($grandTotal, 2) ?>
+                            <?= number_format($totalCollected, 2) ?>
                         </td>
                     </tr>
                 </tfoot>

@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/settings_helpers.php';
 $pdo = db();
+$leadSourcesMap = lead_sources_get_map($pdo);
 
 // Fetch all leads grouped by status
 $stages = ['new', 'contacted', 'interested', 'negotiation', 'closed_won', 'closed_lost'];
@@ -108,6 +110,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php foreach ($cards as $l):
                         $moveOptions = $stageTransitions[$stage] ?? [];
                         $isMovable = !empty($moveOptions);
+                        $sourceLabel = $leadSourcesMap[$l['source']] ?? lead_source_guess_label((string) $l['source']);
                         ?>
                         <div id="lead-card-<?= (int) $l['id'] ?>" data-lead-id="<?= (int) $l['id'] ?>"
                             data-current-stage="<?= e($stage) ?>" draggable="<?= $isMovable ? 'true' : 'false' ?>"
@@ -132,7 +135,7 @@ require_once __DIR__ . '/../includes/header.php';
                                     <?= str_replace('_', ' ', $l['inquiry_type']) ?>
                                 </span>
                                 <span class="text-[10px] bg-mb-surface/80 text-mb-silver px-2 py-0.5 rounded-full capitalize">
-                                    <?= str_replace('_', ' ', $l['source']) ?>
+                                    <?= e($sourceLabel) ?>
                                 </span>
                                 <?php if ($l['vehicle_interest']): ?>
                                     <span class="text-[10px] bg-mb-accent/10 text-mb-accent px-2 py-0.5 rounded-full">

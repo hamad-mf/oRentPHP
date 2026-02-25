@@ -11,6 +11,9 @@ if (!$r || !in_array($r['status'], ['pending', 'confirmed'])) {
     redirect('index.php');
 }
 
+$voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
+$baseCollectNow = max(0, (float) $r['total_price'] - $voucherApplied);
+
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fuel = (int) ($_POST['fuel_level'] ?? 100);
@@ -49,7 +52,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->prepare("UPDATE reservations SET status='active', km_limit=?, extra_km_price=? WHERE id=?")
             ->execute([$kmLimit, $extraKmPrice, $id]);
         $pdo->prepare("UPDATE vehicles SET status='rented' WHERE id=?")->execute([$r['vehicle_id']]);
-        flash('success', 'Vehicle delivered. Reservation is now active.');
+        $msg = 'Vehicle delivered. Amount collected at delivery: $' . number_format($baseCollectNow, 2) . '.';
+        if ($voucherApplied > 0) {
+            $msg .= ' Voucher used: $' . number_format($voucherApplied, 2) . '.';
+        }
+        $msg .= ' Reservation is now active.';
+        flash('success', $msg);
         redirect("show.php?id=$id");
     }
 }
@@ -90,6 +98,27 @@ require_once __DIR__ . '/../includes/header.php';
                 <p class="text-white font-light"><?= date('d M y, h:i A', strtotime($r['start_date'])) ?></p>
                 <p class="text-mb-silver text-sm">→ <?= date('d M y, h:i A', strtotime($r['end_date'])) ?></p>
             </div>
+        </div>
+
+        <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+            <p class="text-xs uppercase tracking-wider text-green-400 mb-1">Charge At Delivery</p>
+            <div class="space-y-1 text-sm">
+                <div class="flex justify-between text-mb-silver">
+                    <span>Base Rental Value</span>
+                    <span>$<?= number_format((float) $r['total_price'], 2) ?></span>
+                </div>
+                <?php if ($voucherApplied > 0): ?>
+                    <div class="flex justify-between text-green-400">
+                        <span>Voucher Applied</span>
+                        <span>-$<?= number_format($voucherApplied, 2) ?></span>
+                    </div>
+                <?php endif; ?>
+                <div class="flex justify-between text-white font-semibold pt-1 border-t border-green-500/20">
+                    <span>Collect Now</span>
+                    <span>$<?= number_format($baseCollectNow, 2) ?></span>
+                </div>
+            </div>
+            <p class="text-xs text-mb-subtle mt-1">At return, only extra charges (late, KM overage, damage, etc.) will be calculated.</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -151,11 +180,22 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="space-y-4">
                 <h3 class="text-white text-lg font-light border-l-2 border-mb-accent pl-3">Vehicle Condition Photos</h3>
                 <p class="text-xs text-mb-subtle">Upload clear photos for each area.</p>
-                <?php foreach (['Front', 'Back', 'Left', 'Right', 'Interior'] as $area): ?>
+                <?php
+                $photoViews = [
+                    'front' => 'Front',
+                    'back' => 'Back',
+                    'left' => 'Left',
+                    'right' => 'Right',
+                    'interior' => 'Interior',
+                    'odometer' => 'Photo of Odometer',
+                    'with_customer' => 'Photo with Customer',
+                ];
+                foreach ($photoViews as $areaKey => $areaLabel):
+                    ?>
                     <div
                         class="bg-mb-black/30 p-4 rounded-lg border border-mb-subtle/10 hover:border-mb-accent/30 transition-colors">
-                        <label class="block text-sm font-medium text-mb-silver mb-2"><?= $area ?> View</label>
-                        <input type="file" name="photos[<?= strtolower($area) ?>]" accept="image/*" class="block w-full text-sm text-mb-silver
+                        <label class="block text-sm font-medium text-mb-silver mb-2"><?= $areaLabel ?> View</label>
+                        <input type="file" name="photos[<?= $areaKey ?>]" accept="image/*" class="block w-full text-sm text-mb-silver
                                    file:mr-4 file:py-2 file:px-4
                                    file:rounded-full file:border-0
                                    file:text-xs file:font-semibold
@@ -184,10 +224,10 @@ require_once __DIR__ . '/../includes/header.php';
 <?php
 $extraScripts = '<script>
 const slider = document.getElementById("fuelSlider");
-const valEl  = document.getElementById("fuelVal");
+const valEl  = document.getElementById("fuel-val");
 const barEl  = document.getElementById("fuelBar");
 function updateFuel(v) {
-    valEl.textContent = v;
+    valEl.textContent = v + "%";
     barEl.style.width = v + "%";
     barEl.className = "h-2 rounded-full " + (v>=75?"bg-green-500":v>=50?"bg-yellow-400":v>=25?"bg-orange-400":"bg-red-500");
 }

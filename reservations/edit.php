@@ -49,6 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $totalPrice = (float) ($_POST['total_price'] ?? 0);
 
+    if ($totalPrice <= 0)
+        $errors['total_price'] = 'Total price must be greater than 0.';
     if (!$clientId)
         $errors['client_id'] = 'Please select a client.';
     if (!$vehicleId)
@@ -268,8 +270,11 @@ require_once __DIR__ . '/../includes/header.php';
             <div>
                 <label class="block text-sm text-mb-silver mb-2">Total Price (USD)</label>
                 <input type="number" name="total_price" id="totalPrice" value="<?= e($r['total_price']) ?>" step="0.01"
-                    min="0" required
+                    min="0.01" required
                     class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent text-sm">
+                <?php if (isset($errors['total_price'])): ?>
+                    <p class="text-red-400 text-xs mt-1"><?= e($errors['total_price']) ?></p>
+                <?php endif; ?>
             </div>
         </div>
         <div class="flex items-center justify-end gap-4">

@@ -297,8 +297,7 @@ $_notifs = notif_all($pdo);
             echo navLink("{$root}challans/index.php", 'Challans', $icons['challans'], $currentDir === 'challans');
             echo navLink("{$root}staff/index.php", 'Staff', $icons['staff'], $currentDir === 'staff');
             */
-            echo navLink("{$root}settings/general.php", 'General Settings', $icons['settings'], $currentPage === 'general.php' && $currentDir === 'settings');
-            echo navLink("{$root}settings/damage_costs.php", 'Damage Costs', $icons['settings'], $currentPage === 'damage_costs.php' && $currentDir === 'settings');
+            echo navLink("{$root}settings/general.php", 'Settings', $icons['settings'], $currentDir === 'settings');
             ?>
         </nav>
 

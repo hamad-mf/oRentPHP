@@ -17,6 +17,7 @@ ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS rate_30day DECIMAL(10,2) DEFAULT N
 -- 1.3 Add missing columns to clients
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS is_blacklisted TINYINT(1) NOT NULL DEFAULT 0;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS blacklist_reason TEXT DEFAULT NULL;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS voucher_balance DECIMAL(10,2) NOT NULL DEFAULT 0.00;
 
 -- 2. Ensure start/end dates support time (DATETIME)
 ALTER TABLE reservations MODIFY COLUMN start_date DATETIME NOT NULL;
@@ -31,6 +32,10 @@ ALTER TABLE reservations ADD COLUMN IF NOT EXISTS km_overage_charge DECIMAL(10,2
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS damage_charge DECIMAL(10,2) DEFAULT 0.00;
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS discount_type ENUM('percent','amount') DEFAULT NULL;
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS discount_value DECIMAL(10,2) DEFAULT 0.00;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS voucher_applied DECIMAL(10,2) NOT NULL DEFAULT 0.00;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS return_voucher_applied DECIMAL(10,2) NOT NULL DEFAULT 0.00;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS early_return_credit DECIMAL(10,2) NOT NULL DEFAULT 0.00;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS voucher_credit_issued DECIMAL(10,2) NOT NULL DEFAULT 0.00;
 
 -- 4. Create inspection_photos table (photo proofs for delivery & return)
 CREATE TABLE IF NOT EXISTS inspection_photos (
@@ -50,6 +55,23 @@ CREATE TABLE IF NOT EXISTS system_settings (
 ) ENGINE=InnoDB;
 
 INSERT IGNORE INTO system_settings (`key`, `value`) VALUES ('late_return_rate_per_hour', '0');
+INSERT IGNORE INTO system_settings (`key`, `value`) VALUES
+('lead_sources', '[{"value":"walk_in","label":"Walk-in"},{"value":"phone","label":"Phone Call"},{"value":"whatsapp","label":"WhatsApp"},{"value":"instagram","label":"Instagram"},{"value":"referral","label":"Referral"},{"value":"website","label":"Website"},{"value":"other","label":"Other"}]');
+
+-- 5.1 Allow configurable lead sources (if CRM leads table already exists)
+SET @has_leads := (
+    SELECT COUNT(*)
+    FROM information_schema.tables
+    WHERE table_schema = DATABASE() AND table_name = 'leads'
+);
+SET @sql := IF(
+    @has_leads > 0,
+    'ALTER TABLE leads MODIFY COLUMN source VARCHAR(100) NOT NULL DEFAULT ''phone''',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- 6. Create damage_costs table (for predefined damage charge items)
 CREATE TABLE IF NOT EXISTS damage_costs (
@@ -57,6 +79,20 @@ CREATE TABLE IF NOT EXISTS damage_costs (
     item_name VARCHAR(255) NOT NULL,
     cost DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- 7. Client voucher transactions
+CREATE TABLE IF NOT EXISTS client_voucher_transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    client_id INT NOT NULL,
+    reservation_id INT DEFAULT NULL,
+    type ENUM('credit','debit') NOT NULL,
+    amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    note VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_client_created (client_id, created_at),
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    FOREIGN KEY (reservation_id) REFERENCES reservations(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- All done! ✅
