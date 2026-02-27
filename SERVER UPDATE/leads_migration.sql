@@ -9,7 +9,7 @@
         inquiry_type ENUM('daily','weekly','monthly','other') DEFAULT 'daily',
         vehicle_interest VARCHAR(255) DEFAULT NULL,
         source VARCHAR(100) NOT NULL DEFAULT 'phone',
-        status ENUM('new','contacted','interested','negotiation','closed_won','closed_lost') DEFAULT 'new',
+        status ENUM('new','contacted','interested','future','closed_won','closed_lost') DEFAULT 'new',
         lost_reason TEXT DEFAULT NULL,
         assigned_to VARCHAR(100) DEFAULT NULL,
         notes TEXT DEFAULT NULL,
@@ -22,6 +22,11 @@
 
     ALTER TABLE leads
         MODIFY COLUMN source VARCHAR(100) NOT NULL DEFAULT 'phone';
+
+    -- Normalize legacy "negotiation" stage into "interested" and remove old enum value
+    UPDATE leads SET status='interested' WHERE status='negotiation';
+    ALTER TABLE leads
+        MODIFY COLUMN status ENUM('new','contacted','interested','future','closed_won','closed_lost') DEFAULT 'new';
 
     CREATE TABLE IF NOT EXISTS lead_followups (
         id INT AUTO_INCREMENT PRIMARY KEY,

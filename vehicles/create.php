@@ -1,5 +1,9 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+if (!auth_has_perm('add_vehicles')) {
+    flash('error', 'You do not have permission to add vehicles.');
+    redirect('index.php');
+}
 
 $errors = [];
 $old = [];

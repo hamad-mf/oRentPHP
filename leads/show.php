@@ -29,11 +29,19 @@ $error = getFlash('error');
 $now = new DateTime();
 $leadSourcesMap = lead_sources_get_map($pdo);
 $sourceLabel = $leadSourcesMap[$lead['source']] ?? lead_source_guess_label((string) $lead['source']);
+$statusLabels = [
+    'new' => 'New',
+    'contacted' => 'Contacted',
+    'interested' => 'Interested',
+    'future' => 'Book Later',
+    'closed_won' => 'Closed Won',
+    'closed_lost' => 'Closed Lost',
+];
 $statusColors = [
     'new' => 'bg-sky-500/10 text-sky-400 border border-sky-500/30',
     'contacted' => 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30',
     'interested' => 'bg-purple-500/10 text-purple-400 border border-purple-500/30',
-    'negotiation' => 'bg-orange-500/10 text-orange-400 border border-orange-500/30',
+    'future' => 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/30',
     'closed_won' => 'bg-green-500/10 text-green-400 border border-green-500/30',
     'closed_lost' => 'bg-red-500/10 text-red-400/60 border border-red-500/20',
 ];
@@ -85,7 +93,7 @@ require_once __DIR__ . '/../includes/header.php';
                     </h2>
                     <span
                         class="px-2.5 py-1 rounded-full text-xs capitalize <?= $statusColors[$lead['status']] ?? '' ?>">
-                        <?= str_replace('_', ' ', $lead['status']) ?>
+                        <?= e($statusLabels[$lead['status']] ?? str_replace('_', ' ', $lead['status'])) ?>
                     </span>
                 </div>
                 <div class="flex flex-wrap gap-5 mt-3 text-sm text-mb-silver">

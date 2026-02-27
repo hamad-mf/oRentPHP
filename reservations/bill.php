@@ -28,17 +28,19 @@ $end = strtotime($r['end_date']);
 $days = max(1, (int) ceil(($end - $start) / 86400));
 $basePrice = (float) $r['total_price'];
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
-$baseCollectedAtDelivery = max(0, $basePrice - $voucherApplied);
+$deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
+$baseCollectedAtDelivery = max(0, $basePrice - $voucherApplied) + $deliveryCharge;
 $returnVoucherApplied = max(0, (float) ($r['return_voucher_applied'] ?? 0));
 $overdueAmt = (float) $r['overdue_amount'];
 $kmOverageChg = (float) ($r['km_overage_charge'] ?? 0);
 $damageChg = (float) ($r['damage_charge'] ?? 0);
+$additionalChg = (float) ($r['additional_charge'] ?? 0);
 $discType = $r['discount_type'] ?? null;
 $discVal = (float) ($r['discount_value'] ?? 0);
 $earlyVoucherCredit = max(0, (float) ($r['voucher_credit_issued'] ?? ($r['early_return_credit'] ?? 0)));
 
 // Recalculate totals: base rental is collected at delivery, return collects only extra charges
-$returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg;
+$returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg + $additionalChg;
 $discountAmt = 0;
 if ($discType === 'percent') {
     $discountAmt = round($returnChargesBeforeDiscount * min($discVal, 100) / 100, 2);
@@ -643,7 +645,7 @@ function fdt(?string $dt): string
                 <tbody>
                     <tr>
                         <td>
-                            Base Collected at Delivery:
+                            Base Collected at Delivery<?= $deliveryCharge > 0 ? ' (incl. delivery charge)' : '' ?>:
                             <?= e($r['brand']) ?>
                             <?= e($r['model']) ?> ×
                             <?= $days ?> day
@@ -680,6 +682,12 @@ function fdt(?string $dt): string
                         <tr style="color:#ea580c">
                             <td>🔧 Damage Charges</td>
                             <td class="val">+$<?= number_format($damageChg, 2) ?></td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php if ($additionalChg > 0): ?>
+                        <tr style="color:#c2410c">
+                            <td>Additional Charge</td>
+                            <td class="val">+$<?= number_format($additionalChg, 2) ?></td>
                         </tr>
                     <?php endif; ?>
                     <?php if ($discountAmt > 0): ?>

@@ -1,18 +1,48 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+if (!auth_has_perm('do_delivery')) {
+    flash('error', 'You do not have permission to deliver vehicles.');
+    redirect('index.php');
+}
+require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
+reservation_payment_ensure_schema($pdo);
 
 $rStmt = $pdo->prepare('SELECT r.*, c.name AS client_name, v.brand, v.model, v.license_plate FROM reservations r JOIN clients c ON r.client_id=c.id JOIN vehicles v ON r.vehicle_id=v.id WHERE r.id=?');
 $rStmt->execute([$id]);
 $r = $rStmt->fetch();
-if (!$r || !in_array($r['status'], ['pending', 'confirmed'])) {
-    flash('error', 'This reservation cannot be delivered in its current state.');
+if (!$r || $r['status'] !== 'confirmed') {
+    flash('error', 'Only confirmed reservations can be delivered. Please confirm the reservation first.');
     redirect('index.php');
 }
 
+// Deposit Migration/Schema Check
+try {
+    $hasDepositCol = (int) $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'reservations' AND COLUMN_NAME = 'deposit_amount'")->fetchColumn();
+    if ($hasDepositCol === 0) {
+        $pdo->exec("ALTER TABLE reservations ADD COLUMN deposit_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+        $pdo->exec("ALTER TABLE reservations ADD COLUMN deposit_returned DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+    }
+    $hasDeliveryChargeCol = (int) $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'reservations' AND COLUMN_NAME = 'delivery_charge'")->fetchColumn();
+    if ($hasDeliveryChargeCol === 0) {
+        $pdo->exec("ALTER TABLE reservations ADD COLUMN delivery_charge DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+    }
+} catch (Throwable $e) {
+}
+
+require_once __DIR__ . '/../includes/settings_helpers.php';
+settings_ensure_table($pdo);
+$depositPct = (float) settings_get($pdo, 'deposit_percentage', '0');
+$deliveryChargeDefault = (float) settings_get($pdo, 'delivery_charge_default', '0');
+
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $baseCollectNow = max(0, (float) $r['total_price'] - $voucherApplied);
+$existingDeliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
+$deliveryCharge = max(0, (float) ($_POST['delivery_charge'] ?? ($existingDeliveryCharge > 0 ? $existingDeliveryCharge : $deliveryChargeDefault)));
+$deliveryPaymentMethod = reservation_payment_method_normalize($_POST['delivery_payment_method'] ?? ($r['delivery_payment_method'] ?? 'cash')) ?? 'cash';
+$collectNowAtDelivery = max(0, $baseCollectNow + $deliveryCharge);
+$suggestedDeposit = round($collectNowAtDelivery * ($depositPct / 100), 2);
 
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -21,6 +51,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $notes = trim($_POST['notes'] ?? '');
     $kmLimit = $_POST['km_limit'] !== '' ? (int) $_POST['km_limit'] : null;
     $extraKmPrice = $_POST['extra_km_price'] !== '' ? (float) $_POST['extra_km_price'] : null;
+    $depositAmt = max(0, (float) ($_POST['deposit_amount'] ?? 0));
+    $deliveryCharge = (float) ($_POST['delivery_charge'] ?? $deliveryCharge);
+    $deliveryPaymentMethod = reservation_payment_method_normalize($_POST['delivery_payment_method'] ?? null);
+    if ($deliveryCharge < 0) {
+        $errors['delivery_charge'] = 'Delivery charge cannot be negative.';
+    }
+    $deliveryCharge = max(0, $deliveryCharge);
+    $collectNowAtDelivery = max(0, $baseCollectNow + $deliveryCharge);
+    if ($collectNowAtDelivery > 0 && $deliveryPaymentMethod === null) {
+        $errors['delivery_payment_method'] = 'Please select how this delivery payment was received.';
+    }
 
     if ($fuel < 0 || $fuel > 100)
         $errors['fuel_level'] = 'Fuel level must be 0–100.';
@@ -49,15 +90,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $pdo->prepare("UPDATE reservations SET status='active', km_limit=?, extra_km_price=? WHERE id=?")
-            ->execute([$kmLimit, $extraKmPrice, $id]);
+        $deliveryPaymentMethodSave = $collectNowAtDelivery > 0 ? $deliveryPaymentMethod : null;
+        $pdo->prepare("UPDATE reservations SET status='active', km_limit=?, extra_km_price=?, deposit_amount=?, delivery_charge=?, delivery_payment_method=?, delivery_paid_amount=? WHERE id=?")
+            ->execute([$kmLimit, $extraKmPrice, $depositAmt, $deliveryCharge, $deliveryPaymentMethodSave, $collectNowAtDelivery, $id]);
         $pdo->prepare("UPDATE vehicles SET status='rented' WHERE id=?")->execute([$r['vehicle_id']]);
-        $msg = 'Vehicle delivered. Amount collected at delivery: $' . number_format($baseCollectNow, 2) . '.';
+        $msg = 'Vehicle delivered. Amount collected at delivery: $' . number_format($collectNowAtDelivery, 2) . '.';
+        if ($collectNowAtDelivery > 0) {
+            $msg .= ' Method: ' . reservation_payment_method_label($deliveryPaymentMethodSave) . '.';
+        }
         if ($voucherApplied > 0) {
             $msg .= ' Voucher used: $' . number_format($voucherApplied, 2) . '.';
         }
+        if ($deliveryCharge > 0) {
+            $msg .= ' Delivery charge: $' . number_format($deliveryCharge, 2) . '.';
+        }
         $msg .= ' Reservation is now active.';
         flash('success', $msg);
+        // Log staff activity
+        require_once __DIR__ . '/../includes/activity_log.php';
+        log_activity(
+            db(),
+            'delivery',
+            'reservation',
+            $id,
+            "Delivered reservation #{$id} — {$r['client_name']} → {$r['brand']} {$r['model']} ({$r['license_plate']}). Collected: \$" . number_format($collectNowAtDelivery, 2) . "."
+        );
         redirect("show.php?id=$id");
     }
 }
@@ -102,7 +159,7 @@ require_once __DIR__ . '/../includes/header.php';
 
         <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
             <p class="text-xs uppercase tracking-wider text-green-400 mb-1">Charge At Delivery</p>
-            <div class="space-y-1 text-sm">
+            <div class="space-y-2 text-sm">
                 <div class="flex justify-between text-mb-silver">
                     <span>Base Rental Value</span>
                     <span>$<?= number_format((float) $r['total_price'], 2) ?></span>
@@ -113,12 +170,42 @@ require_once __DIR__ . '/../includes/header.php';
                         <span>-$<?= number_format($voucherApplied, 2) ?></span>
                     </div>
                 <?php endif; ?>
+                <div class="flex items-center justify-between text-mb-silver gap-3">
+                    <span>Delivery Charge</span>
+                    <div class="relative w-44">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-mb-subtle text-xs">$</span>
+                        <input type="number" name="delivery_charge" id="deliveryChargeInput" step="0.01" min="0"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-7 pr-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm"
+                            placeholder="0.00"
+                            value="<?= e($_POST['delivery_charge'] ?? number_format($deliveryCharge, 2, '.', '')) ?>">
+                    </div>
+                </div>
+                <div class="flex items-center justify-between text-mb-silver gap-3">
+                    <span>Payment Method</span>
+                    <div class="w-44">
+                        <select name="delivery_payment_method" id="deliveryPaymentMethod"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
+                            <option value="cash" <?= $deliveryPaymentMethod === 'cash' ? 'selected' : '' ?>>Cash</option>
+                            <option value="account" <?= $deliveryPaymentMethod === 'account' ? 'selected' : '' ?>>Account
+                            </option>
+                            <option value="credit" <?= $deliveryPaymentMethod === 'credit' ? 'selected' : '' ?>>Credit
+                            </option>
+                        </select>
+                    </div>
+                </div>
                 <div class="flex justify-between text-white font-semibold pt-1 border-t border-green-500/20">
                     <span>Collect Now</span>
-                    <span>$<?= number_format($baseCollectNow, 2) ?></span>
+                    <span id="collectNowValue">$<?= number_format($collectNowAtDelivery, 2) ?></span>
                 </div>
             </div>
-            <p class="text-xs text-mb-subtle mt-1">At return, only extra charges (late, KM overage, damage, etc.) will be calculated.</p>
+            <?php if (isset($errors['delivery_charge'])): ?>
+                <p class="text-red-400 text-xs mt-2"><?= e($errors['delivery_charge']) ?></p>
+            <?php endif; ?>
+            <?php if (isset($errors['delivery_payment_method'])): ?>
+                <p class="text-red-400 text-xs mt-2"><?= e($errors['delivery_payment_method']) ?></p>
+            <?php endif; ?>
+            <p class="text-xs text-mb-subtle mt-1">At return, only extra charges (late, KM overage, damage, etc.) will
+                be calculated.</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -147,6 +234,27 @@ require_once __DIR__ . '/../includes/header.php';
                             style="width:<?= e($_POST['fuel_level'] ?? 100) ?>%"></div>
                     </div>
                 </div>
+
+                <!-- Deposit Section -->
+                <div class="pt-4 border-t border-mb-subtle/10 space-y-4">
+                    <h3 class="text-white font-light border-l-2 border-mb-accent pl-3">Delivery Deposit</h3>
+                    <p class="text-xs text-mb-subtle">Enter the security deposit amount collected from the client.</p>
+                    <div>
+                        <label class="block text-sm text-mb-silver mb-2">Delivery Deposit Collected ($)</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
+                            <input type="number" name="deposit_amount" id="depositAmount" step="0.01" min="0" required
+                                class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm"
+                                placeholder="0.00" value="<?= e($_POST['deposit_amount'] ?? $suggestedDeposit) ?>">
+                        </div>
+                        <?php if ($depositPct > 0): ?>
+                            <p class="text-xs text-mb-accent/60 mt-1" id="depositSuggestionText">Suggested rate:
+                                <?= $depositPct ?>% of delivery
+                                collection ($<?= number_format($collectNowAtDelivery, 2) ?>)</p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
                 <div>
                     <label for="notes" class="block text-sm font-medium text-mb-silver mb-2">Inspection Notes</label>
                     <textarea name="notes" id="notes" rows="4"
@@ -222,17 +330,44 @@ require_once __DIR__ . '/../includes/header.php';
     </form>
 </div>
 <?php
-$extraScripts = '<script>
+$extraScripts = <<<JS
+<script>
 const slider = document.getElementById("fuelSlider");
-const valEl  = document.getElementById("fuel-val");
-const barEl  = document.getElementById("fuelBar");
+const valEl = document.getElementById("fuel-val");
+const barEl = document.getElementById("fuelBar");
+const deliveryChargeInput = document.getElementById("deliveryChargeInput");
+const collectNowValue = document.getElementById("collectNowValue");
+const depositSuggestionText = document.getElementById("depositSuggestionText");
+const BASE_COLLECT_NOW = {$baseCollectNow};
+const DEPOSIT_PCT = {$depositPct};
+
 function updateFuel(v) {
     valEl.textContent = v + "%";
     barEl.style.width = v + "%";
-    barEl.className = "h-2 rounded-full " + (v>=75?"bg-green-500":v>=50?"bg-yellow-400":v>=25?"bg-orange-400":"bg-red-500");
+    barEl.className = "h-2 rounded-full " + (v >= 75 ? "bg-green-500" : v >= 50 ? "bg-yellow-400" : v >= 25 ? "bg-orange-400" : "bg-red-500");
 }
+
+function updateDeliveryCollectNow() {
+    if (!deliveryChargeInput || !collectNowValue) return;
+    let deliveryCharge = parseFloat(deliveryChargeInput.value || "0");
+    if (!isFinite(deliveryCharge) || deliveryCharge < 0) {
+        deliveryCharge = 0;
+    }
+    const collectNow = BASE_COLLECT_NOW + deliveryCharge;
+    collectNowValue.textContent = "$" + collectNow.toFixed(2);
+    if (depositSuggestionText && DEPOSIT_PCT > 0) {
+        depositSuggestionText.textContent = "Suggested rate: " + DEPOSIT_PCT + "% of delivery collection ($" + collectNow.toFixed(2) + ")";
+    }
+}
+
 slider.addEventListener("input", () => updateFuel(slider.value));
+if (deliveryChargeInput) {
+    deliveryChargeInput.addEventListener("input", updateDeliveryCollectNow);
+    deliveryChargeInput.addEventListener("change", updateDeliveryCollectNow);
+}
 updateFuel(slider.value);
-</script>';
+updateDeliveryCollectNow();
+</script>
+JS;
 require_once __DIR__ . '/../includes/footer.php';
 ?>

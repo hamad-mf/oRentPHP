@@ -154,13 +154,15 @@ require_once __DIR__ . '/../includes/header.php';
                     class="text-mb-subtle hover:text-white text-sm transition-colors">Clear</a>
             <?php endif; ?>
         </form>
-        <a href="create.php"
-            class="bg-mb-accent text-white px-6 py-2 rounded-full hover:bg-mb-accent/80 transition-colors flex items-center gap-2 text-sm font-medium flex-shrink-0">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
-            </svg>
-            New Reservation
-        </a>
+        <?php if (auth_has_perm('add_reservations')): ?>
+            <a href="create.php"
+                class="bg-mb-accent text-white px-6 py-2 rounded-full hover:bg-mb-accent/80 transition-colors flex items-center gap-2 text-sm font-medium flex-shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
+                </svg>
+                New Reservation
+            </a>
+        <?php endif; ?>
     </div>
 
     <!-- Table -->
@@ -225,15 +227,17 @@ require_once __DIR__ . '/../includes/header.php';
                                     <?php
                                     $basePrice = (float) $r['total_price'];
                                     $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
-                                    $baseCollectedAtDelivery = max(0, $basePrice - $voucherApplied);
+                                    $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
+                                    $baseCollectedAtDelivery = max(0, $basePrice - $voucherApplied) + $deliveryCharge;
                                     $returnVoucherApplied = max(0, (float) ($r['return_voucher_applied'] ?? 0));
                                     $overdueAmt = (float) $r['overdue_amount'];
                                     $kmOverageChg = (float) ($r['km_overage_charge'] ?? 0);
                                     $damageChg = (float) ($r['damage_charge'] ?? 0);
+                                    $additionalChg = (float) ($r['additional_charge'] ?? 0);
                                     $discType = $r['discount_type'] ?? null;
                                     $discVal = (float) ($r['discount_value'] ?? 0);
 
-                                    $returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg;
+                                    $returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg + $additionalChg;
                                     $discountAmt = 0;
                                     if ($discType === 'percent') {
                                         $discountAmt = round($returnChargesBeforeDiscount * min($discVal, 100) / 100, 2);
@@ -263,7 +267,7 @@ require_once __DIR__ . '/../includes/header.php';
                                                     d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                             </svg>
                                         </a>
-                                        <?php if (in_array($r['status'], ['pending', 'confirmed'])): ?>
+                                        <?php if (auth_has_perm('add_reservations') && in_array($r['status'], ['pending', 'confirmed', 'active'])): ?>
                                             <a href="edit.php?id=<?= $r['id'] ?>"
                                                 class="text-mb-subtle hover:text-white transition-colors p-1.5 rounded hover:bg-white/5"
                                                 title="Edit">
@@ -273,17 +277,17 @@ require_once __DIR__ . '/../includes/header.php';
                                                 </svg>
                                             </a>
                                         <?php endif; ?>
-                                        <?php if ($r['status'] === 'confirmed'): ?>
+                                        <?php if (auth_has_perm('do_delivery') && $r['status'] === 'confirmed'): ?>
                                             <a href="deliver.php?id=<?= $r['id'] ?>"
                                                 class="text-green-400 hover:text-white transition-colors p-1.5 rounded hover:bg-green-500/10 text-xs font-medium"
                                                 title="Deliver">▶ Deliver</a>
                                         <?php endif; ?>
-                                        <?php if ($r['status'] === 'active'): ?>
+                                        <?php if (auth_has_perm('do_return') && $r['status'] === 'active'): ?>
                                             <a href="return.php?id=<?= $r['id'] ?>"
                                                 class="text-mb-accent hover:text-white transition-colors p-1.5 rounded hover:bg-mb-accent/10 text-xs font-medium"
                                                 title="Return">⏎ Return</a>
                                         <?php endif; ?>
-                                        <?php if (!in_array($r['status'], ['active', 'completed'])): ?>
+                                        <?php if (auth_has_perm('add_reservations') && !in_array($r['status'], ['active', 'completed'])): ?>
                                             <a href="delete.php?id=<?= $r['id'] ?>"
                                                 onclick="return confirm('Cancel and delete this reservation?')"
                                                 class="text-mb-subtle hover:text-red-400 transition-colors p-1.5 rounded hover:bg-red-500/5"

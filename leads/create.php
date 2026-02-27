@@ -1,10 +1,47 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+if (!auth_has_perm('add_leads')) {
+    flash('error', 'You do not have permission to create leads.');
+    redirect('pipeline.php');
+}
 require_once __DIR__ . '/../includes/settings_helpers.php';
 $pdo = db();
 $errors = [];
 $leadSourcesMap = lead_sources_get_map($pdo);
 $defaultSource = array_key_exists('phone', $leadSourcesMap) ? 'phone' : (array_key_first($leadSourcesMap) ?? 'phone');
+
+// Load staff list for assignment dropdown
+$staffUsers = $pdo->query("SELECT u.id, u.name FROM users u WHERE u.is_active = 1 ORDER BY u.name ASC")->fetchAll();
+
+function lead_status_ensure_pipeline(PDO $pdo): void
+{
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    try {
+        $stmt = $pdo->query("SELECT COLUMN_TYPE
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'leads'
+              AND COLUMN_NAME = 'status'
+            LIMIT 1");
+        $columnType = strtolower((string) $stmt->fetchColumn());
+        if ($columnType !== '') {
+            if (strpos($columnType, "'negotiation'") !== false) {
+                $pdo->exec("UPDATE leads SET status='interested' WHERE status='negotiation'");
+            }
+            if (strpos($columnType, "'future'") === false || strpos($columnType, "'negotiation'") !== false) {
+                $pdo->exec("ALTER TABLE leads MODIFY COLUMN status ENUM('new','contacted','interested','future','closed_won','closed_lost') DEFAULT 'new'");
+            }
+        }
+    } catch (Throwable $e) {
+    }
+}
+
+lead_status_ensure_pipeline($pdo);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
@@ -13,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $inquiry = $_POST['inquiry_type'] ?? 'daily';
     $vehicle = trim($_POST['vehicle_interest'] ?? '');
     $source = $_POST['source'] ?? $defaultSource;
-    $assigned = trim($_POST['assigned_to'] ?? '');
+    $assignedStaffId = (int) ($_POST['assigned_staff_id'] ?? 0) ?: null;
     $status = $_POST['status'] ?? 'new';
     $notes = trim($_POST['notes'] ?? '');
 
@@ -21,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($status === 'uncontacted') {
         $status = 'new';
     }
-    $allowedInitialStatuses = ['new', 'contacted'];
+    $allowedInitialStatuses = ['new', 'contacted', 'future'];
 
     if (!$name)
         $errors['name'] = 'Name is required.';
@@ -35,11 +72,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['status'] = 'Please select a valid initial lead status.';
 
     if (empty($errors)) {
-        $pdo->prepare('INSERT INTO leads (name,phone,email,inquiry_type,vehicle_interest,source,assigned_to,status,notes) VALUES (?,?,?,?,?,?,?,?,?)')
-            ->execute([$name, $phone, $email ?: null, $inquiry, $vehicle ?: null, $source, $assigned ?: null, $status, $notes ?: null]);
-        $newId = $pdo->lastInsertId();
+        // Get assigned staff name for display + legacy field
+        $assignedName = null;
+        if ($assignedStaffId) {
+            $ns = $pdo->prepare("SELECT name FROM users WHERE id = ?");
+            $ns->execute([$assignedStaffId]);
+            $assignedName = $ns->fetchColumn() ?: null;
+        }
+
+        // Try to save with assigned_staff_id (may not exist yet if migration not run)
+        try {
+            $pdo->prepare('INSERT INTO leads (name,phone,email,inquiry_type,vehicle_interest,source,assigned_to,assigned_staff_id,status,notes) VALUES (?,?,?,?,?,?,?,?,?,?)')
+                ->execute([$name, $phone, $email ?: null, $inquiry, $vehicle ?: null, $source, $assignedName ?: null, $assignedStaffId, $status, $notes ?: null]);
+        } catch (Throwable $e) {
+            // Fallback: column may not exist yet
+            $pdo->prepare('INSERT INTO leads (name,phone,email,inquiry_type,vehicle_interest,source,assigned_to,status,notes) VALUES (?,?,?,?,?,?,?,?,?)')
+                ->execute([$name, $phone, $email ?: null, $inquiry, $vehicle ?: null, $source, $assignedName ?: null, $status, $notes ?: null]);
+        }
+        $newId = (int) $pdo->lastInsertId();
         $pdo->prepare('INSERT INTO lead_activities (lead_id, note) VALUES (?,?)')
             ->execute([$newId, 'Lead created with status: ' . str_replace('_', ' ', $status) . '.']);
+
+        // Log staff activity
+        require_once __DIR__ . '/../includes/activity_log.php';
+        log_activity($pdo, 'created_lead', 'lead', $newId, "Created lead \"$name\" ($phone) with status: $status.");
+
         flash('success', "Lead \"$name\" added successfully.");
         redirect("show.php?id=$newId");
     }
@@ -158,8 +215,12 @@ require_once __DIR__ . '/../includes/header.php';
                             class="text-red-400">*</span></label>
                     <select name="status"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
-                        <option value="new" <?= ($_POST['status'] ?? 'new') === 'new' ? 'selected' : '' ?>>New (Uncontacted)</option>
-                        <option value="contacted" <?= ($_POST['status'] ?? '') === 'contacted' ? 'selected' : '' ?>>Contacted</option>
+                        <option value="new" <?= ($_POST['status'] ?? 'new') === 'new' ? 'selected' : '' ?>>New
+                            (Uncontacted)</option>
+                        <option value="contacted" <?= ($_POST['status'] ?? '') === 'contacted' ? 'selected' : '' ?>>
+                            Contacted</option>
+                        <option value="future" <?= ($_POST['status'] ?? '') === 'future' ? 'selected' : '' ?>>Book Later
+                        </option>
                     </select>
                     <?php if ($errors['status'] ?? ''): ?>
                         <p class="text-red-400 text-xs mt-1">
@@ -169,11 +230,17 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
                 <!-- Assigned To -->
                 <div>
-                    <label class="block text-sm text-mb-silver mb-2">Assigned To <span
+                    <label class="block text-sm text-mb-silver mb-2">Assign to Staff <span
                             class="text-mb-subtle text-xs">(optional)</span></label>
-                    <input type="text" name="assigned_to" value="<?= e($_POST['assigned_to'] ?? '') ?>"
-                        placeholder="Staff member name"
+                    <select name="assigned_staff_id"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                        <option value="">— Not assigned —</option>
+                        <?php foreach ($staffUsers as $su): ?>
+                            <option value="<?= $su['id'] ?>" <?= ($_POST['assigned_staff_id'] ?? '') == $su['id'] ? 'selected' : '' ?>>
+                                <?= e($su['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
             </div>
 

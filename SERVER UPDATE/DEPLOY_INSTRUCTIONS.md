@@ -1,45 +1,71 @@
-# 🚀 Server Update Instructions — 2026-02-24
+# 🚀 Deployment Instructions — oRent Production Update
 
-## Step 1: Upload Files
-Upload the following files from this folder to your live server (keeping the same folder structure):
+> **Server:** https://orentin.abrarfuturetech.com  
+> **Prepared:** 2026-02-27
 
-| File | Description |
+---
+
+## Step 1 — Run the Database Migration (FIRST!)
+
+1. Open **phpMyAdmin** on Hostinger
+2. Select your production database
+3. Go to the **SQL** tab
+4. Open the file `full_server_migration.sql` from this folder and paste the entire contents
+5. Click **Go** / Execute
+
+✅ The script is **safe to run multiple times** — it uses `CREATE TABLE IF NOT EXISTS` and checks for column existence before `ALTER TABLE`. It will only add what's missing.
+
+---
+
+## Step 2 — Upload PHP Files
+
+Upload **everything in this folder EXCEPT:**
+- ❌ `config/db.php` — keep the server's existing DB credentials
+- ❌ `*.sql` files — already handled in Step 1
+- ❌ `*.md` files — documentation only
+- ❌ `Archive.zip` — not needed
+
+**What IS new and must be uploaded:**
+| New Directory / File | Purpose |
 |---|---|
-| `includes/header.php` | Side menu updated (hidden items) |
-| `vehicles/show.php` | New booking calendar |
-| `reservations/create.php` | 12h time picker |
-| `reservations/edit.php` | 12h time picker + all rental types |
-| `reservations/index.php` | Accurate grand totals |
-| `reservations/show.php` | Photo gallery + lightbox + correct totals |
-| `reservations/deliver.php` | Photo upload on delivery |
-| `reservations/return.php` | Photo upload on return |
-
-> ⚠️ Do NOT overwrite `config/db.php` — that holds your live server credentials.
+| `auth/login.php` | Login page |
+| `auth/logout.php` | Logout handler |
+| `staff/` (all files) | Staff management module |
+| `settings/staff_permissions.php` | Permissions manager |
+| `vehicles/catalog.php` | Public shareable vehicle catalog |
+| `includes/activity_log.php` | Staff activity logging helper |
+| `includes/reservation_payment_helpers.php` | Payment calculation helpers |
 
 ---
 
-## Step 2: Run the SQL Migration
-1. Open **phpMyAdmin** on your live server
-2. Select your database (e.g. `orent_db`)
-3. Click the **SQL** tab
-4. Paste and run the contents of **`server_migration.sql`**
+## Step 3 — Verify config/db.php on Server
 
-> ✅ The script uses `IF NOT EXISTS` so it's safe to run even if some columns already exist.
+Make sure the server's `config/db.php` has the correct Hostinger DB credentials (do NOT overwrite with local version).
 
 ---
 
-## Step 3: Create the Uploads Folder
-Make sure this directory exists on your server and is writable:
-```
-uploads/inspections/
-```
-In your hosting file manager, create the folder if it doesn't exist and set permissions to **755** or **777**.
+## Step 4 — First Login After Deploy
+
+- Go to: `https://orentin.abrarfuturetech.com/auth/login.php`
+- Default credentials: **admin** / **admin123**
+- ⚠️ **Change the admin password immediately after first login!**
 
 ---
 
-## What's New
-- 📸 **Photo proofs** on delivery & return inspections
-- 💰 **Accurate grand totals** everywhere (late fees + KM overage + damages + discounts)
-- 📅 **Booking calendar** on vehicle details
-- 🕐 **12h time pickers** on all reservation forms
-- 🧭 **Cleaned up side menu** (Staff, GPS, Expenses etc. hidden for now)
+## Step 5 — Test Key Features
+
+- [ ] Login works
+- [ ] Dashboard loads
+- [ ] Leads pipeline with staff/date filters
+- [ ] Vehicle catalog: `https://orentin.abrarfuturetech.com/vehicles/catalog.php`
+- [ ] Share Catalog button on vehicles page
+- [ ] Staff management (create/edit/delete staff)
+- [ ] Staff permissions settable from Settings
+- [ ] Reservations: create, deliver, return (with permission guards)
+
+---
+
+## Notes
+
+- The **catalog share link** auto-detects the server hostname — it will automatically show `https://orentin.abrarfuturetech.com/vehicles/catalog.php` on the live server. No code change needed.
+- The `uploads/` folder should NOT be replaced — it contains existing files on the server.

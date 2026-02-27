@@ -10,6 +10,9 @@ if (settings_get($pdo, 'late_return_rate_per_hour', '') === '') {
 if (settings_get($pdo, 'deposit_percentage', '') === '') {
     settings_set($pdo, 'deposit_percentage', '0');
 }
+if (settings_get($pdo, 'delivery_charge_default', '') === '') {
+    settings_set($pdo, 'delivery_charge_default', '0');
+}
 
 $leadSources = lead_sources_get_map($pdo);
 
@@ -18,19 +21,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     settings_set($pdo, 'late_return_rate_per_hour', (string) $rate);
     $depositPct = min(100, max(0, (float) ($_POST['deposit_percentage'] ?? 0)));
     settings_set($pdo, 'deposit_percentage', (string) $depositPct);
+    $deliveryChargeDefault = max(0, (float) ($_POST['delivery_charge_default'] ?? 0));
+    settings_set($pdo, 'delivery_charge_default', (string) $deliveryChargeDefault);
     flash('success', 'Settings saved successfully.');
     redirect('general.php');
 }
 
 $lateRate = (float) settings_get($pdo, 'late_return_rate_per_hour', '0');
 $depositPct = (float) settings_get($pdo, 'deposit_percentage', '0');
+$deliveryChargeDefault = (float) settings_get($pdo, 'delivery_charge_default', '0');
 
 $pageTitle = 'Settings';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <div class="max-w-4xl mx-auto space-y-6">
-    <div class="flex gap-1 bg-mb-surface border border-mb-subtle/20 p-1 rounded-full w-fit">
+    <div class="flex gap-1 bg-mb-surface border border-mb-subtle/20 p-1 rounded-full w-fit flex-wrap">
         <a href="general.php"
             class="px-6 py-2 rounded-full text-sm font-medium transition-all bg-mb-accent text-white shadow-lg shadow-mb-accent/20">Return
             Charges</a>
@@ -40,6 +46,9 @@ require_once __DIR__ . '/../includes/header.php';
         <a href="lead_sources.php"
             class="px-6 py-2 rounded-full text-sm font-medium transition-all text-mb-silver hover:text-white">Lead
             Sources</a>
+        <a href="staff_permissions.php"
+            class="px-6 py-2 rounded-full text-sm font-medium transition-all text-mb-silver hover:text-white">Staff
+            Permissions</a>
     </div>
 
     <div class="flex items-center gap-3 text-sm text-mb-subtle">
@@ -85,6 +94,24 @@ require_once __DIR__ . '/../includes/header.php';
 
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-5">
             <div>
+                <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Delivery Settings</h3>
+                <p class="text-xs text-mb-subtle mt-2 ml-5">
+                    Configure default delivery charges and suggested deposit behavior for the delivery screen.
+                </p>
+            </div>
+            <div>
+                <label class="block text-sm text-mb-silver mb-2">Default Delivery Charge ($)</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
+                    <input type="number" name="delivery_charge_default"
+                        value="<?= number_format($deliveryChargeDefault, 2) ?>" min="0" step="0.01" required
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm"
+                        placeholder="0.00">
+                </div>
+                <p class="text-xs text-mb-subtle mt-1">Prefilled in delivery screen, and still editable per reservation.
+                </p>
+            </div>
+            <div class="pt-2 border-t border-mb-subtle/10">
                 <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Delivery Deposit</h3>
                 <p class="text-xs text-mb-subtle mt-2 ml-5">
                     Configure a suggested deposit percentage based on the amount collected at delivery.

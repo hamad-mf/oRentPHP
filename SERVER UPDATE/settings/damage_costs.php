@@ -39,7 +39,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 <div class="max-w-4xl mx-auto space-y-6">
     <!-- Navigation Tabs -->
-    <div class="flex gap-1 bg-mb-surface border border-mb-subtle/20 p-1 rounded-full w-fit">
+    <div class="flex gap-1 bg-mb-surface border border-mb-subtle/20 p-1 rounded-full w-fit flex-wrap">
         <a href="general.php"
             class="px-6 py-2 rounded-full text-sm font-medium transition-all text-mb-silver hover:text-white">Return
             Charges</a>
@@ -49,6 +49,9 @@ require_once __DIR__ . '/../includes/header.php';
         <a href="lead_sources.php"
             class="px-6 py-2 rounded-full text-sm font-medium transition-all text-mb-silver hover:text-white">Lead
             Sources</a>
+        <a href="staff_permissions.php"
+            class="px-6 py-2 rounded-full text-sm font-medium transition-all text-mb-silver hover:text-white">Staff
+            Permissions</a>
     </div>
     <div class="flex items-center justify-between">
         <h2 class="text-2xl font-light text-white tracking-wide">Damage Costs Management</h2>

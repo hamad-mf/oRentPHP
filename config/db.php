@@ -87,3 +87,54 @@ function isOverdue(string $endDate, string $status): bool
 {
     return $status === 'active' && strtotime($endDate) < strtotime(date('Y-m-d'));
 }
+
+// ── Auth Helpers ─────────────────────────────────────────────
+/**
+ * Returns the current logged-in user array or null.
+ */
+function current_user(): ?array
+{
+    return $_SESSION['user'] ?? null;
+}
+
+/**
+ * Redirect to login if not authenticated.
+ */
+function auth_check(): void
+{
+    if (!isset($_SESSION['user'])) {
+        // Determine depth to build correct path to auth/login.php
+        $depth = max(0, substr_count($_SERVER['PHP_SELF'], '/') - 1);
+        $prefix = str_repeat('../', $depth);
+        header('Location: ' . $prefix . 'auth/login.php');
+        exit;
+    }
+}
+
+/**
+ * Redirect non-admins to dashboard.
+ */
+function auth_require_admin(): void
+{
+    auth_check();
+    if (($_SESSION['user']['role'] ?? '') !== 'admin') {
+        $depth = max(0, substr_count($_SERVER['PHP_SELF'], '/') - 1);
+        $prefix = str_repeat('../', $depth);
+        header('Location: ' . $prefix . 'index.php');
+        exit;
+    }
+}
+
+/**
+ * Check if the current user has a given permission.
+ * Admin always returns true.
+ */
+function auth_has_perm(string $perm): bool
+{
+    $user = $_SESSION['user'] ?? null;
+    if (!$user)
+        return false;
+    if ($user['role'] === 'admin')
+        return true;
+    return in_array($perm, $user['permissions'] ?? [], true);
+}

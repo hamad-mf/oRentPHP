@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+auth_check();
+$_currentUser = current_user();
 require_once __DIR__ . '/notifications.php';
 $_notifCount = notif_count($pdo);
 $_notifs = notif_all($pdo);
@@ -284,32 +286,50 @@ $_notifs = notif_all($pdo);
 
             $root = str_repeat('../', max(0, substr_count($_SERVER['PHP_SELF'], '/') - 1));
 
-            echo navLink("{$root}index.php", 'Dashboard', $icons['dashboard'], $currentPage === 'index.php' && $currentDir !== 'vehicles' && $currentDir !== 'clients' && $currentDir !== 'reservations' && $currentDir !== 'investments' && $currentDir !== 'gps' && $currentDir !== 'papers' && $currentDir !== 'expenses' && $currentDir !== 'challans' && $currentDir !== 'staff' && $currentDir !== 'settings' && $currentDir !== 'leads');
-            echo navLink("{$root}vehicles/index.php", 'Vehicles', $icons['vehicles'], $currentDir === 'vehicles');
-            echo navLink("{$root}reservations/index.php", 'Reservations', $icons['reservations'], $currentDir === 'reservations');
-            echo navLink("{$root}clients/index.php", 'Clients', $icons['clients'], $currentDir === 'clients');
-            echo navLink("{$root}leads/pipeline.php", 'Pipeline', $icons['pipeline'], $currentDir === 'leads');
-            /* Temporarily hidden
-            echo navLink("{$root}investments/index.php", 'Investments', $icons['investments'], $currentDir === 'investments');
-            echo navLink("{$root}gps/index.php", 'GPS Tracking', $icons['gps'], $currentDir === 'gps');
-            echo navLink("{$root}papers/index.php", 'Papers', $icons['papers'], $currentDir === 'papers');
-            echo navLink("{$root}expenses/index.php", 'Expenses', $icons['expenses'], $currentDir === 'expenses');
-            echo navLink("{$root}challans/index.php", 'Challans', $icons['challans'], $currentDir === 'challans');
-            echo navLink("{$root}staff/index.php", 'Staff', $icons['staff'], $currentDir === 'staff');
-            */
+            // Auth-based nav rendering
+            $isAdmin = ($_currentUser['role'] ?? '') === 'admin';
+            $cuPerms = $_currentUser['permissions'] ?? [];
+
+            $isDash = $currentPage === 'index.php' && !in_array($currentDir, ['vehicles', 'clients', 'reservations', 'investments', 'gps', 'papers', 'expenses', 'challans', 'staff', 'settings', 'leads'], true);
+            echo navLink("{$root}index.php", 'Dashboard', $icons['dashboard'], $isDash);
+
+            if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
+                echo navLink("{$root}vehicles/index.php", 'Vehicles', $icons['vehicles'], $currentDir === 'vehicles');
+            }
+            if ($isAdmin || array_intersect(['add_reservations', 'do_delivery', 'do_return'], $cuPerms)) {
+                echo navLink("{$root}reservations/index.php", 'Reservations', $icons['reservations'], $currentDir === 'reservations');
+            }
+            if ($isAdmin || in_array('manage_clients', $cuPerms, true)) {
+                echo navLink("{$root}clients/index.php", 'Clients', $icons['clients'], $currentDir === 'clients');
+            }
+            if ($isAdmin || in_array('add_leads', $cuPerms, true)) {
+                echo navLink("{$root}leads/pipeline.php", 'Pipeline', $icons['pipeline'], $currentDir === 'leads');
+            }
+            if ($isAdmin || in_array('manage_staff', $cuPerms, true)) {
+                echo navLink("{$root}staff/index.php", 'Staff', $icons['staff'], $currentDir === 'staff');
+            }
             echo navLink("{$root}settings/general.php", 'Settings', $icons['settings'], $currentDir === 'settings');
             ?>
         </nav>
 
+        <!-- Logged-in user info -->
         <div class="p-4 border-t border-mb-subtle/20">
             <div class="flex items-center gap-3 px-2 py-2 text-mb-silver">
                 <div
-                    class="w-8 h-8 rounded-full bg-mb-surface border border-mb-subtle flex items-center justify-center text-xs">
-                    AS</div>
-                <div class="flex-1">
-                    <p class="text-sm font-medium">Admin</p>
-                    <p class="text-xs text-mb-subtle">O Rentin Cars</p>
+                    class="w-8 h-8 rounded-full bg-mb-accent/10 border border-mb-accent/30 flex items-center justify-center text-xs font-semibold text-mb-accent flex-shrink-0">
+                    <?= strtoupper(substr($_currentUser['name'] ?? 'U', 0, 2)) ?>
                 </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-white truncate"><?= e($_currentUser['name'] ?? 'User') ?></p>
+                    <p class="text-xs text-mb-subtle capitalize"><?= e($_currentUser['role'] ?? '') ?></p>
+                </div>
+                <a href="<?= $root ?>auth/logout.php" title="Sign out"
+                    class="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full border border-mb-subtle/20 hover:border-red-500/40 hover:text-red-400 transition-all text-mb-subtle">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                </a>
             </div>
         </div>
     </aside>

@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/reservation_payment_helpers.php';
 $pdo = db();
+reservation_payment_ensure_schema($pdo);
 
 // Fleet Status
 $totalCars = $pdo->query("SELECT COUNT(*) FROM vehicles")->fetchColumn();
@@ -52,13 +54,27 @@ try {
 
 
 // Accounts
-$totalRevenue = (float) $pdo->query("SELECT COALESCE(SUM(total_price),0) FROM reservations WHERE status='completed'")->fetchColumn();
-$accounts = [
-    'total' => $totalRevenue,
-    'cash' => $totalRevenue * 0.6,
-    'ac' => $totalRevenue * 0.3,
-    'credit' => $totalRevenue * 0.1,
-];
+$accounts = ['total' => 0.0, 'cash' => 0.0, 'ac' => 0.0, 'credit' => 0.0];
+try {
+    $accStmt = $pdo->query("SELECT
+        COALESCE(SUM(delivery_paid_amount), 0) + COALESCE(SUM(return_paid_amount), 0) AS total_amount,
+        COALESCE(SUM(CASE WHEN delivery_payment_method='cash' THEN delivery_paid_amount ELSE 0 END), 0)
+            + COALESCE(SUM(CASE WHEN return_payment_method='cash' THEN return_paid_amount ELSE 0 END), 0) AS cash_amount,
+        COALESCE(SUM(CASE WHEN delivery_payment_method='account' THEN delivery_paid_amount ELSE 0 END), 0)
+            + COALESCE(SUM(CASE WHEN return_payment_method='account' THEN return_paid_amount ELSE 0 END), 0) AS account_amount,
+        COALESCE(SUM(CASE WHEN delivery_payment_method='credit' THEN delivery_paid_amount ELSE 0 END), 0)
+            + COALESCE(SUM(CASE WHEN return_payment_method='credit' THEN return_paid_amount ELSE 0 END), 0) AS credit_amount
+        FROM reservations
+        WHERE status IN ('active','completed')");
+    $accRow = $accStmt->fetch();
+    if ($accRow) {
+        $accounts['total'] = (float) ($accRow['total_amount'] ?? 0);
+        $accounts['cash'] = (float) ($accRow['cash_amount'] ?? 0);
+        $accounts['ac'] = (float) ($accRow['account_amount'] ?? 0);
+        $accounts['credit'] = (float) ($accRow['credit_amount'] ?? 0);
+    }
+} catch (Throwable $e) {
+}
 
 $pageTitle = 'Dashboard';
 require_once __DIR__ . '/includes/header.php';

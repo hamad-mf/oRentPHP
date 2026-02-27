@@ -1,5 +1,9 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+if (!auth_has_perm('manage_clients')) {
+    flash('error', 'You do not have permission to delete clients.');
+    redirect('index.php');
+}
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
 $cStmt = $pdo->prepare('SELECT * FROM clients WHERE id=?');

@@ -1,38 +1,86 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+if (!auth_has_perm('add_reservations')) {
+    flash('error', 'You do not have permission to create reservations.');
+    redirect('index.php');
+}
 require_once __DIR__ . '/../includes/voucher_helpers.php';
 $pdo = db();
 
 voucher_ensure_schema($pdo);
 
 $clients = $pdo->query("SELECT id, name, voucher_balance FROM clients WHERE is_blacklisted=0 ORDER BY name")->fetchAll();
-$vehicles = $pdo->query("SELECT id, brand, model, license_plate, daily_rate, monthly_rate, rate_1day, rate_7day, rate_15day, rate_30day FROM vehicles WHERE status='available' ORDER BY brand")->fetchAll();
-
 $hiddenCount = $pdo->query("SELECT COUNT(*) FROM clients WHERE is_blacklisted=1")->fetchColumn();
 $errors = [];
+$startDate = '';
+$endDate = '';
+$vehicles = [];
+
+function assembleReservationDateTime(string $date, int $hour12, int $minute, string $ampm): string
+{
+    $date = trim($date);
+    if ($date === '') {
+        return '';
+    }
+    $hour12 = max(1, min(12, $hour12));
+    $minute = max(0, min(59, $minute));
+    $ampm = strtoupper($ampm) === 'PM' ? 'PM' : 'AM';
+    $hour24 = $hour12 % 12;
+    if ($ampm === 'PM') {
+        $hour24 += 12;
+    }
+    return sprintf('%s %02d:%02d:00', $date, $hour24, $minute);
+}
+
+function fetchAvailableVehiclesForRange(PDO $pdo, string $startDate, string $endDate): array
+{
+    $sql = "SELECT v.id, v.brand, v.model, v.license_plate, v.daily_rate, v.monthly_rate,
+                   v.rate_1day, v.rate_7day, v.rate_15day, v.rate_30day
+            FROM vehicles v
+            WHERE v.status <> 'maintenance'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM reservations r
+                  WHERE r.vehicle_id = v.id
+                    AND r.status IN ('pending','confirmed','active')
+                    AND r.start_date < ?
+                    AND r.end_date > ?
+              )
+            ORDER BY v.brand, v.model, v.license_plate";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$endDate, $startDate]);
+    return $stmt->fetchAll();
+}
+
+function vehicleHasOverlappingReservation(PDO $pdo, int $vehicleId, string $startDate, string $endDate): bool
+{
+    $stmt = $pdo->prepare("SELECT COUNT(*)
+                           FROM reservations
+                           WHERE vehicle_id = ?
+                             AND status IN ('pending','confirmed','active')
+                             AND start_date < ?
+                             AND end_date > ?");
+    $stmt->execute([$vehicleId, $endDate, $startDate]);
+    return (int) $stmt->fetchColumn() > 0;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $clientId = (int) ($_POST['client_id'] ?? 0);
     $vehicleId = (int) ($_POST['vehicle_id'] ?? 0);
     $rentalType = $_POST['rental_type'] ?? 'daily';
-    
-    // Assemble Start Date
-    $sD = $_POST['start_date'] ?? '';
-    $sH = (int) ($_POST['start_hour'] ?? 12);
-    $sM = (int) ($_POST['start_min'] ?? 0);
-    $sA = $_POST['start_ampm'] ?? 'AM';
-    if ($sA === 'PM' && $sH < 12) $sH += 12;
-    if ($sA === 'AM' && $sH === 12) $sH = 0;
-    $startDate = $sD ? sprintf('%s %02d:%02d:00', $sD, $sH, $sM) : '';
 
-    // Assemble End Date
-    $eD = $_POST['end_date'] ?? '';
-    $eH = (int) ($_POST['end_hour'] ?? 12);
-    $eM = (int) ($_POST['end_min'] ?? 0);
-    $eA = $_POST['end_ampm'] ?? 'AM';
-    if ($eA === 'PM' && $eH < 12) $eH += 12;
-    if ($eA === 'AM' && $eH === 12) $eH = 0;
-    $endDate = $eD ? sprintf('%s %02d:%02d:00', $eD, $eH, $eM) : '';
+    $startDate = assembleReservationDateTime(
+        $_POST['start_date'] ?? '',
+        (int) ($_POST['start_hour'] ?? 12),
+        (int) ($_POST['start_min'] ?? 0),
+        (string) ($_POST['start_ampm'] ?? 'AM')
+    );
+    $endDate = assembleReservationDateTime(
+        $_POST['end_date'] ?? '',
+        (int) ($_POST['end_hour'] ?? 12),
+        (int) ($_POST['end_min'] ?? 0),
+        (string) ($_POST['end_ampm'] ?? 'AM')
+    );
 
     $totalPrice = (float) ($_POST['total_price'] ?? 0);
     $voucherRequest = max(0, (float) ($_POST['voucher_amount'] ?? 0));
@@ -74,9 +122,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (!isset($errors['vehicle_id']) && !isset($errors['start_date']) && !isset($errors['end_date'])) {
+        $vehicleStmt = $pdo->prepare("SELECT status FROM vehicles WHERE id=?");
+        $vehicleStmt->execute([$vehicleId]);
+        $vehicleStatus = $vehicleStmt->fetchColumn();
+        if ($vehicleStatus === false) {
+            $errors['vehicle_id'] = 'Selected vehicle does not exist.';
+        } elseif ($vehicleStatus === 'maintenance') {
+            $errors['vehicle_id'] = 'Selected vehicle is under maintenance.';
+        } elseif (vehicleHasOverlappingReservation($pdo, $vehicleId, $startDate, $endDate)) {
+            $errors['vehicle_id'] = 'Selected vehicle is already reserved during the selected period.';
+        }
+    }
+
     if (empty($errors)) {
         try {
             $pdo->beginTransaction();
+
+            if (vehicleHasOverlappingReservation($pdo, $vehicleId, $startDate, $endDate)) {
+                throw new RuntimeException('Vehicle overlap');
+            }
 
             $stmt = $pdo->prepare('INSERT INTO reservations (client_id,vehicle_id,rental_type,start_date,end_date,total_price,voucher_applied,status) VALUES (?,?,?,?,?,?,?,?)');
             $stmt->execute([$clientId, $vehicleId, $rentalType, $startDate, $endDate, $totalPrice, $voucherApplied, 'confirmed']);
@@ -104,9 +169,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            $errors['db'] = 'Could not create reservation. Please try again.';
+            if ($e instanceof RuntimeException && $e->getMessage() === 'Vehicle overlap') {
+                $errors['vehicle_id'] = 'Selected vehicle is no longer available for the selected period.';
+            } else {
+                $errors['db'] = 'Could not create reservation. Please try again.';
+            }
         }
     }
+}
+
+if ($startDate && $endDate && $endDate > $startDate) {
+    $vehicles = fetchAvailableVehiclesForRange($pdo, $startDate, $endDate);
 }
 
 $pageTitle = 'New Reservation';
@@ -147,10 +220,10 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Main Form -->
             <div class="lg:col-span-2 space-y-6">
-                <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-5">
+                <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-5 flex flex-col">
                     <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Reservation Details</h3>
 
-                    <div>
+                    <div class="order-1">
                         <label class="block text-sm text-mb-silver mb-2">Client <span
                                 class="text-red-400">*</span></label>
                         <select name="client_id" id="clientSelect"
@@ -173,13 +246,16 @@ require_once __DIR__ . '/../includes/header.php';
                         <p class="text-xs text-green-400 mt-2" id="clientVoucherInfo">Client voucher balance: $0.00</p>
                     </div>
 
-                    <div>
+                    <?php $hasDateRange = $startDate && $endDate && $endDate > $startDate; ?>
+                    <div class="order-3">
                         <label class="block text-sm text-mb-silver mb-2">Vehicle <span
                                 class="text-red-400">*</span></label>
                         <select name="vehicle_id" id="vehicleSelect"
                             class="select2 w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white text-sm"
-                            required>
-                            <option value="">-- Select Available Vehicle --</option>
+                            required <?= $hasDateRange ? '' : 'disabled' ?>>
+                            <option value="">
+                                <?= $hasDateRange ? '-- Select Available Vehicle --' : '-- Select Client + Rental Period First --' ?>
+                            </option>
                             <?php foreach ($vehicles as $v): ?>
                                 <option value="<?= $v['id'] ?>" data-daily="<?= $v['daily_rate'] ?>"
                                     data-monthly="<?= $v['monthly_rate'] ?? '' ?>"
@@ -194,6 +270,9 @@ require_once __DIR__ . '/../includes/header.php';
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <p class="text-xs text-mb-subtle mt-2" id="vehicleAvailabilityHint">
+                            <?= $hasDateRange ? 'Showing vehicles available for the selected rental period.' : 'Select client and rental period to load available vehicles.' ?>
+                        </p>
                         <?php if (isset($errors['vehicle_id'])): ?>
                             <p class="text-red-400 text-xs mt-1">
                                 <?= e($errors['vehicle_id']) ?>
@@ -201,7 +280,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php endif; ?>
                     </div>
 
-                    <div>
+                    <div class="order-4">
                         <label class="block text-sm text-mb-silver mb-2">Rental Type</label>
                         <div class="grid grid-cols-3 gap-2">
                             <?php
@@ -224,7 +303,7 @@ require_once __DIR__ . '/../includes/header.php';
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 order-2">
                         <!-- Start Date & Time -->
                         <div class="space-y-3">
                             <label class="block text-sm text-mb-silver">Start Date & Time <span class="text-red-400">*</span></label>
@@ -255,6 +334,9 @@ require_once __DIR__ . '/../includes/header.php';
                                     </select>
                                 </div>
                             </div>
+                            <?php if (isset($errors['start_date'])): ?>
+                                <p class="text-red-400 text-xs mt-1"><?= e($errors['start_date']) ?></p>
+                            <?php endif; ?>
                         </div>
 
                         <!-- End Date & Time -->
@@ -293,7 +375,7 @@ require_once __DIR__ . '/../includes/header.php';
                         </div>
                     </div>
 
-                    <div>
+                    <div class="order-5">
                         <label class="block text-sm text-mb-silver mb-2">Total Price (USD) <span
                                 class="text-red-400">*</span></label>
                         <input type="number" name="total_price" id="totalPrice"
@@ -301,7 +383,7 @@ require_once __DIR__ . '/../includes/header.php';
                             class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent text-sm">
                     </div>
 
-                    <div>
+                    <div class="order-6">
                         <label class="block text-sm text-mb-silver mb-2">Use Voucher (Optional)</label>
                         <input type="number" name="voucher_amount" id="voucherAmount"
                             value="<?= e($_POST['voucher_amount'] ?? '') ?>" step="0.01" min="0"
@@ -384,6 +466,8 @@ const calcVoucherRow = document.getElementById('calcVoucherRow');
 const calcVoucherApplied = document.getElementById('calcVoucherApplied');
 const calcCollectNow = document.getElementById('calcCollectNow');
 const clientVoucherInfo = document.getElementById('clientVoucherInfo');
+const vehicleAvailabilityHint = document.getElementById('vehicleAvailabilityHint');
+let availabilityRequestId = 0;
 
 function getTimestamp(prefix) {
     const dVal = document.getElementById(prefix + 'Date').value;
@@ -396,6 +480,115 @@ function getTimestamp(prefix) {
     const d = new Date(dVal);
     d.setHours(h, m, 0, 0);
     return d;
+}
+
+function formatDateTimeForApi(dt) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return dt.getFullYear() + '-' +
+        pad(dt.getMonth() + 1) + '-' +
+        pad(dt.getDate()) + ' ' +
+        pad(dt.getHours()) + ':' +
+        pad(dt.getMinutes()) + ':00';
+}
+
+function setVehicleAvailabilityHint(text, isError = false) {
+    if (!vehicleAvailabilityHint) return;
+    vehicleAvailabilityHint.textContent = text;
+    vehicleAvailabilityHint.classList.remove('text-red-400', 'text-mb-subtle');
+    vehicleAvailabilityHint.classList.add(isError ? 'text-red-400' : 'text-mb-subtle');
+}
+
+function resetVehicleOptions(placeholderText) {
+    vehicleSelect.innerHTML = '';
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = placeholderText;
+    vehicleSelect.appendChild(opt);
+    vehicleSelect.value = '';
+}
+
+function getScheduleRange() {
+    if (!clientSelect.value) {
+        return { valid: false, hint: 'Select client and rental period to load available vehicles.' };
+    }
+    const s = getTimestamp('start');
+    const e = getTimestamp('end');
+    if (!s || !e || e <= s) {
+        return { valid: false, hint: 'Select a valid start and end date/time to load available vehicles.' };
+    }
+    return { valid: true, start: s, end: e };
+}
+
+async function refreshAvailableVehicles(options = {}) {
+    const preserveSelection = options.preserveSelection !== false;
+    const selectedVehicle = preserveSelection ? String(vehicleSelect.value || '') : '';
+    const schedule = getScheduleRange();
+
+    if (!schedule.valid) {
+        resetVehicleOptions('-- Select Client + Rental Period First --');
+        vehicleSelect.disabled = true;
+        setVehicleAvailabilityHint(schedule.hint);
+        updateVehicleInfo();
+        return;
+    }
+
+    const requestId = ++availabilityRequestId;
+    resetVehicleOptions('-- Loading Available Vehicles --');
+    vehicleSelect.disabled = true;
+    setVehicleAvailabilityHint('Checking vehicle availability...');
+
+    const qs = new URLSearchParams({
+        start: formatDateTimeForApi(schedule.start),
+        end: formatDateTimeForApi(schedule.end),
+    });
+
+    try {
+        const resp = await fetch('available_vehicles.php?' + qs.toString(), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await resp.json();
+        if (requestId !== availabilityRequestId) {
+            return;
+        }
+        if (!resp.ok || !data || !data.ok) {
+            throw new Error(data && data.message ? data.message : 'Could not load available vehicles.');
+        }
+
+        const vehicles = Array.isArray(data.vehicles) ? data.vehicles : [];
+        resetVehicleOptions('-- Select Available Vehicle --');
+        for (const v of vehicles) {
+            const opt = document.createElement('option');
+            opt.value = String(v.id);
+            opt.dataset.daily = v.daily_rate || '';
+            opt.dataset.monthly = v.monthly_rate || '';
+            opt.dataset['1day'] = v.rate_1day || '';
+            opt.dataset['7day'] = v.rate_7day || '';
+            opt.dataset['15day'] = v.rate_15day || '';
+            opt.dataset['30day'] = v.rate_30day || '';
+            opt.textContent = (v.brand || '') + ' ' + (v.model || '') + ' - ' + (v.license_plate || '');
+            vehicleSelect.appendChild(opt);
+        }
+
+        const canKeepSelection = vehicles.some((v) => String(v.id) === selectedVehicle);
+        vehicleSelect.value = canKeepSelection ? selectedVehicle : '';
+        vehicleSelect.disabled = vehicles.length === 0;
+
+        if (vehicles.length === 0) {
+            setVehicleAvailabilityHint('No vehicles are available for this rental period.');
+        } else {
+            setVehicleAvailabilityHint('Showing vehicles available for the selected rental period.');
+        }
+
+        $(vehicleSelect).trigger('change');
+    } catch (err) {
+        if (requestId !== availabilityRequestId) {
+            return;
+        }
+        resetVehicleOptions('-- Unable to Load Vehicles --');
+        vehicleSelect.disabled = true;
+        setVehicleAvailabilityHint(err && err.message ? err.message : 'Unable to load vehicles right now.', true);
+        updateVehicleInfo();
+    }
 }
 
 function calcPrice() {
@@ -451,7 +644,10 @@ function calcPrice() {
     updateVoucherPreview();
 }
 
-function onRentalTypeChange() { calcPrice(); }
+function onRentalTypeChange() {
+    calcPrice();
+    refreshAvailableVehicles();
+}
 function getSelectedType() {
     return document.querySelector('input[name="rental_type"]:checked')?.value || 'daily';
 }
@@ -552,11 +748,16 @@ function updateVehicleInfo() {
 }
 
 $(vehicleSelect).on('change', updateVehicleInfo);
-$(clientSelect).on('change', updateVoucherPreview);
-// Bind all components
+$(clientSelect).on('change', function () {
+    updateVoucherPreview();
+    refreshAvailableVehicles({ preserveSelection: false });
+});
+
 ['start', 'end'].forEach(p => {
     ['Date', 'Hour', 'Min', 'AMPM'].forEach(c => {
-        document.getElementById(p + c).addEventListener('change', calcPrice);
+        document.getElementById(p + c).addEventListener('change', function () {
+            refreshAvailableVehicles();
+        });
     });
 });
 if (voucherAmount) {
@@ -576,7 +777,9 @@ document.getElementById('resForm').addEventListener('submit', function (e) {
 });
 updateVehicleInfo();
 updateVoucherPreview();
+refreshAvailableVehicles();
 </script>
 JS;
 require_once __DIR__ . '/../includes/footer.php';
 ?>
+

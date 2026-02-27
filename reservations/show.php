@@ -35,16 +35,18 @@ $overdue = isOverdue($r['end_date'], $r['status']);
 // Totals calculation (match bill.php)
 $basePrice = (float) $r['total_price'];
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
-$baseCollectedAtDelivery = max(0, $basePrice - $voucherApplied);
+$deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
+$baseCollectedAtDelivery = max(0, $basePrice - $voucherApplied) + $deliveryCharge;
 $returnVoucherApplied = max(0, (float) ($r['return_voucher_applied'] ?? 0));
 $overdueAmt = (float) $r['overdue_amount'];
 $kmOverageChg = (float) ($r['km_overage_charge'] ?? 0);
 $damageChg = (float) ($r['damage_charge'] ?? 0);
+$additionalChg = (float) ($r['additional_charge'] ?? 0);
 $discType = $r['discount_type'] ?? null;
 $discVal = (float) ($r['discount_value'] ?? 0);
 $earlyVoucherCredit = max(0, (float) ($r['voucher_credit_issued'] ?? ($r['early_return_credit'] ?? 0)));
 
-$returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg;
+$returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg + $additionalChg;
 $discountAmt = 0;
 if ($discType === 'percent') {
     $discountAmt = round($returnChargesBeforeDiscount * min($discVal, 100) / 100, 2);
@@ -92,7 +94,7 @@ function fuelBar(int $pct): string
         </div>
         <!-- Actions -->
         <div class="flex items-center gap-3 flex-wrap">
-            <?php if (in_array($r['status'], ['pending', 'confirmed'])): ?>
+            <?php if (in_array($r['status'], ['pending', 'confirmed', 'active'])): ?>
                 <a href="edit.php?id=<?= $id ?>"
                     class="border border-mb-subtle/30 text-mb-silver px-4 py-2 rounded-full hover:border-white/30 hover:text-white transition-all text-sm">Edit</a>
             <?php endif; ?>
@@ -228,6 +230,13 @@ function fuelBar(int $pct): string
                     <div class="flex justify-between text-sm">
                         <span class="text-orange-500/80">Damage Charges</span>
                         <span class="text-orange-500/80">+$<?= number_format($damageChg, 2) ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($additionalChg > 0): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-orange-400/80">Additional Charge</span>
+                        <span class="text-orange-400/80">+$<?= number_format($additionalChg, 2) ?></span>
                     </div>
                 <?php endif; ?>
 

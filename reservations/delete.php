@@ -1,5 +1,9 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+if (!auth_has_perm('add_reservations')) {
+    flash('error', 'You do not have permission to delete reservations.');
+    redirect('index.php');
+}
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
 

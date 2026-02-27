@@ -28,6 +28,7 @@ function voucher_ensure_schema(PDO $pdo): void
         'return_voucher_applied' => "ALTER TABLE reservations ADD COLUMN return_voucher_applied DECIMAL(10,2) NOT NULL DEFAULT 0.00",
         'early_return_credit' => "ALTER TABLE reservations ADD COLUMN early_return_credit DECIMAL(10,2) NOT NULL DEFAULT 0.00",
         'voucher_credit_issued' => "ALTER TABLE reservations ADD COLUMN voucher_credit_issued DECIMAL(10,2) NOT NULL DEFAULT 0.00",
+        'additional_charge' => "ALTER TABLE reservations ADD COLUMN additional_charge DECIMAL(10,2) NOT NULL DEFAULT 0.00",
     ];
 
     foreach ($reservationVoucherColumns as $column => $sql) {

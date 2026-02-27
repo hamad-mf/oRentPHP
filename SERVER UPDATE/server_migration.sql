@@ -30,10 +30,15 @@ ALTER TABLE reservations ADD COLUMN IF NOT EXISTS extra_km_price DECIMAL(10,2) D
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS km_driven INT DEFAULT NULL;
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS km_overage_charge DECIMAL(10,2) DEFAULT 0.00;
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS damage_charge DECIMAL(10,2) DEFAULT 0.00;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS additional_charge DECIMAL(10,2) NOT NULL DEFAULT 0.00;
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS discount_type ENUM('percent','amount') DEFAULT NULL;
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS discount_value DECIMAL(10,2) DEFAULT 0.00;
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS voucher_applied DECIMAL(10,2) NOT NULL DEFAULT 0.00;
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS return_voucher_applied DECIMAL(10,2) NOT NULL DEFAULT 0.00;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS delivery_payment_method ENUM('cash','account','credit') DEFAULT NULL;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS delivery_paid_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS return_payment_method ENUM('cash','account','credit') DEFAULT NULL;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS return_paid_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00;
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS early_return_credit DECIMAL(10,2) NOT NULL DEFAULT 0.00;
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS voucher_credit_issued DECIMAL(10,2) NOT NULL DEFAULT 0.00;
 

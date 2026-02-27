@@ -3,6 +3,36 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
 $pdo = db();
 
+function lead_status_ensure_pipeline(PDO $pdo): void
+{
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    try {
+        $stmt = $pdo->query("SELECT COLUMN_TYPE
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'leads'
+              AND COLUMN_NAME = 'status'
+            LIMIT 1");
+        $columnType = strtolower((string) $stmt->fetchColumn());
+        if ($columnType !== '') {
+            if (strpos($columnType, "'negotiation'") !== false) {
+                $pdo->exec("UPDATE leads SET status='interested' WHERE status='negotiation'");
+            }
+            if (strpos($columnType, "'future'") === false || strpos($columnType, "'negotiation'") !== false) {
+                $pdo->exec("ALTER TABLE leads MODIFY COLUMN status ENUM('new','contacted','interested','future','closed_won','closed_lost') DEFAULT 'new'");
+            }
+        }
+    } catch (Throwable $e) {
+    }
+}
+
+lead_status_ensure_pipeline($pdo);
+
 $id = (int) ($_REQUEST['id'] ?? 0);
 $stmt = $pdo->prepare('SELECT * FROM leads WHERE id=?');
 $stmt->execute([$id]);
@@ -23,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (($_POST['quick_update'] ?? '') === '1') {
         header('Content-Type: application/json');
 
-        $allowedStatuses = ['new', 'contacted', 'interested', 'negotiation', 'closed_won', 'closed_lost'];
+        $allowedStatuses = ['new', 'contacted', 'interested', 'future', 'closed_won', 'closed_lost'];
         $newStatus = $_POST['status'] ?? $lead['status'];
         $lostReason = trim($_POST['lost_reason'] ?? '');
 
@@ -71,6 +101,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['email'] = 'Invalid email format.';
     if (!array_key_exists($source, $leadSourcesMap))
         $errors['source'] = 'Please select a valid lead source.';
+    if (!in_array($status, ['new', 'contacted', 'interested', 'future', 'closed_won', 'closed_lost'], true))
+        $errors['status'] = 'Please select a valid lead status.';
     if ($status === 'closed_lost' && !$lostReason)
         $errors['lost_reason'] = 'Please document the reason for closing as lost.';
 
@@ -185,12 +217,17 @@ require_once __DIR__ . '/../includes/header.php';
                     <label class="block text-sm text-mb-silver mb-2">Status</label>
                     <select name="status" id="status-select"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent text-sm">
-                        <?php foreach (['new' => 'New', 'contacted' => 'Contacted', 'interested' => 'Interested', 'negotiation' => 'Negotiation', 'closed_won' => 'Closed Won', 'closed_lost' => 'Closed Lost'] as $v => $l): ?>
+                        <?php foreach (['new' => 'New', 'contacted' => 'Contacted', 'interested' => 'Interested', 'future' => 'Book Later', 'closed_won' => 'Closed Won', 'closed_lost' => 'Closed Lost'] as $v => $l): ?>
                             <option value="<?= $v ?>" <?= $lead['status'] === $v ? 'selected' : '' ?>>
                                 <?= $l ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <?php if ($errors['status'] ?? ''): ?>
+                        <p class="text-red-400 text-xs mt-1">
+                            <?= e($errors['status']) ?>
+                        </p>
+                    <?php endif; ?>
                 </div>
             </div>
 
