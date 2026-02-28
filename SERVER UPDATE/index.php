@@ -17,31 +17,56 @@ $notifications = $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='ac
 // Business Performance
 $settingsFile = __DIR__ . '/config/settings.json';
 $settings = file_exists($settingsFile) ? json_decode(file_get_contents($settingsFile), true) : [];
-$dailyTarget = (float) ($settings['daily_target'] ?? 5000);
+$dailyTarget = (float) ($settings['daily_target'] ?? 0);
 
 // Handle daily target update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['daily_target'])) {
-    $newTarget = max(0, (float) ($_POST['daily_target'] ?? 5000));
+    $newTarget = max(0, (float) ($_POST['daily_target'] ?? 0));
     $settings['daily_target'] = $newTarget;
     file_put_contents($settingsFile, json_encode($settings, JSON_PRETTY_PRINT));
     $dailyTarget = $newTarget;
 }
 
-// Today's revenue = active rentals pro-rated daily + deals completed today
-$todayRevenue = (float) $pdo->query(
+// Use IST (India Standard Time) for all "today" calculations — resets at midnight IST
+$istNow = new DateTime('now', new DateTimeZone('Asia/Kolkata'));
+$istToday = $istNow->format('Y-m-d');
+
+// Revenue: 'completed today' = return inspection was processed today
+$revStmt = $pdo->prepare(
     "SELECT COALESCE(
         SUM(CASE
-            WHEN status='active' THEN total_price / GREATEST(DATEDIFF(end_date,start_date),1)
-            WHEN status='completed' AND DATE(actual_end_date) = CURDATE() THEN total_price
+            WHEN r.status='active'
+                THEN r.delivery_paid_amount
+            WHEN r.status='completed' AND DATE(vi.created_at) = ?
+                THEN r.delivery_paid_amount + r.return_paid_amount
         END)
     , 0)
-    FROM reservations
-    WHERE status='active'
-       OR (status='completed' AND DATE(actual_end_date) = CURDATE())"
-)->fetchColumn();
-$enquiries = $pdo->query("SELECT COUNT(*) FROM reservations WHERE DATE(created_at) = CURDATE()")->fetchColumn();
-$closedDeals = $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='completed' AND DATE(actual_end_date) = CURDATE()")->fetchColumn();
-$newClients = $pdo->query("SELECT COUNT(*) FROM clients WHERE DATE(created_at) = CURDATE()")->fetchColumn();
+    FROM reservations r
+    LEFT JOIN vehicle_inspections vi ON vi.reservation_id = r.id AND vi.type = 'return'
+    WHERE r.status='active'
+       OR (r.status='completed' AND DATE(vi.created_at) = ?)"
+);
+$revStmt->execute([$istToday, $istToday]);
+$todayRevenue = (float) $revStmt->fetchColumn();
+
+$enquiries = (function () use ($pdo, $istToday) {
+    $s = $pdo->prepare("SELECT COUNT(*) FROM reservations WHERE DATE(created_at) = ?");
+    $s->execute([$istToday]);
+    return (int) $s->fetchColumn(); })();
+// Closed Deals = reservations whose return inspection was processed today
+$closedDeals = (function () use ($pdo, $istToday) {
+    $s = $pdo->prepare(
+        "SELECT COUNT(*) FROM reservations r
+         JOIN vehicle_inspections vi ON vi.reservation_id = r.id AND vi.type = 'return'
+         WHERE r.status = 'completed' AND DATE(vi.created_at) = ?"
+    );
+    $s->execute([$istToday]);
+    return (int) $s->fetchColumn();
+})();
+$newClients = (function () use ($pdo, $istToday) {
+    $s = $pdo->prepare("SELECT COUNT(*) FROM clients WHERE DATE(created_at) = ?");
+    $s->execute([$istToday]);
+    return (int) $s->fetchColumn(); })();
 
 // CRM Lead Stats
 $activeLeads = 0;
@@ -227,6 +252,11 @@ require_once __DIR__ . '/includes/header.php';
                     </div>
                     <?php if ($todayRevenue >= $dailyTarget): ?>
                         <p class="text-green-400 text-xs mt-1.5">🎉 Target reached!</p>
+                    <?php else: ?>
+                        <p
+                            class="mt-2 inline-flex items-center gap-1.5 bg-orange-500/15 border border-orange-500/30 text-orange-400 font-semibold text-sm px-3 py-1 rounded-full">
+                            🔥 $<?= number_format($dailyTarget - $todayRevenue) ?> to go
+                        </p>
                     <?php endif; ?>
                 </div>
             </div>

@@ -30,6 +30,17 @@ $maintenance = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='maintena
 $success = getFlash('success');
 $error = getFlash('error');
 
+// Fetch all vehicle images for the grid
+try {
+    $allImgsRaw = $pdo->query("SELECT * FROM vehicle_images ORDER BY vehicle_id, sort_order, id")->fetchAll();
+    $vehicleImgMap = [];
+    foreach ($allImgsRaw as $img) {
+        $vehicleImgMap[$img['vehicle_id']][] = $img['file_path'];
+    }
+} catch (Exception $e) {
+    $vehicleImgMap = [];
+}
+
 // Build catalog share URL — handles both root-level and subdirectory installs cleanly
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
@@ -218,8 +229,10 @@ require_once __DIR__ . '/../includes/header.php';
                     class="bg-mb-surface rounded-xl border border-mb-subtle/20 overflow-hidden group hover:border-mb-accent/30 transition-all duration-300 flex flex-col cursor-pointer">
                     <!-- Image -->
                     <div class="h-44 bg-mb-black relative overflow-hidden">
-                        <?php if ($v['image_url']): ?>
-                            <img src="<?= e($v['image_url']) ?>" alt="<?= e($v['brand']) ?> <?= e($v['model']) ?>"
+                        <?php 
+                        $gridImg = !empty($vehicleImgMap[$v['id']]) ? '../' . $vehicleImgMap[$v['id']][0] : ($v['image_url'] ?? '');
+                        if ($gridImg): ?>
+                            <img src="<?= e($gridImg) ?>" alt="<?= e($v['brand']) ?> <?= e($v['model']) ?>"
                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                         <?php else: ?>
                             <div

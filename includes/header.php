@@ -295,6 +295,7 @@ $_notifs = notif_all($pdo);
 
             if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
                 echo navLink("{$root}vehicles/index.php", 'Vehicles', $icons['vehicles'], $currentDir === 'vehicles');
+                echo navLink("{$root}vehicles/requests.php", 'Vehicle Requests', '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>', $currentPage === 'requests.php' && $currentDir === 'vehicles');
             }
             if ($isAdmin || array_intersect(['add_reservations', 'do_delivery', 'do_return'], $cuPerms)) {
                 echo navLink("{$root}reservations/index.php", 'Reservations', $icons['reservations'], $currentDir === 'reservations');
@@ -307,6 +308,10 @@ $_notifs = notif_all($pdo);
             }
             if ($isAdmin || in_array('manage_staff', $cuPerms, true)) {
                 echo navLink("{$root}staff/index.php", 'Staff', $icons['staff'], $currentDir === 'staff');
+            }
+            if ($isAdmin) {
+                $attendanceIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>';
+                echo navLink("{$root}attendance/index.php", 'Attendance', $attendanceIcon, $currentDir === 'attendance');
             }
             echo navLink("{$root}settings/general.php", 'Settings', $icons['settings'], $currentDir === 'settings');
             ?>
@@ -338,13 +343,88 @@ $_notifs = notif_all($pdo);
     <main class="flex-1 flex flex-col overflow-hidden relative">
         <!-- Header -->
         <header
-            class="h-20 flex items-center justify-between px-8 bg-mb-black/50 backdrop-blur-md sticky top-0 z-50 border-b border-mb-subtle/10">
+            class="h-20 flex items-center justify-between px-8 bg-mb-black/90 sticky top-0 z-50 border-b border-mb-subtle/10">
             <div class="flex items-center gap-4">
                 <h1 class="text-xl font-light text-white tracking-wide">
                     <?= e($pageTitle ?? 'Dashboard') ?>
                 </h1>
             </div>
             <div class="flex items-center gap-4">
+                <?php
+                // ── Punch In/Out Widget (non-admin staff only) ─────────────
+                if (($_currentUser['role'] ?? '') !== 'admin'):
+                    $ist = new DateTimeZone('Asia/Kolkata');
+                    $todayIst2 = (new DateTime('now', $ist))->format('Y-m-d');
+                    $attRec2 = null;
+                    try {
+                        $punchStmt2 = $pdo->prepare('SELECT punch_in, punch_out FROM staff_attendance WHERE user_id = ? AND date = ? LIMIT 1');
+                        $punchStmt2->execute([$_currentUser['id'], $todayIst2]);
+                        $attRec2 = $punchStmt2->fetch();
+                    } catch (Throwable $e2) {
+                    }
+                    $hasPunchIn = $attRec2 && $attRec2['punch_in'];
+                    $hasPunchOut = $attRec2 && $attRec2['punch_out'];
+                    ?>
+                    <div class="flex items-center gap-2 bg-mb-surface border border-mb-subtle/20 rounded-full px-3 py-1.5"
+                        id="punch-widget">
+                        <!-- Live IST Clock -->
+                        <span id="ist-clock" class="text-xs text-mb-silver font-mono tabular-nums"></span>
+                        <?php if ($hasPunchIn && $hasPunchOut): ?>
+                            <span class="text-[10px] text-green-400 flex items-center gap-1">✓ Done</span>
+                        <?php elseif ($hasPunchIn): ?>
+                            <button onclick="doPunch('punch_out')"
+                                class="text-[11px] bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-0.5 rounded-full hover:bg-red-500/30 transition-colors font-medium">
+                                Punch Out
+                            </button>
+                        <?php else: ?>
+                            <button onclick="doPunch('punch_in')"
+                                class="text-[11px] bg-green-500/20 text-green-400 border border-green-500/30 px-3 py-0.5 rounded-full hover:bg-green-500/30 transition-colors font-medium">
+                                Punch In
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                    <script>
+                        // Live IST clock
+                        function updateIstClock() {
+                            const now = new Date();
+                            const ist = new Intl.DateTimeFormat('en-IN', {
+                                timeZone: 'Asia/Kolkata',
+                                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                                hour12: true
+                            }).format(now);
+                            const el = document.getElementById('ist-clock');
+                            if (el) el.textContent = ist;
+                        }
+                        updateIstClock();
+                        setInterval(updateIstClock, 1000);
+
+                        async function doPunch(action) {
+                            const btn = event.currentTarget;
+                            btn.disabled = true;
+                            btn.style.opacity = '0.6';
+                            try {
+                                const root = '<?= $root ?>';
+                                const fd = new FormData();
+                                fd.append('action', action);
+                                const res = await fetch(root + 'attendance/punch.php', { method: 'POST', body: fd });
+                                const data = await res.json();
+                                if (data.warning) {
+                                    alert('⚠️ ' + data.message);
+                                } else if (!data.ok) {
+                                    alert('❌ ' + data.message);
+                                    btn.disabled = false;
+                                    btn.style.opacity = '';
+                                    return;
+                                }
+                                location.reload();
+                            } catch (e) {
+                                alert('Network error. Please try again.');
+                                btn.disabled = false;
+                                btn.style.opacity = '';
+                            }
+                        }
+                    </script>
+                <?php endif; ?>
                 <!-- Theme Toggle -->
                 <button id="theme-toggle" onclick="toggleTheme()" title="Switch theme"
                     class="relative w-9 h-9 rounded-full flex items-center justify-center border border-mb-subtle/20 hover:border-mb-accent/50 transition-all hover:bg-mb-accent/5 group">

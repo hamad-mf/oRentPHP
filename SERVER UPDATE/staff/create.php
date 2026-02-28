@@ -46,11 +46,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = "Username '$username' is already taken.";
     }
 
+    // Handle ID proof upload (before transaction so errors are caught early)
+    $proofPath = null;
+    if (!empty($_FILES['id_proof']['name'])) {
+        $file = $_FILES['id_proof'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf'])) {
+            $errors[] = 'ID proof must be an image (JPG, PNG, WEBP) or PDF.';
+        } elseif ($file['size'] > 5 * 1024 * 1024) {
+            $errors[] = 'ID proof file must be under 5MB.';
+        } else {
+            $uploadDir = __DIR__ . '/../uploads/staff_docs/';
+            $filename = 'proof_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+            if (!move_uploaded_file($file['tmp_name'], $uploadDir . $filename)) {
+                $errors[] = 'Failed to save ID proof file.';
+            } else {
+                $proofPath = 'uploads/staff_docs/' . $filename;
+            }
+        }
+    }
+
     if (!$errors) {
         $pdo->beginTransaction();
         try {
             // Insert staff record
-            $is = $pdo->prepare("INSERT INTO staff (name, role, phone, email, salary, joined_date, notes) VALUES (?,?,?,?,?,?,?)");
+            $is = $pdo->prepare("INSERT INTO staff (name, role, phone, email, salary, joined_date, notes, id_proof_path) VALUES (?,?,?,?,?,?,?,?)");
             $is->execute([
                 $name,
                 $role_field === 'admin' ? 'Admin' : trim($_POST['staff_role'] ?? ''),
@@ -59,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $salary !== '' ? (float) $salary : null,
                 $joined ?: null,
                 $notes ?: null,
+                $proofPath,
             ]);
             $staffId = (int) $pdo->lastInsertId();
 
@@ -111,7 +132,7 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     <?php endif; ?>
 
-    <form method="POST" class="space-y-6">
+    <form method="POST" enctype="multipart/form-data" class="space-y-6">
         <!-- Personal Info -->
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-5">
             <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Personal Information</h3>
@@ -158,6 +179,26 @@ require_once __DIR__ . '/../includes/header.php';
                 <textarea name="notes" rows="2"
                     class="w-full bg-mb-black border border-mb-subtle/20 rounded-xl px-4 py-3 text-white placeholder:text-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm resize-none"
                     placeholder="Optional internal notes..."><?= old('notes') ?></textarea>
+            </div>
+            <!-- ID Proof Upload -->
+            <div>
+                <label class="block text-sm text-mb-silver mb-1.5">ID Proof / Document <span
+                        class="text-mb-subtle text-xs">(optional — image or PDF, max 5MB)</span></label>
+                <div id="proofDropZone" onclick="document.getElementById('idProofInput').click()"
+                    class="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-mb-subtle/30 hover:border-mb-accent/50 rounded-xl p-6 cursor-pointer transition-colors bg-mb-black/20 hover:bg-mb-accent/5">
+                    <img id="proofPreviewImg" class="hidden max-h-48 w-full object-contain rounded-lg" alt="Preview">
+                    <div id="proofPlaceholder">
+                        <svg class="w-8 h-8 text-mb-subtle/50 mx-auto" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span class="text-mb-subtle text-sm block mt-1">Click to upload ID proof</span>
+                    </div>
+                    <span id="proofFileName" class="hidden text-mb-silver text-xs"></span>
+                </div>
+                <input type="file" id="idProofInput" name="id_proof" accept="image/*,.pdf" class="hidden"
+                    onchange="handleProofPreview(this,'proofPreviewImg','proofPlaceholder','proofFileName')">
             </div>
         </div>
 
@@ -219,6 +260,30 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <script>
+    function handleProofPreview(input, imgId, placeholderId, fileNameId) {
+        const file = input.files[0];
+        if (!file) return;
+        const isImage = file.type.startsWith('image/');
+        const img = document.getElementById(imgId);
+        const placeholder = document.getElementById(placeholderId);
+        const fileNameEl = document.getElementById(fileNameId);
+        if (isImage) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                img.src = e.target.result;
+                img.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+                fileNameEl.textContent = file.name;
+                fileNameEl.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            img.classList.add('hidden');
+            placeholder.innerHTML = '<span class="text-4xl">📄</span>';
+            fileNameEl.textContent = file.name;
+            fileNameEl.classList.remove('hidden');
+        }
+    }
     function togglePerms() {
         const role = document.getElementById('role_field').value;
         document.getElementById('perms-section').style.display = role === 'admin' ? 'none' : '';

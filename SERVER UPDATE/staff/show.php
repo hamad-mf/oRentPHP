@@ -160,7 +160,35 @@ $s = getFlash('success');
                 <?php endif; ?>
             </div>
 
-            <!-- Permissions -->
+            <!-- ID Proof -->
+            <?php if (!empty($staff['id_proof_path'])): ?>
+                <?php
+                $proofUrl = '../' . ltrim($staff['id_proof_path'], '/');
+                $proofExt = strtolower(pathinfo($staff['id_proof_path'], PATHINFO_EXTENSION));
+                $isImage = in_array($proofExt, ['jpg', 'jpeg', 'png', 'webp', 'gif']);
+                ?>
+                <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5">
+                    <h3 class="text-white text-sm font-medium mb-3 border-l-2 border-mb-accent pl-3">ID Proof / Document
+                    </h3>
+                    <?php if ($isImage): ?>
+                        <a href="<?= e($proofUrl) ?>" target="_blank" title="View full size">
+                            <img src="<?= e($proofUrl) ?>" alt="ID Proof"
+                                class="w-full rounded-lg border border-mb-subtle/20 object-cover max-h-52 hover:opacity-90 transition-opacity cursor-zoom-in">
+                        </a>
+                        <p class="text-mb-subtle text-xs mt-2 text-center">Click image to view full size</p>
+                    <?php else: ?>
+                        <a href="<?= e($proofUrl) ?>" target="_blank"
+                            class="flex items-center gap-3 p-3 bg-mb-black/30 border border-mb-subtle/20 rounded-lg hover:border-mb-accent/30 transition-colors">
+                            <span class="text-2xl">📄</span>
+                            <div>
+                                <p class="text-mb-silver text-sm">View Document</p>
+                                <p class="text-mb-subtle text-xs">PDF — click to open</p>
+                            </div>
+                        </a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
             <?php if ($userId): ?>
                 <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5">
                     <h3 class="text-white text-sm font-medium mb-4 border-l-2 border-mb-accent pl-3">Permissions</h3>

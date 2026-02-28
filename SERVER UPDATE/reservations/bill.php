@@ -25,22 +25,33 @@ foreach ($inspections as $ins) {
 // Calculate duration & totals
 $start = strtotime($r['start_date']);
 $end = strtotime($r['end_date']);
-$days = max(1, (int) ceil(($end - $start) / 86400));
+$days = max(1, (int) ceil(($end - $start) / 86400) + 1); // inclusive: count both start & end day
 $basePrice = (float) $r['total_price'];
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
-$baseCollectedAtDelivery = max(0, $basePrice - $voucherApplied) + $deliveryCharge;
+// Delivery discount
+$delivDiscType = $r['delivery_discount_type'] ?? null;
+$delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
+$delivBase = max(0, $basePrice - $voucherApplied) + $deliveryCharge;
+$delivDiscountAmt = 0;
+if ($delivDiscType === 'percent') {
+    $delivDiscountAmt = round($delivBase * min($delivDiscVal, 100) / 100, 2);
+} elseif ($delivDiscType === 'amount') {
+    $delivDiscountAmt = min($delivDiscVal, $delivBase);
+}
+$baseCollectedAtDelivery = max(0, $delivBase - $delivDiscountAmt);
 $returnVoucherApplied = max(0, (float) ($r['return_voucher_applied'] ?? 0));
 $overdueAmt = (float) $r['overdue_amount'];
 $kmOverageChg = (float) ($r['km_overage_charge'] ?? 0);
 $damageChg = (float) ($r['damage_charge'] ?? 0);
 $additionalChg = (float) ($r['additional_charge'] ?? 0);
+$chellanChg = (float) ($r['chellan_amount'] ?? 0);
 $discType = $r['discount_type'] ?? null;
 $discVal = (float) ($r['discount_value'] ?? 0);
 $earlyVoucherCredit = max(0, (float) ($r['voucher_credit_issued'] ?? ($r['early_return_credit'] ?? 0)));
 
 // Recalculate totals: base rental is collected at delivery, return collects only extra charges
-$returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg + $additionalChg;
+$returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg + $additionalChg + $chellanChg;
 $discountAmt = 0;
 if ($discType === 'percent') {
     $discountAmt = round($returnChargesBeforeDiscount * min($discVal, 100) / 100, 2);
@@ -50,6 +61,7 @@ if ($discType === 'percent') {
 $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
 $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
 $totalCollected = $baseCollectedAtDelivery + $cashDueAtReturn;
+
 
 // Format datetime helper
 function fdt(?string $dt): string
@@ -662,6 +674,13 @@ function fdt(?string $dt): string
                             <td class="val">-$<?= number_format($voucherApplied, 2) ?></td>
                         </tr>
                     <?php endif; ?>
+                    <?php if ($delivDiscountAmt > 0): ?>
+                        <tr style="color:#16a34a">
+                            <td>🎫 Delivery Discount<?= $delivDiscType === 'percent' ? ' (' . $delivDiscVal . '%)' : '' ?>
+                            </td>
+                            <td class="val">-$<?= number_format($delivDiscountAmt, 2) ?></td>
+                        </tr>
+                    <?php endif; ?>
                     <?php if ($overdueAmt > 0): ?>
                         <tr class="overdue-row">
                             <td>⚠ Overdue Charges</td>
@@ -688,6 +707,12 @@ function fdt(?string $dt): string
                         <tr style="color:#c2410c">
                             <td>Additional Charge</td>
                             <td class="val">+$<?= number_format($additionalChg, 2) ?></td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php if ($chellanChg > 0): ?>
+                        <tr style="color:#dc2626">
+                            <td>🚔 Chellan</td>
+                            <td class="val">+$<?= number_format($chellanChg, 2) ?></td>
                         </tr>
                     <?php endif; ?>
                     <?php if ($discountAmt > 0): ?>

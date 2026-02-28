@@ -52,28 +52,33 @@ $stageBadge = [
 ];
 
 // ── Filter params ───────────────────────────────────────────
-$filterStaff   = (int) ($_GET['staff_filter'] ?? 0);
+$filterStaff = (int) ($_GET['staff_filter'] ?? 0);
 $filterDateFrom = trim($_GET['date_from'] ?? '');
-$filterDateTo   = trim($_GET['date_to'] ?? '');
+$filterDateTo = trim($_GET['date_to'] ?? '');
+$filterSource = trim($_GET['source_filter'] ?? '');
 
 // Fetch all users for the staff filter dropdown
 $allStaffUsers = $pdo->query("SELECT id, name FROM users WHERE is_active = 1 ORDER BY name ASC")->fetchAll();
 
 // ── Build dynamic leads query ────────────────────────────────
-$where  = ['1=1'];
+$where = ['1=1'];
 $params = [];
 
 if ($filterStaff > 0) {
-    $where[]  = 'l.assigned_staff_id = ?';
+    $where[] = 'l.assigned_staff_id = ?';
     $params[] = $filterStaff;
 }
 if ($filterDateFrom !== '') {
-    $where[]  = 'DATE(l.created_at) >= ?';
+    $where[] = 'DATE(l.created_at) >= ?';
     $params[] = $filterDateFrom;
 }
 if ($filterDateTo !== '') {
-    $where[]  = 'DATE(l.created_at) <= ?';
+    $where[] = 'DATE(l.created_at) <= ?';
     $params[] = $filterDateTo;
+}
+if ($filterSource !== '') {
+    $where[] = 'l.source = ?';
+    $params[] = $filterSource;
 }
 
 $sql = 'SELECT l.*, u.name AS assigned_user_name
@@ -145,7 +150,7 @@ require_once __DIR__ . '/../includes/header.php';
 
     <!-- ── Filter Bar ── -->
     <?php
-    $activeFilters = (int)($filterStaff > 0) + (int)($filterDateFrom !== '') + (int)($filterDateTo !== '');
+    $activeFilters = (int) ($filterStaff > 0) + (int) ($filterDateFrom !== '') + (int) ($filterDateTo !== '') + (int) ($filterSource !== '');
     ?>
     <form method="GET" id="pipelineFilters"
         class="flex flex-wrap items-center gap-3 bg-mb-surface border border-mb-subtle/20 rounded-xl px-4 py-3">
@@ -156,12 +161,11 @@ require_once __DIR__ . '/../includes/header.php';
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                     d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
-            <select name="staff_filter"
-                onchange="document.getElementById('pipelineFilters').submit()"
+            <select name="staff_filter" onchange="document.getElementById('pipelineFilters').submit()"
                 class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors cursor-pointer">
                 <option value="0">All Staff</option>
                 <?php foreach ($allStaffUsers as $su): ?>
-                    <option value="<?= $su['id'] ?>" <?= $filterStaff === (int)$su['id'] ? 'selected' : '' ?>>
+                    <option value="<?= $su['id'] ?>" <?= $filterStaff === (int) $su['id'] ? 'selected' : '' ?>>
                         <?= e($su['name']) ?>
                     </option>
                 <?php endforeach; ?>
@@ -169,6 +173,26 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
 
         <div class="w-px h-5 bg-mb-subtle/20"></div>
+
+        <!-- Source Filter -->
+        <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-mb-subtle flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            <select name="source_filter" onchange="document.getElementById('pipelineFilters').submit()"
+                class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors cursor-pointer">
+                <option value="">All Sources</option>
+                <?php foreach ($leadSourcesMap as $slug => $label): ?>
+                    <option value="<?= e($slug) ?>" <?= $filterSource === $slug ? 'selected' : '' ?>>
+                        <?= e($label) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <div class="w-px h-5 bg-mb-subtle/20"></div>
+
 
         <!-- Date From -->
         <div class="flex items-center gap-2">
@@ -178,7 +202,6 @@ require_once __DIR__ . '/../includes/header.php';
             </svg>
             <label class="text-xs text-mb-subtle whitespace-nowrap">From</label>
             <input type="date" name="date_from" value="<?= e($filterDateFrom) ?>"
-                onchange="document.getElementById('pipelineFilters').submit()"
                 class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors cursor-pointer">
         </div>
 
@@ -186,9 +209,17 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="flex items-center gap-2">
             <label class="text-xs text-mb-subtle whitespace-nowrap">To</label>
             <input type="date" name="date_to" value="<?= e($filterDateTo) ?>"
-                onchange="document.getElementById('pipelineFilters').submit()"
                 class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors cursor-pointer">
         </div>
+
+        <!-- Apply date button -->
+        <button type="submit"
+            class="flex items-center gap-1.5 bg-mb-accent/20 hover:bg-mb-accent/40 border border-mb-accent/30 text-mb-accent text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Apply
+        </button>
 
         <!-- Active count badge + Clear -->
         <div class="flex items-center gap-2 ml-auto">
@@ -199,7 +230,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <a href="pipeline.php"
                     class="text-xs text-mb-subtle hover:text-white transition-colors flex items-center gap-1">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                     Clear
                 </a>
@@ -255,9 +286,20 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php endif; ?>
                             </div>
 
-                            <p class="text-mb-subtle text-xs mt-0.5">
-                                <?= e($l['phone']) ?>
-                            </p>
+                            <div class="flex items-center gap-1.5 mt-0.5" onclick="event.stopPropagation()">
+                                <p class="text-mb-subtle text-xs"><?= e($l['phone']) ?></p>
+                                <?php if (!empty($l['phone'])): ?>
+                                    <a href="https://wa.me/<?= preg_replace('/\D/', '', $l['phone']) ?>" target="_blank"
+                                        rel="noopener noreferrer" title="Open in WhatsApp"
+                                        class="flex-shrink-0 text-[#25D366] hover:text-[#1aad52] transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                                            class="w-3.5 h-3.5">
+                                            <path
+                                                d="M12.001 2C6.478 2 2 6.478 2 12.001c0 1.788.47 3.464 1.287 4.919L2.04 21.6a.5.5 0 0 0 .614.601l4.801-1.37A9.956 9.956 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12.001 2zm0 1.5A8.5 8.5 0 1 1 12 20.5a8.454 8.454 0 0 1-4.174-1.096.75.75 0 0 0-.566-.076l-3.538 1.01 .957-3.422a.75.75 0 0 0-.083-.583A8.46 8.46 0 0 1 3.5 12 8.5 8.5 0 0 1 12.001 3.5zm-2.39 4.05c-.197-.44-.427-.452-.622-.46-.163-.007-.35-.006-.537-.006a1.03 1.03 0 0 0-.748.35c-.256.28-.98.957-.98 2.334s1.003 2.707 1.143 2.894c.14.187 1.946 3.1 4.793 4.224 2.374.936 2.847.75 3.36.703.513-.047 1.657-.677 1.89-1.33.234-.653.234-1.213.164-1.33-.07-.117-.257-.187-.537-.327-.28-.14-1.657-.817-1.913-.91-.257-.094-.444-.14-.63.14-.187.28-.723.91-.886 1.097-.163.187-.327.21-.607.07-.28-.14-1.182-.436-2.251-1.39-.832-.743-1.394-1.66-1.558-1.94-.163-.28-.017-.43.122-.57.126-.124.28-.327.42-.49.14-.163.187-.28.28-.467.093-.187.047-.35-.023-.49-.07-.14-.617-1.523-.852-2.082z" />
+                                        </svg>
+                                    </a>
+                                <?php endif; ?>
+                            </div>
                             <?php if (!empty($l['assigned_to'])): ?>
                                 <p class="text-mb-subtle text-[11px] mt-1">
                                     Assigned: <span class="text-white/90"><?= e($l['assigned_to']) ?></span>
@@ -278,20 +320,19 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php endif; ?>
                             </div>
 
-                            <div class="mt-2 flex items-center justify-end" onclick="event.stopPropagation()">
-                                <div class="note-hover-area relative">
-                                    <span
-                                        class="text-[10px] border border-mb-subtle/20 text-mb-subtle rounded-md px-2 py-1 hover:border-mb-accent/40 hover:text-mb-accent transition-all">
-                                        📝 Note
-                                    </span>
-                                    <div
-                                        class="note-hover-popup hidden absolute z-[80] right-0 bottom-full mb-2 w-64 max-h-44 overflow-y-auto bg-mb-surface border border-mb-subtle/20 rounded-lg p-3 shadow-xl shadow-black/30">
-                                        <p class="text-[11px] text-mb-silver leading-relaxed whitespace-pre-wrap break-all">
-                                            <?= trim((string) ($l['notes'] ?? '')) !== '' ? e($l['notes']) : 'No notes added.' ?>
-                                        </p>
-                                    </div>
+                            <?php $noteText = trim((string) ($l['notes'] ?? '')); ?>
+                            <p class="text-[10px] mt-1.5 truncate <?= $noteText !== '' ? 'text-mb-silver' : 'text-mb-subtle/40' ?>"
+                                title="<?= e($noteText !== '' ? $noteText : 'No notes') ?>">
+                                <?= $noteText !== '' ? '📝 ' . e($noteText) : 'No notes' ?>
+                            </p>
+
+                            <?php if ($l['status'] === 'closed_lost' && !empty($l['lost_reason'])): ?>
+                                <div
+                                    class="mt-2 flex items-start gap-1.5 bg-red-500/10 border border-red-500/30 rounded-lg px-2.5 py-1.5">
+                                    <span class="text-red-400 text-[10px] mt-0.5 flex-shrink-0">✕</span>
+                                    <p class="text-red-300 text-[10px] leading-relaxed font-medium"><?= e($l['lost_reason']) ?></p>
                                 </div>
-                            </div>
+                            <?php endif; ?>
 
                             <?php if ($isMovable): ?>
                                 <div class="mt-2 flex items-center gap-1.5" onclick="event.stopPropagation()">
@@ -339,14 +380,6 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <style>
-    .note-hover-area:hover .note-hover-popup {
-        display: block;
-    }
-
-    .note-hover-popup {
-        overflow-wrap: anywhere;
-        word-break: break-word;
-    }
 </style>
 
 <script>

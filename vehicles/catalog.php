@@ -31,6 +31,14 @@ $stmt->execute($params);
 $vehicles = $stmt->fetchAll();
 
 $totalAvailable = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='available'")->fetchColumn();
+
+// Load all vehicle images for the modal
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS vehicle_images (id INT AUTO_INCREMENT PRIMARY KEY, vehicle_id INT NOT NULL, file_path VARCHAR(255) NOT NULL, sort_order INT DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+} catch (Exception $e) {}
+$allImgsRaw = $pdo->query("SELECT * FROM vehicle_images ORDER BY vehicle_id, sort_order, id")->fetchAll();
+$vehicleImgMap = [];
+foreach ($allImgsRaw as $img) { $vehicleImgMap[$img['vehicle_id']][] = $img['file_path']; }
 $totalFleet = $pdo->query("SELECT COUNT(*) FROM vehicles")->fetchColumn();
 
 // Build canonical URL for sharing
@@ -741,10 +749,13 @@ $shareUrl = $scheme . '://' . $host . strtok($_SERVER['REQUEST_URI'] ?? '/vehicl
                         };
                         $statusLabel = ucfirst($v['status']);
                         ?>
-                        <div class="vehicle-card">
+                        <div class="vehicle-card" onclick="openModal(this.dataset.vid)" data-vid="<?= (int)$v['id'] ?>" style="cursor:pointer">
                             <div class="card-image">
-                                <?php if (!empty($v['image_url'])): ?>
-                                    <img src="<?= e($v['image_url']) ?>" alt="<?= e($v['brand']) ?> <?= e($v['model']) ?>"
+                                <?php
+                                $cardImg = !empty($vehicleImgMap[$v['id']]) ? '../' . $vehicleImgMap[$v['id']][0] : ($v['image_url'] ?? '');
+                            ?>
+                            <?php if ($cardImg): ?>
+                                    <img src="<?= e($cardImg) ?>" alt="<?= e($v['brand']) ?> <?= e($v['model']) ?>"
                                         loading="lazy">
                                 <?php else: ?>
                                     <div class="card-image-placeholder">
@@ -827,6 +838,90 @@ $shareUrl = $scheme . '://' . $host . strtok($_SERVER['REQUEST_URI'] ?? '/vehicl
         </footer>
 
     </div>
-</body>
 
+<!-- Vehicle Detail Modal -->
+<div id="veh-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;align-items:center;justify-content:center;padding:1rem" onclick="if(event.target===this)closeModal()">
+    <div style="background:#161622;border:1px solid rgba(255,255,255,0.1);border-radius:1.25rem;width:100%;max-width:680px;max-height:90vh;overflow-y:auto;position:relative">
+        <button onclick="closeModal()" style="position:absolute;top:1rem;right:1rem;z-index:10;background:rgba(255,255,255,0.1);border:none;color:white;border-radius:50%;width:2rem;height:2rem;font-size:1rem;cursor:pointer">✕</button>
+        <div id="modal-carousel" style="height:300px;background:#0a0a0f;position:relative;border-radius:1.25rem 1.25rem 0 0;overflow:hidden">
+            <div id="modal-slides" style="position:relative;width:100%;height:100%"></div>
+            <button id="mc-prev" onclick="mCarMove(-1)" style="display:none;position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.6);border:none;color:white;border-radius:50%;width:2rem;height:2rem;cursor:pointer;font-size:1.2rem;line-height:1">‹</button>
+            <button id="mc-next" onclick="mCarMove(1)"  style="display:none;position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.6);border:none;color:white;border-radius:50%;width:2rem;height:2rem;cursor:pointer;font-size:1.2rem;line-height:1">›</button>
+            <div id="mc-dots" style="position:absolute;bottom:0.5rem;left:50%;transform:translateX(-50%);display:flex;gap:0.4rem"></div>
+        </div>
+        <div id="mc-thumbs" style="display:flex;gap:0.5rem;padding:0.75rem 1rem 0;overflow-x:auto"></div>
+        <div id="modal-info" style="padding:1.5rem"></div>
+    </div>
+</div>
+
+<script>
+<?php
+$vData = [];
+foreach ($vehicles as $veh) {
+    $slides = !empty($vehicleImgMap[$veh["id"]]) ? array_map(function($p){ return "../" . $p; }, $vehicleImgMap[$veh["id"]]) : [];
+    if (empty($slides) && !empty($veh["image_url"])) $slides[] = $veh["image_url"];
+    $vData[$veh["id"]] = [
+        "id"      => (int)$veh["id"],
+        "brand"   => $veh["brand"],
+        "model"   => $veh["model"],
+        "year"    => $veh["year"],
+        "color"   => $veh["color"] ?? "",
+        "plate"   => $veh["license_plate"],
+        "daily"   => (float)$veh["daily_rate"],
+        "monthly" => $veh["monthly_rate"] ? (float)$veh["monthly_rate"] : null,
+        "status"  => $veh["status"],
+        "slides"  => $slides,
+    ];
+}
+echo "var VDATA=" . json_encode($vData) . ";";
+?>
+var mCur=0,mSlides=[];
+function openModal(vid){
+    var v=VDATA[vid];if(!v)return;
+    var modal=document.getElementById("veh-modal");
+    modal.style.display="flex";document.body.style.overflow="hidden";
+    mSlides=v.slides;mCur=0;
+    var sc=document.getElementById("modal-slides");sc.innerHTML="";
+    mSlides.forEach(function(src,i){
+        var img=document.createElement("img");img.src=src;
+        img.style.cssText="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity 0.3s;opacity:"+(i===0?"1":"0");
+        sc.appendChild(img);
+    });
+    if(!mSlides.length){sc.innerHTML="<div style=\"display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.1);font-size:4rem\">🚗</div>";}
+    var showArr=mSlides.length>1;
+    document.getElementById("mc-prev").style.display=showArr?"flex":"none";
+    document.getElementById("mc-next").style.display=showArr?"flex":"none";
+    var dots=document.getElementById("mc-dots");dots.innerHTML="";
+    mSlides.forEach(function(_,i){var d=document.createElement("div");d.style.cssText="width:8px;height:8px;border-radius:50%;cursor:pointer;background:"+(i===0?"white":"rgba(255,255,255,0.4)");d.onclick=function(){mCarGo(i);};dots.appendChild(d);});
+    var th=document.getElementById("mc-thumbs");th.innerHTML="";
+    if(mSlides.length>1){mSlides.forEach(function(src,i){var img=document.createElement("img");img.src=src;img.style.cssText="height:52px;width:72px;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid "+(i===0?"white":"transparent")+";opacity:"+(i===0?"1":"0.5");img.onclick=function(){mCarGo(i);};th.appendChild(img);});}
+    var sColor={available:"#4ade80",rented:"#a5b4fc",maintenance:"#fca5a5"}[v.status]||"#aaa";
+    document.getElementById("modal-info").innerHTML=
+        "<div style=\"display:flex;align-items:start;justify-content:space-between;margin-bottom:1rem\">" +
+        "<div><div style=\"font-size:0.7rem;text-transform:uppercase;color:#94a3b8;letter-spacing:0.1em;margin-bottom:0.2rem\">"+v.brand+"</div>" +
+        "<div style=\"font-size:1.6rem;font-weight:700;color:white;letter-spacing:-0.02em\">"+v.model+"</div>" +
+        "<div style=\"color:#64748b;font-size:0.85rem;margin-top:0.25rem\">"+v.year+(v.color?" · "+v.color:"")+"</div></div>" +
+        "<span style=\"padding:0.3rem 0.75rem;border-radius:999px;font-size:0.72rem;font-weight:600;background:"+sColor+"22;color:"+sColor+";border:1px solid "+sColor+"44\">"+v.status.charAt(0).toUpperCase()+v.status.slice(1)+"</span></div>" +
+        "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem\">" +
+        "<div style=\"background:rgba(255,255,255,0.04);border-radius:0.75rem;padding:1rem;text-align:center\"><div style=\"font-size:0.7rem;text-transform:uppercase;color:#64748b;margin-bottom:0.25rem\">Daily Rate</div><div style=\"font-size:1.5rem;font-weight:700;color:#6366f1\">$"+Number(v.daily).toLocaleString()+"</div></div>" +
+        "<div style=\"background:rgba(255,255,255,0.04);border-radius:0.75rem;padding:1rem;text-align:center\"><div style=\"font-size:0.7rem;text-transform:uppercase;color:#64748b;margin-bottom:0.25rem\">Plate</div><div style=\"font-size:1.2rem;font-weight:600;color:white\">"+v.plate+"</div></div></div>" +
+        (v.monthly?"<div style=\"background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:0.75rem;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.85rem;color:#a5b4fc\">Monthly: <strong>$"+Number(v.monthly).toLocaleString()+"</strong></div>":"") +
+        "<div style=\"font-size:0.75rem;color:#475569;text-align:center\">Contact us to reserve this vehicle</div>";
+}
+function mCarMove(d){mCarGo((mCur+d+mSlides.length)%mSlides.length);}
+function mCarGo(n){
+    var imgs=document.querySelectorAll("#modal-slides img"),dots=document.querySelectorAll("#mc-dots div"),ths=document.querySelectorAll("#mc-thumbs img");
+    if(imgs[mCur])imgs[mCur].style.opacity="0";
+    if(dots[mCur])dots[mCur].style.background="rgba(255,255,255,0.4)";
+    if(ths[mCur]){ths[mCur].style.borderColor="transparent";ths[mCur].style.opacity="0.5";}
+    mCur=n;
+    if(imgs[mCur])imgs[mCur].style.opacity="1";
+    if(dots[mCur])dots[mCur].style.background="white";
+    if(ths[mCur]){ths[mCur].style.borderColor="white";ths[mCur].style.opacity="1";}
+}
+function closeModal(){document.getElementById("veh-modal").style.display="none";document.body.style.overflow="";}
+document.addEventListener("keydown",function(e){if(e.key==="Escape")closeModal();});
+</script>
+
+</body>
 </html>

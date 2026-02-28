@@ -35,8 +35,19 @@ $startDt = new DateTime($r['start_date']);
 $scheduledEndDt = new DateTime($r['end_date']);
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
-$baseCollectedAtDelivery = max(0, (float) $r['total_price'] - $voucherApplied) + $deliveryCharge;
+// Account for delivery discount when showing what was actually collected at delivery
+$delivDiscType_ = $r['delivery_discount_type'] ?? null;
+$delivDiscVal_ = (float) ($r['delivery_discount_value'] ?? 0);
+$delivBase_ = max(0, (float) $r['total_price'] - $voucherApplied) + $deliveryCharge;
+$delivDiscAmt_ = 0;
+if ($delivDiscType_ === 'percent') {
+    $delivDiscAmt_ = round($delivBase_ * min($delivDiscVal_, 100) / 100, 2);
+} elseif ($delivDiscType_ === 'amount') {
+    $delivDiscAmt_ = min($delivDiscVal_, $delivBase_);
+}
+$baseCollectedAtDelivery = max(0, $delivBase_ - $delivDiscAmt_);
 $clientVoucherBalance = max(0, (float) ($r['client_voucher_balance'] ?? 0));
+
 
 $parseActualReturnDateTime = static function (string $date, int $hour12, int $minute, string $ampm): DateTime {
     $date = trim($date);
@@ -98,6 +109,7 @@ $overdueDays = (int) ($initialOverdue['days'] ?? 0);
 $overdueAmt = (float) ($initialOverdue['amount'] ?? 0);
 $initialEarlyVoucherCredit = $calculateEarlyReturnCredit($startDt, $scheduledEndDt, $initialActualDt, (float) $r['total_price']);
 $additionalChg = max(0, (float) ($_POST['additional_charge'] ?? ($r['additional_charge'] ?? 0)));
+$chellanAmt = max(0, (float) ($_POST['chellan_amount'] ?? ($r['chellan_amount'] ?? 0)));
 $returnPaymentMethod = reservation_payment_method_normalize($_POST['return_payment_method'] ?? ($r['return_payment_method'] ?? 'cash')) ?? 'cash';
 
 $errors = [];
@@ -109,6 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $damageChg = max(0, (float) ($_POST['damage_charge'] ?? 0));
     $additionalChgInput = (float) ($_POST['additional_charge'] ?? 0);
     $additionalChg = max(0, $additionalChgInput);
+    $chellanAmt = max(0, (float) ($_POST['chellan_amount'] ?? 0));
     $discType = in_array($_POST['discount_type'] ?? '', ['percent', 'amount']) ? $_POST['discount_type'] : null;
     $discVal = max(0, (float) ($_POST['discount_value'] ?? 0));
     $actualReturnDate = trim($_POST['actual_return_date'] ?? '');
@@ -149,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Discount applies only to return-time charges (base rental is collected at delivery)
-    $returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg + $additionalChg + $lateChg;
+    $returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg + $additionalChg + $chellanAmt + $lateChg;
     $discountAmt = 0;
     if ($discType === 'percent') {
         $discountAmt = round($returnChargesBeforeDiscount * min($discVal, 100) / 100, 2);
@@ -234,7 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $returnPaymentMethodSave = $cashDueAtReturn > 0 ? $returnPaymentMethod : null;
             $pdo->prepare("UPDATE reservations SET status='completed', actual_end_date=?, overdue_amount=?,
-                km_driven=?, km_overage_charge=?, damage_charge=?, additional_charge=?, discount_type=?, discount_value=?,
+                km_driven=?, km_overage_charge=?, damage_charge=?, additional_charge=?, chellan_amount=?, discount_type=?, discount_value=?,
                 return_voucher_applied=?, return_payment_method=?, return_paid_amount=?, early_return_credit=?, voucher_credit_issued=?, deposit_returned=? WHERE id=?")
                 ->execute([
                     $actualEndSave,
@@ -243,6 +256,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $kmOverageChg,
                     $damageChg,
                     $additionalChg,
+                    $chellanAmt,
                     $discType,
                     $discVal,
                     $returnVoucherAppliedActual,
@@ -527,6 +541,17 @@ require_once __DIR__ . '/../includes/header.php';
                     </div>
 
                     <div>
+                        <label class="block text-sm text-mb-silver mb-2">Chellan (Traffic Fine)</label>
+                        <input type="number" name="chellan_amount" id="chellanAmount" min="0" step="0.01"
+                            placeholder="0.00"
+                            value="<?= e($_POST['chellan_amount'] ?? ($r['chellan_amount'] ?? '0')) ?>"
+                            oninput="updateSummary()"
+                            class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-red-500/50 transition-colors">
+                        <p class="text-xs text-mb-subtle mt-1">Traffic fines / challans issued during the rental period.
+                        </p>
+                    </div>
+
+                    <div>
                         <label class="block text-sm text-mb-silver mb-2">Discount</label>
                         <div class="flex gap-3">
                             <select name="discount_type" id="discountType" onchange="updateSummary()"
@@ -633,6 +658,12 @@ require_once __DIR__ . '/../includes/header.php';
                             <span>Additional Charge</span>
                             <span
                                 id="previewAdditionalAmt"><?= $additionalChg > 0 ? '+$' . number_format($additionalChg, 2) : '' ?></span>
+                        </div>
+                        <div id="previewChellanRow"
+                            class="justify-between text-red-300 <?= $chellanAmt > 0 ? 'flex' : 'hidden' ?>">
+                            <span>Chellan</span>
+                            <span
+                                id="previewChellanAmt"><?= $chellanAmt > 0 ? '+$' . number_format($chellanAmt, 2) : '' ?></span>
                         </div>
                         <div id="previewDiscRow" class="justify-between text-green-400 hidden"><span
                                 id="previewDiscLabel">Discount</span><span id="previewDiscAmt"></span></div>
@@ -787,11 +818,14 @@ function updateSummary(){
     var kmDrivenEl=document.getElementById("kmDriven");
     var dmgHiddenEl=document.getElementById("damageCharge");
     var additionalChgEl=document.getElementById("additionalCharge");
+    var chellanEl=document.getElementById("chellanAmount");
     var discType=document.getElementById("discountType").value;
     var discVal=parseFloat(document.getElementById("discountValue").value)||0;
     var kmDriven=kmDrivenEl?parseFloat(kmDrivenEl.value)||0:0;
     var additionalChg=additionalChgEl?parseFloat(additionalChgEl.value)||0:0;
     if(additionalChg<0) additionalChg=0;
+    var chellanChg=chellanEl?parseFloat(chellanEl.value)||0:0;
+    if(chellanChg<0) chellanChg=0;
     var returnVoucherInput=document.getElementById("returnVoucherAmount");
     var returnVoucherValidation=document.getElementById("returnVoucherValidation");
 
@@ -815,7 +849,7 @@ function updateSummary(){
     var overdueChg = overdue.amount;
     var earlyCredit = calcEarlyReturnCredit();
 
-    var totalBeforeDiscount=overdueChg+kmOverage+dmg+additionalChg+lateChg;
+    var totalBeforeDiscount=overdueChg+kmOverage+dmg+additionalChg+chellanChg+lateChg;
     var disc=0;
     if(discType==="percent") disc=Math.round(totalBeforeDiscount*Math.min(discVal,100)/100*100)/100;
     else if(discType==="amount") disc=Math.min(discVal,totalBeforeDiscount);
@@ -903,6 +937,19 @@ function updateSummary(){
             additionalRow.classList.add("hidden");
             additionalRow.classList.remove("flex");
             document.getElementById("previewAdditionalAmt").textContent="";
+        }
+    }
+    // Chellan row
+    var chellanRow=document.getElementById("previewChellanRow");
+    if(chellanRow){
+        if(chellanChg>0){
+            chellanRow.classList.remove("hidden");
+            chellanRow.classList.add("flex");
+            document.getElementById("previewChellanAmt").textContent="+$"+chellanChg.toFixed(2);
+        }else{
+            chellanRow.classList.add("hidden");
+            chellanRow.classList.remove("flex");
+            document.getElementById("previewChellanAmt").textContent="";
         }
     }
     // Discount row

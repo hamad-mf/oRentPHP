@@ -16,6 +16,18 @@ $docs = $pdo->prepare('SELECT * FROM documents WHERE vehicle_id = ? ORDER BY cre
 $docs->execute([$id]);
 $documents = $docs->fetchAll();
 
+// Load uploaded photos
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS vehicle_images (id INT AUTO_INCREMENT PRIMARY KEY, vehicle_id INT NOT NULL, file_path VARCHAR(255) NOT NULL, sort_order INT DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+} catch (Exception $e) {}
+$imgStmt = $pdo->prepare('SELECT * FROM vehicle_images WHERE vehicle_id=? ORDER BY sort_order, id');
+$imgStmt->execute([$id]);
+$vehiclePhotos = $imgStmt->fetchAll();
+// Build slides: uploaded first, then URL fallback
+$carouselSlides = [];
+foreach ($vehiclePhotos as $p) { $carouselSlides[] = '../' . $p['file_path']; }
+if (empty($carouselSlides) && !empty($v['image_url'])) { $carouselSlides[] = $v['image_url']; }
+
 $resStmt = $pdo->prepare('SELECT r.*, c.name AS client_name FROM reservations r JOIN clients c ON r.client_id = c.id WHERE r.vehicle_id = ? ORDER BY r.created_at DESC');
 $resStmt->execute([$id]);
 $reservations = $resStmt->fetchAll();
@@ -60,17 +72,45 @@ $badgeCls = $badge[$v['status']] ?? 'bg-gray-500/10 text-gray-400';
     <!-- Hero -->
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
         <div class="grid md:grid-cols-5">
-            <!-- Image -->
-            <div class="md:col-span-2 h-64 md:h-auto bg-mb-black relative">
-                <?php if ($v['image_url']): ?>
-                    <img src="<?= e($v['image_url']) ?>" class="w-full h-full object-cover">
-                <?php else: ?>
+            <!-- Photo Carousel -->
+            <div class="md:col-span-2 h-64 md:h-auto bg-mb-black relative overflow-hidden" id="carousel-wrap">
+                <?php if (empty($carouselSlides)): ?>
                     <div class="w-full h-full min-h-64 flex items-center justify-center">
                         <svg class="w-20 h-20 text-mb-subtle/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
-                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
                     </div>
+                <?php else: ?>
+                    <!-- Slides -->
+                    <?php foreach ($carouselSlides as $si => $slide): ?>
+                        <img src="<?= e($slide) ?>"
+                            class="carousel-slide absolute inset-0 w-full h-full object-cover transition-opacity duration-300 <?= $si === 0 ? 'opacity-100' : 'opacity-0 pointer-events-none' ?>"
+                            data-index="<?= $si ?>">
+                    <?php endforeach; ?>
+                    <?php if (count($carouselSlides) > 1): ?>
+                        <!-- Arrows -->
+                        <button onclick="carouselMove(-1)" class="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/50 hover:bg-black/80 rounded-full flex items-center justify-center text-white transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        </button>
+                        <button onclick="carouselMove(1)" class="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/50 hover:bg-black/80 rounded-full flex items-center justify-center text-white transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </button>
+                        <!-- Dots -->
+                        <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                            <?php foreach ($carouselSlides as $di => $s): ?>
+                                <button onclick="carouselGo(<?= $di ?>)" class="carousel-dot w-2 h-2 rounded-full transition-colors <?= $di===0 ? 'bg-white' : 'bg-white/40' ?>"></button>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                    <!-- Thumbnail strip -->
+                    <?php if (count($carouselSlides) > 1): ?>
+                    <div class="absolute bottom-8 left-0 right-0 flex justify-center gap-2 px-3 z-10">
+                        <?php foreach ($carouselSlides as $ti => $slide): ?>
+                            <img src="<?= e($slide) ?>" onclick="carouselGo(<?= $ti ?>)"
+                                class="carousel-thumb h-10 w-14 object-cover rounded cursor-pointer border-2 transition-all <?= $ti===0 ? 'border-white' : 'border-transparent opacity-60' ?>">
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
             <!-- Info -->
@@ -186,7 +226,29 @@ $badgeCls = $badge[$v['status']] ?? 'bg-gray-500/10 text-gray-400';
         </div>
     </div>
 
-    <script>
+    
+<script>
+(function(){
+    var slides = Array.from(document.querySelectorAll('.carousel-slide'));
+    var dots   = Array.from(document.querySelectorAll('.carousel-dot'));
+    var thumbs = Array.from(document.querySelectorAll('.carousel-thumb'));
+    var cur = 0;
+    function go(n) {
+        if (!slides.length) return;
+        slides[cur].classList.remove('opacity-100'); slides[cur].classList.add('opacity-0','pointer-events-none');
+        dots[cur] && dots[cur].classList.replace('bg-white','bg-white/40');
+        thumbs[cur] && thumbs[cur].classList.remove('border-white','opacity-100') && thumbs[cur].classList.add('border-transparent','opacity-60');
+        cur = (n + slides.length) % slides.length;
+        slides[cur].classList.remove('opacity-0','pointer-events-none'); slides[cur].classList.add('opacity-100');
+        dots[cur] && dots[cur].classList.replace('bg-white/40','bg-white');
+        thumbs[cur] && (thumbs[cur].classList.add('border-white'), thumbs[cur].classList.remove('border-transparent','opacity-60'));
+    }
+    window.carouselMove = function(d){ go(cur + d); };
+    window.carouselGo   = function(n){ go(n); };
+    document.addEventListener('keydown', function(e){ if(e.key==='ArrowLeft') go(cur-1); if(e.key==='ArrowRight') go(cur+1); });
+})();
+</script>
+<script>
         (function () {
             const BOOKED = <?= $bookedJson ?>;
             const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

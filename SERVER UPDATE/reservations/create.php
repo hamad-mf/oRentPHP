@@ -593,30 +593,26 @@ async function refreshAvailableVehicles(options = {}) {
 
 function calcPrice() {
     const opt = vehicleSelect.options[vehicleSelect.selectedIndex];
-    if (!opt || !opt.value) {
-        updateVoucherPreview();
-        return;
-    }
+    if (!opt || !opt.value) { updateVoucherPreview(); return; }
     const daily = parseFloat(opt.dataset.daily || 0);
     const type  = getSelectedType();
     const FIXED_DAYS = { '1day': 1, '7day': 7, '15day': 15, '30day': 30 };
-    
+
     const s = getTimestamp('start');
     const e = getTimestamp('end');
     let days = 0, rate = daily, total = 0;
 
     if (FIXED_DAYS[type]) {
+        // Package types: fixed day count — NO +1
         days = FIXED_DAYS[type];
         const pkgKey = type.replace('day','') + 'day';
         const pkgRate = parseFloat(opt.dataset[pkgKey] || 0);
         if (pkgRate > 0) { total = pkgRate; rate = pkgRate / days; }
         else             { total = days * daily; rate = daily; }
-        
+
         if (s && !isNaN(s.getTime())) {
             const autoEnd = new Date(s);
             autoEnd.setDate(autoEnd.getDate() + days);
-            
-            // Set end components
             document.getElementById('endDate').value = autoEnd.toISOString().split('T')[0];
             let eh = autoEnd.getHours();
             const em = autoEnd.getMinutes();
@@ -628,12 +624,14 @@ function calcPrice() {
         }
     } else if (type === 'monthly') {
         const monthly = parseFloat(opt.dataset.monthly || 0);
-        if (s && e && e > s) days = Math.ceil((e - s) / 86400000) || 1;
+        // Inclusive: count both start & end day
+        if (s && e && e > s) days = (Math.ceil((e - s) / 86400000) || 1) + 1;
         rate  = monthly > 0 ? monthly : daily;
         total = rate * (days / 30 || 1);
     } else {
+        // Daily: inclusive counting — 20th to 25th = 6 days
         if (!s || !e || e <= s) return;
-        days  = Math.ceil((e - s) / 86400000) || 1;
+        days  = (Math.ceil((e - s) / 86400000) || 1) + 1;
         rate  = daily;
         total = days * daily;
     }

@@ -36,17 +36,29 @@ $overdue = isOverdue($r['end_date'], $r['status']);
 $basePrice = (float) $r['total_price'];
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
-$baseCollectedAtDelivery = max(0, $basePrice - $voucherApplied) + $deliveryCharge;
+// Delivery discount
+$delivDiscType = $r['delivery_discount_type'] ?? null;
+$delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
+$delivBaseWithCharge = max(0, $basePrice - $voucherApplied) + $deliveryCharge;
+$delivDiscountAmt = 0;
+if ($delivDiscType === 'percent') {
+    $delivDiscountAmt = round($delivBaseWithCharge * min($delivDiscVal, 100) / 100, 2);
+} elseif ($delivDiscType === 'amount') {
+    $delivDiscountAmt = min($delivDiscVal, $delivBaseWithCharge);
+}
+$baseCollectedAtDelivery = max(0, $delivBaseWithCharge - $delivDiscountAmt);
 $returnVoucherApplied = max(0, (float) ($r['return_voucher_applied'] ?? 0));
+// overdue_amount in DB already includes late charge (combined on save in return.php)
 $overdueAmt = (float) $r['overdue_amount'];
 $kmOverageChg = (float) ($r['km_overage_charge'] ?? 0);
 $damageChg = (float) ($r['damage_charge'] ?? 0);
 $additionalChg = (float) ($r['additional_charge'] ?? 0);
+$chellanChg = (float) ($r['chellan_amount'] ?? 0);
 $discType = $r['discount_type'] ?? null;
 $discVal = (float) ($r['discount_value'] ?? 0);
 $earlyVoucherCredit = max(0, (float) ($r['voucher_credit_issued'] ?? ($r['early_return_credit'] ?? 0)));
 
-$returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg + $additionalChg;
+$returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg + $additionalChg + $chellanChg;
 $discountAmt = 0;
 if ($discType === 'percent') {
     $discountAmt = round($returnChargesBeforeDiscount * min($discVal, 100) / 100, 2);
@@ -194,6 +206,13 @@ function fuelBar(int $pct): string
                         <span class="text-green-500/80">-$<?= number_format($voucherApplied, 2) ?></span>
                     </div>
                 <?php endif; ?>
+                <?php if ($delivDiscountAmt > 0): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-green-500/80">Delivery
+                            Discount<?= $delivDiscType === 'percent' ? " ({$delivDiscVal}%)" : '' ?></span>
+                        <span class="text-green-500/80">-$<?= number_format($delivDiscountAmt, 2) ?></span>
+                    </div>
+                <?php endif; ?>
                 <div class="flex justify-between text-sm">
                     <span class="text-mb-subtle">Base Collected at Delivery</span>
                     <span class="text-white">$<?= number_format($baseCollectedAtDelivery, 2) ?></span>
@@ -208,7 +227,8 @@ function fuelBar(int $pct): string
                 <?php if ($r['status'] === 'completed' && (float) ($r['deposit_amount'] ?? 0) > 0): ?>
                     <div class="flex justify-between text-sm border-l-2 border-orange-500/30 pl-2">
                         <span class="text-mb-subtle italic">Security Deposit Returned</span>
-                        <span class="text-orange-400">-$<?= number_format((float) ($r['deposit_returned'] ?? 0), 2) ?></span>
+                        <span
+                            class="text-orange-400">-$<?= number_format((float) ($r['deposit_returned'] ?? 0), 2) ?></span>
                     </div>
                 <?php endif; ?>
 
@@ -240,6 +260,13 @@ function fuelBar(int $pct): string
                     </div>
                 <?php endif; ?>
 
+                <?php if ($chellanChg > 0): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-red-400/80">Chellan</span>
+                        <span class="text-red-400/80">+$<?= number_format($chellanChg, 2) ?></span>
+                    </div>
+                <?php endif; ?>
+
                 <?php if ($discountAmt > 0): ?>
                     <div class="flex justify-between text-sm">
                         <span class="text-green-500/80">Return
@@ -260,13 +287,14 @@ function fuelBar(int $pct): string
                     </div>
                 <?php endif; ?>
 
-                <div class="flex justify-between font-medium text-base border-t border-mb-subtle/10 pt-2">
+                <div class="flex justify-between font-medium text-sm border-t border-mb-subtle/10 pt-2">
                     <span class="text-mb-silver">Amount Due at Return</span>
-                    <span class="text-mb-accent">$<?= number_format($cashDueAtReturn, 2) ?></span>
+                    <span class="text-mb-accent font-semibold">$<?= number_format($cashDueAtReturn, 2) ?></span>
                 </div>
-                <div class="flex justify-between text-sm">
-                    <span class="text-mb-subtle">Total Collected for This Rental</span>
-                    <span class="text-mb-accent">$<?= number_format($totalCollected, 2) ?></span>
+                <div
+                    class="flex justify-between items-center mt-2 bg-mb-accent/10 border border-mb-accent/30 rounded-lg px-4 py-3">
+                    <span class="text-white font-semibold text-sm">💰 Total Collected for This Rental</span>
+                    <span class="text-mb-accent font-bold text-lg">$<?= number_format($totalCollected, 2) ?></span>
                 </div>
             </div>
         </div>

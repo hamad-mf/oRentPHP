@@ -41,7 +41,17 @@ $baseCollectNow = max(0, (float) $r['total_price'] - $voucherApplied);
 $existingDeliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryCharge = max(0, (float) ($_POST['delivery_charge'] ?? ($existingDeliveryCharge > 0 ? $existingDeliveryCharge : $deliveryChargeDefault)));
 $deliveryPaymentMethod = reservation_payment_method_normalize($_POST['delivery_payment_method'] ?? ($r['delivery_payment_method'] ?? 'cash')) ?? 'cash';
-$collectNowAtDelivery = max(0, $baseCollectNow + $deliveryCharge);
+// Delivery discount (applied to base+delivery before collecting)
+$delivDiscType = in_array($_POST['delivery_discount_type'] ?? '', ['percent', 'amount']) ? $_POST['delivery_discount_type'] : ($r['delivery_discount_type'] ?? null);
+$delivDiscVal = max(0, (float) ($_POST['delivery_discount_value'] ?? ($r['delivery_discount_value'] ?? 0)));
+$baseWithCharge = $baseCollectNow + $deliveryCharge;
+$delivDiscountAmt = 0;
+if ($delivDiscType === 'percent') {
+    $delivDiscountAmt = round($baseWithCharge * min($delivDiscVal, 100) / 100, 2);
+} elseif ($delivDiscType === 'amount') {
+    $delivDiscountAmt = min($delivDiscVal, $baseWithCharge);
+}
+$collectNowAtDelivery = max(0, $baseWithCharge - $delivDiscountAmt);
 $suggestedDeposit = round($collectNowAtDelivery * ($depositPct / 100), 2);
 
 $errors = [];
@@ -54,11 +64,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $depositAmt = max(0, (float) ($_POST['deposit_amount'] ?? 0));
     $deliveryCharge = (float) ($_POST['delivery_charge'] ?? $deliveryCharge);
     $deliveryPaymentMethod = reservation_payment_method_normalize($_POST['delivery_payment_method'] ?? null);
+    $delivDiscType = in_array($_POST['delivery_discount_type'] ?? '', ['percent', 'amount']) ? $_POST['delivery_discount_type'] : null;
+    $delivDiscVal = max(0, (float) ($_POST['delivery_discount_value'] ?? 0));
     if ($deliveryCharge < 0) {
         $errors['delivery_charge'] = 'Delivery charge cannot be negative.';
     }
     $deliveryCharge = max(0, $deliveryCharge);
-    $collectNowAtDelivery = max(0, $baseCollectNow + $deliveryCharge);
+    $baseWithCharge = $baseCollectNow + $deliveryCharge;
+    $delivDiscountAmt = 0;
+    if ($delivDiscType === 'percent') {
+        $delivDiscountAmt = round($baseWithCharge * min($delivDiscVal, 100) / 100, 2);
+    } elseif ($delivDiscType === 'amount') {
+        $delivDiscountAmt = min($delivDiscVal, $baseWithCharge);
+    }
+    $collectNowAtDelivery = max(0, $baseWithCharge - $delivDiscountAmt);
     if ($collectNowAtDelivery > 0 && $deliveryPaymentMethod === null) {
         $errors['delivery_payment_method'] = 'Please select how this delivery payment was received.';
     }
@@ -91,8 +110,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $deliveryPaymentMethodSave = $collectNowAtDelivery > 0 ? $deliveryPaymentMethod : null;
-        $pdo->prepare("UPDATE reservations SET status='active', km_limit=?, extra_km_price=?, deposit_amount=?, delivery_charge=?, delivery_payment_method=?, delivery_paid_amount=? WHERE id=?")
-            ->execute([$kmLimit, $extraKmPrice, $depositAmt, $deliveryCharge, $deliveryPaymentMethodSave, $collectNowAtDelivery, $id]);
+        $pdo->prepare("UPDATE reservations SET status='active', km_limit=?, extra_km_price=?, deposit_amount=?, delivery_charge=?, delivery_payment_method=?, delivery_paid_amount=?, delivery_discount_type=?, delivery_discount_value=? WHERE id=?")
+            ->execute([$kmLimit, $extraKmPrice, $depositAmt, $deliveryCharge, $deliveryPaymentMethodSave, $collectNowAtDelivery, $delivDiscType ?: null, $delivDiscVal, $id]);
         $pdo->prepare("UPDATE vehicles SET status='rented' WHERE id=?")->execute([$r['vehicle_id']]);
         $msg = 'Vehicle delivered. Amount collected at delivery: $' . number_format($collectNowAtDelivery, 2) . '.';
         if ($collectNowAtDelivery > 0) {
@@ -180,6 +199,31 @@ require_once __DIR__ . '/../includes/header.php';
                             value="<?= e($_POST['delivery_charge'] ?? number_format($deliveryCharge, 2, '.', '')) ?>">
                     </div>
                 </div>
+                <!-- Delivery Discount -->
+                <div class="flex items-center justify-between text-mb-silver gap-3">
+                    <span>Discount</span>
+                    <div class="flex gap-1.5 w-44">
+                        <select name="delivery_discount_type" id="delivDiscountType"
+                            class="bg-mb-black border border-mb-subtle/20 rounded-lg px-1.5 py-2 text-white focus:outline-none focus:border-mb-accent text-xs w-16 flex-shrink-0"
+                            onchange="updateDeliveryCollectNow()">
+                            <option value="" <?= ($delivDiscType ?? '') === '' ? 'selected' : '' ?>>None</option>
+                            <option value="percent" <?= ($delivDiscType ?? '') === 'percent' ? 'selected' : '' ?>>%
+                            </option>
+                            <option value="amount" <?= ($delivDiscType ?? '') === 'amount' ? 'selected' : '' ?>>$</option>
+                        </select>
+                        <input type="number" name="delivery_discount_value" id="delivDiscountValue" step="0.01" min="0"
+                            placeholder="0"
+                            value="<?= e($_POST['delivery_discount_value'] ?? number_format($delivDiscVal, 2, '.', '')) ?>"
+                            oninput="updateDeliveryCollectNow()"
+                            class="flex-1 min-w-0 bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white focus:outline-none focus:border-mb-accent text-xs">
+                    </div>
+                </div>
+                <div id="delivDiscountRow"
+                    class="justify-between text-green-400 <?= $delivDiscountAmt > 0 ? 'flex' : 'hidden' ?>">
+                    <span id="delivDiscountLabel">Discount</span>
+                    <span
+                        id="delivDiscountAmt"><?= $delivDiscountAmt > 0 ? '-$' . number_format($delivDiscountAmt, 2) : '' ?></span>
+                </div>
                 <div class="flex items-center justify-between text-mb-silver gap-3">
                     <span>Payment Method</span>
                     <div class="w-44">
@@ -250,7 +294,8 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php if ($depositPct > 0): ?>
                             <p class="text-xs text-mb-accent/60 mt-1" id="depositSuggestionText">Suggested rate:
                                 <?= $depositPct ?>% of delivery
-                                collection ($<?= number_format($collectNowAtDelivery, 2) ?>)</p>
+                                collection ($<?= number_format($collectNowAtDelivery, 2) ?>)
+                            </p>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -350,10 +395,34 @@ function updateFuel(v) {
 function updateDeliveryCollectNow() {
     if (!deliveryChargeInput || !collectNowValue) return;
     let deliveryCharge = parseFloat(deliveryChargeInput.value || "0");
-    if (!isFinite(deliveryCharge) || deliveryCharge < 0) {
-        deliveryCharge = 0;
+    if (!isFinite(deliveryCharge) || deliveryCharge < 0) deliveryCharge = 0;
+    const baseWithCharge = BASE_COLLECT_NOW + deliveryCharge;
+
+    // Discount
+    const discType = document.getElementById("delivDiscountType")?.value || "";
+    const discVal  = parseFloat(document.getElementById("delivDiscountValue")?.value || "0") || 0;
+    let discAmt = 0;
+    if (discType === "percent" && discVal > 0) {
+        discAmt = Math.round(baseWithCharge * Math.min(discVal, 100) / 100 * 100) / 100;
+    } else if (discType === "amount" && discVal > 0) {
+        discAmt = Math.min(discVal, baseWithCharge);
     }
-    const collectNow = BASE_COLLECT_NOW + deliveryCharge;
+
+    // Update discount preview row
+    const discRow   = document.getElementById("delivDiscountRow");
+    const discAmtEl = document.getElementById("delivDiscountAmt");
+    const discLblEl = document.getElementById("delivDiscountLabel");
+    if (discRow && discAmtEl && discLblEl) {
+        if (discAmt > 0) {
+            discRow.classList.remove("hidden"); discRow.classList.add("flex");
+            discLblEl.textContent = discType === "percent" ? `Discount (\${discVal}%)` : "Discount";
+            discAmtEl.textContent = "-$" + discAmt.toFixed(2);
+        } else {
+            discRow.classList.add("hidden"); discRow.classList.remove("flex");
+        }
+    }
+
+    const collectNow = Math.max(0, baseWithCharge - discAmt);
     collectNowValue.textContent = "$" + collectNow.toFixed(2);
     if (depositSuggestionText && DEPOSIT_PCT > 0) {
         depositSuggestionText.textContent = "Suggested rate: " + DEPOSIT_PCT + "% of delivery collection ($" + collectNow.toFixed(2) + ")";

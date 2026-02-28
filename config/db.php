@@ -80,7 +80,8 @@ function starDisplay(?int $rating): string
 
 function durationDays(string $start, string $end): int
 {
-    return max(0, (int) ceil((strtotime($end) - strtotime($start)) / 86400));
+    // Inclusive: count both pickup and return day (20th→25th = 6 days, not 5)
+    return max(1, (int) ceil((strtotime($end) - strtotime($start)) / 86400) + 1);
 }
 
 function isOverdue(string $endDate, string $status): bool

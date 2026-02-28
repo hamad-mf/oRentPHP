@@ -228,16 +228,27 @@ require_once __DIR__ . '/../includes/header.php';
                                     $basePrice = (float) $r['total_price'];
                                     $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
                                     $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
-                                    $baseCollectedAtDelivery = max(0, $basePrice - $voucherApplied) + $deliveryCharge;
+                                    $delivDiscType = $r['delivery_discount_type'] ?? null;
+                                    $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
+                                    $delivBase = max(0, $basePrice - $voucherApplied) + $deliveryCharge;
+                                    $delivDiscountAmt = 0;
+                                    if ($delivDiscType === 'percent') {
+                                        $delivDiscountAmt = round($delivBase * min($delivDiscVal, 100) / 100, 2);
+                                    } elseif ($delivDiscType === 'amount') {
+                                        $delivDiscountAmt = min($delivDiscVal, $delivBase);
+                                    }
+                                    $baseCollectedAtDelivery = max(0, $delivBase - $delivDiscountAmt);
+
                                     $returnVoucherApplied = max(0, (float) ($r['return_voucher_applied'] ?? 0));
                                     $overdueAmt = (float) $r['overdue_amount'];
                                     $kmOverageChg = (float) ($r['km_overage_charge'] ?? 0);
                                     $damageChg = (float) ($r['damage_charge'] ?? 0);
                                     $additionalChg = (float) ($r['additional_charge'] ?? 0);
+                                    $chellanChg = (float) ($r['chellan_amount'] ?? 0);
                                     $discType = $r['discount_type'] ?? null;
                                     $discVal = (float) ($r['discount_value'] ?? 0);
 
-                                    $returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg + $additionalChg;
+                                    $returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg + $additionalChg + $chellanChg;
                                     $discountAmt = 0;
                                     if ($discType === 'percent') {
                                         $discountAmt = round($returnChargesBeforeDiscount * min($discVal, 100) / 100, 2);
