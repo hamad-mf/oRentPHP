@@ -490,7 +490,7 @@ function fdt(?string $dt): string
         <!-- Header -->
         <div class="inv-header">
             <div>
-                <div class="company-name">O RENTIN CARS</div>
+                <div class="company-name">Orentincars</div>
                 <div class="company-sub">Car Rental CRM</div>
             </div>
             <div class="inv-badge">
@@ -752,7 +752,7 @@ function fdt(?string $dt): string
 
         <!-- Footer -->
         <div class="inv-footer">
-            <span>Thank you for choosing <strong>O Rentin Cars</strong>!</span>
+            <span>Thank you for choosing <strong>Orentincars</strong>!</span>
             <span class="generated">Generated:
                 <?= date('d M Y, h:i A') ?>
             </span>

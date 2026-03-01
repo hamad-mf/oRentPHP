@@ -13,7 +13,7 @@ $_notifs = notif_all($pdo);
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>
-        <?= e($pageTitle ?? 'O Rentin Cars') ?> | O Rentin Cars
+        <?= e($pageTitle ?? 'Orentincars') ?> | Orentincars
     </title>
 
     <!-- Fonts -->
@@ -248,7 +248,7 @@ $_notifs = notif_all($pdo);
                     <path
                         d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" />
                 </svg>
-                <span class="text-xl font-light tracking-widest text-white uppercase">O Rentin Cars</span>
+                <span class="text-xl font-light tracking-widest text-white uppercase">Orentincars</span>
             </div>
         </div>
 

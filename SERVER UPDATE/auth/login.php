@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Login | O Rentin Cars</title>
+    <title>Login | Orentincars</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -136,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </svg>
                 </div>
             </div>
-            <h1 class="text-2xl font-light tracking-widest uppercase text-white">O Rentin Cars</h1>
+            <h1 class="text-2xl font-light tracking-widest uppercase text-white">Orentincars</h1>
             <p class="text-mb-subtle text-sm mt-1 tracking-wide">Management System</p>
         </div>
 
@@ -192,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <p class="text-center text-mb-subtle/40 text-xs mt-6">©
-            <?= date('Y') ?> O Rentin Cars
+            <?= date('Y') ?> Orentincars
         </p>
     </div>
 
