@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/export_enabled.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
 $pdo = db();
 
@@ -155,6 +156,29 @@ require_once __DIR__ . '/../includes/header.php';
             </button>
         </div>
     </form>
+
+    <?php if (defined('EXPORT_ENABLED') && EXPORT_ENABLED): ?>
+        <!-- ── Data Export (admin only, kill-switch gated) ─────────────── -->
+        <div class="bg-mb-surface border border-yellow-500/20 rounded-xl p-6">
+            <div class="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                    <h3 class="text-white font-light text-lg border-l-2 border-yellow-500 pl-3">Data Export</h3>
+                    <p class="text-xs text-mb-subtle mt-2 ml-5">
+                        Download a full <strong class="text-mb-silver">.xlsx</strong> backup of all data&nbsp;—
+                        vehicles, clients, reservations, pipeline leads, staff, expenses &amp; more.
+                    </p>
+                </div>
+                <a href="../export/index.php"
+                    class="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-5 py-2 rounded-full hover:bg-yellow-500/20 transition-all text-sm font-medium">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export Data
+                </a>
+            </div>
+        </div>
+    <?php endif; ?>
 </div>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
