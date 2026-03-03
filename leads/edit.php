@@ -1,6 +1,12 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
+require_once __DIR__ . '/../includes/activity_log.php';
+auth_check();
+if (!auth_has_perm('add_leads')) {
+    flash('error', 'You are not allowed to edit leads.');
+    redirect('index.php');
+}
 $pdo = db();
 
 function lead_status_ensure_pipeline(PDO $pdo): void
@@ -70,14 +76,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $lostReasonValue = $newStatus === 'closed_lost' ? $lostReason : null;
-        $pdo->prepare('UPDATE leads SET status=?, lost_reason=?, updated_at=NOW() WHERE id=?')
-            ->execute([$newStatus, $lostReasonValue, $id]);
+        $pdo->prepare('UPDATE leads SET status=?, lost_reason=?, updated_at=NOW(),
+            closed_at = IF(? = ? AND closed_at IS NULL, NOW(), closed_at) WHERE id=?')
+            ->execute([$newStatus, $lostReasonValue, 'closed_won', $newStatus, $id]);
 
         $activityNote = "Status updated to: " . str_replace('_', ' ', $newStatus) . ".";
         if ($newStatus === 'closed_lost') {
             $activityNote .= " Lost reason: " . $lostReasonValue;
         }
         $pdo->prepare('INSERT INTO lead_activities (lead_id, note) VALUES (?,?)')->execute([$id, $activityNote]);
+
+        $oldStatusLabel = str_replace('_', ' ', (string) ($lead['status'] ?? ''));
+        $newStatusLabel = str_replace('_', ' ', (string) $newStatus);
+        $statusLogDescription = "Updated lead #$id status from $oldStatusLabel to $newStatusLabel.";
+        if ($newStatus === 'closed_lost' && $lostReasonValue) {
+            $statusLogDescription .= " Lost reason: $lostReasonValue.";
+        }
+        log_activity($pdo, 'updated_lead_status', 'lead', $id, $statusLogDescription);
+
         echo json_encode(['ok' => true]);
         exit;
     }
@@ -107,15 +123,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['lost_reason'] = 'Please document the reason for closing as lost.';
 
     if (empty($errors)) {
-        $pdo->prepare('UPDATE leads SET name=?,phone=?,email=?,inquiry_type=?,vehicle_interest=?,source=?,assigned_to=?,notes=?,status=?,lost_reason=?,updated_at=NOW() WHERE id=?')
-            ->execute([$name, $phone, $email ?: null, $inquiry, $vehicle ?: null, $source, $assigned ?: null, $notes ?: null, $status, $lostReason ?: null, $id]);
+        $pdo->prepare('UPDATE leads SET name=?,phone=?,email=?,inquiry_type=?,vehicle_interest=?,source=?,assigned_to=?,notes=?,status=?,lost_reason=?,updated_at=NOW(),
+            closed_at = IF(? = ? AND closed_at IS NULL, NOW(), closed_at) WHERE id=?')
+            ->execute([$name, $phone, $email ?: null, $inquiry, $vehicle ?: null, $source, $assigned ?: null, $notes ?: null, $status, $lostReason ?: null, 'closed_won', $status, $id]);
 
         if ($status !== $lead['status']) {
             $pdo->prepare('INSERT INTO lead_activities (lead_id, note) VALUES (?,?)')->execute([$id, "Status changed to: " . str_replace('_', ' ', $status) . "."]);
+            $oldStatusLabel = str_replace('_', ' ', (string) ($lead['status'] ?? ''));
+            $newStatusLabel = str_replace('_', ' ', (string) $status);
+            log_activity($pdo, 'updated_lead_status', 'lead', $id, "Updated lead #$id status from $oldStatusLabel to $newStatusLabel.");
         } else {
             $pdo->prepare('INSERT INTO lead_activities (lead_id, note) VALUES (?,?)')->execute([$id, "Lead details updated."]);
+            log_activity($pdo, 'updated_lead', 'lead', $id, "Updated lead #$id details.");
         }
 
+        app_log('ACTION', "Updated lead (ID: $id)");
         flash('success', 'Lead updated.');
         redirect("show.php?id=$id");
     }

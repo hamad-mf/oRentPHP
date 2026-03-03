@@ -36,10 +36,11 @@ $overdue = isOverdue($r['end_date'], $r['status']);
 $basePrice = (float) $r['total_price'];
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
+$deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
 // Delivery discount
 $delivDiscType = $r['delivery_discount_type'] ?? null;
 $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
-$delivBaseWithCharge = max(0, $basePrice - $voucherApplied) + $deliveryCharge;
+$delivBaseWithCharge = max(0, $basePrice - $voucherApplied) + $deliveryCharge + $deliveryManualAmount;
 $delivDiscountAmt = 0;
 if ($delivDiscType === 'percent') {
     $delivDiscountAmt = round($delivBaseWithCharge * min($delivDiscVal, 100) / 100, 2);
@@ -119,6 +120,14 @@ function fuelBar(int $pct): string
                 <a href="return.php?id=<?= $id ?>"
                     class="bg-mb-accent text-white px-5 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-sm font-medium">⏎
                     Process Return</a>
+            <?php endif; ?>
+            <?php if (in_array($r['status'], ['pending', 'confirmed'])): ?>
+                <a href="bill.php?id=<?= $id ?>" target="_blank"
+                    class="border border-sky-500/40 text-sky-400 px-5 py-2 rounded-full hover:bg-sky-500/10 transition-colors text-sm font-medium">📋
+                    View Bill (Quotation)</a>
+                <button onclick="shareBill(<?= $id ?>)"
+                    class="border border-purple-500/40 text-purple-400 px-5 py-2 rounded-full hover:bg-purple-500/10 transition-colors text-sm font-medium">↗
+                    Share</button>
             <?php endif; ?>
             <?php if (in_array($r['status'], ['active', 'completed'])): ?>
                 <a href="bill.php?id=<?= $id ?>" target="_blank"
@@ -213,6 +222,12 @@ function fuelBar(int $pct): string
                         <span class="text-green-500/80">-$<?= number_format($delivDiscountAmt, 2) ?></span>
                     </div>
                 <?php endif; ?>
+                <?php if ($deliveryManualAmount > 0): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-orange-400/80">Manual Additional at Delivery</span>
+                        <span class="text-orange-400/80">+$<?= number_format($deliveryManualAmount, 2) ?></span>
+                    </div>
+                <?php endif; ?>
                 <div class="flex justify-between text-sm">
                     <span class="text-mb-subtle">Base Collected at Delivery</span>
                     <span class="text-white">$<?= number_format($baseCollectedAtDelivery, 2) ?></span>
@@ -234,7 +249,7 @@ function fuelBar(int $pct): string
 
                 <?php if ($overdueAmt > 0): ?>
                     <div class="flex justify-between text-sm">
-                        <span class="text-red-400">Overdue Charge</span>
+                        <span class="text-red-400">Overdue / Late Charge</span>
                         <span class="text-red-400">+$<?= number_format($overdueAmt, 2) ?></span>
                     </div>
                 <?php endif; ?>
@@ -446,11 +461,13 @@ function fuelBar(int $pct): string
         });
     }
     function shareBill(id) {
+        const status = '<?= e($r['status']) ?>';
+        const docLabel = (status === 'pending' || status === 'confirmed') ? 'Quotation' : 'Invoice';
         const url = location.origin + '/reservations/bill.php?id=' + id;
         if (navigator.share) {
-            navigator.share({ title: 'Invoice #' + String(id).padStart(5, '0') + ' - O Rent', url: url }).catch(() => { });
+            navigator.share({ title: docLabel + ' #' + String(id).padStart(5, '0') + ' - O Rent', url: url }).catch(() => { });
         } else {
-            navigator.clipboard.writeText(url).then(() => showToast('Bill link copied!'));
+            navigator.clipboard.writeText(url).then(() => showToast(docLabel + ' link copied!'));
         }
     }
     function showToast(msg) {
@@ -486,3 +503,4 @@ function fuelBar(int $pct): string
         animation: scale-in 0.2s ease-out forwards;
     }
 </style>
+

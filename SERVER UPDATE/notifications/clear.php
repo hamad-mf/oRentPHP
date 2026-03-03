@@ -13,5 +13,6 @@ if ($action === 'clear_all') {
 
 // Redirect back to dashboard or referrer
 $ref = $_SERVER['HTTP_REFERER'] ?? '../index.php';
+app_log('ACTION', 'Cleared notifications');
 header("Location: $ref");
 exit;

@@ -29,10 +29,12 @@ $days = max(1, (int) ceil(($end - $start) / 86400) + 1); // inclusive: count bot
 $basePrice = (float) $r['total_price'];
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
+$deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
+// Keep manual additional amount hidden in bill text, but include it in totals.
 // Delivery discount
 $delivDiscType = $r['delivery_discount_type'] ?? null;
 $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
-$delivBase = max(0, $basePrice - $voucherApplied) + $deliveryCharge;
+$delivBase = max(0, $basePrice - $voucherApplied) + $deliveryCharge + $deliveryManualAmount;
 $delivDiscountAmt = 0;
 if ($delivDiscType === 'percent') {
     $delivDiscountAmt = round($delivBase * min($delivDiscVal, 100) / 100, 2);
@@ -49,6 +51,8 @@ $chellanChg = (float) ($r['chellan_amount'] ?? 0);
 $discType = $r['discount_type'] ?? null;
 $discVal = (float) ($r['discount_value'] ?? 0);
 $earlyVoucherCredit = max(0, (float) ($r['voucher_credit_issued'] ?? ($r['early_return_credit'] ?? 0)));
+
+$isQuotation = in_array($r['status'], ['pending', 'confirmed']);
 
 // Recalculate totals: base rental is collected at delivery, return collects only extra charges
 $returnChargesBeforeDiscount = $overdueAmt + $kmOverageChg + $damageChg + $additionalChg + $chellanChg;
@@ -477,7 +481,8 @@ function fdt(?string $dt): string
         <div class="btn-group" style="justify-content:flex-start">
             <a href="show.php?id=<?= $id ?>" class="back">← Back to Reservation</a>
         </div>
-        <span class="title">Invoice Preview</span>
+        <span class="title"><?= $isQuotation ? 'Quotation Preview' : 'Invoice Preview' ?></span>
+
         <div class="btn-group">
             <button class="btn btn-print" onclick="window.print()">🖨 Print</button>
             <button class="btn btn-pdf" onclick="downloadPDF()">⬇ Download PDF</button>
@@ -494,7 +499,8 @@ function fdt(?string $dt): string
                 <div class="company-sub">Car Rental CRM</div>
             </div>
             <div class="inv-badge">
-                <div class="label">Invoice</div>
+                <div class="label"><?= $isQuotation ? 'Quotation' : 'Invoice' ?></div>
+
                 <div class="num">#
                     <?= str_pad($id, 5, '0', STR_PAD_LEFT) ?>
                 </div>
@@ -657,7 +663,7 @@ function fdt(?string $dt): string
                 <tbody>
                     <tr>
                         <td>
-                            Base Collected at Delivery<?= $deliveryCharge > 0 ? ' (incl. delivery charge)' : '' ?>:
+                            Base Rental:
                             <?= e($r['brand']) ?>
                             <?= e($r['model']) ?> ×
                             <?= $days ?> day
@@ -665,13 +671,19 @@ function fdt(?string $dt): string
                             <?= number_format($r['daily_rate'], 2) ?>/day
                         </td>
                         <td class="val">$
-                            <?= number_format($baseCollectedAtDelivery, 2) ?>
+                            <?= number_format($basePrice, 2) ?>
                         </td>
                     </tr>
                     <?php if ($voucherApplied > 0): ?>
                         <tr style="color:#16a34a">
                             <td>Voucher Used on Booking</td>
                             <td class="val">-$<?= number_format($voucherApplied, 2) ?></td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php if ($deliveryCharge > 0): ?>
+                        <tr style="color:#0369a1">
+                            <td>Delivery Charge</td>
+                            <td class="val">+$<?= number_format($deliveryCharge, 2) ?></td>
                         </tr>
                     <?php endif; ?>
                     <?php if ($delivDiscountAmt > 0): ?>
@@ -681,70 +693,81 @@ function fdt(?string $dt): string
                             <td class="val">-$<?= number_format($delivDiscountAmt, 2) ?></td>
                         </tr>
                     <?php endif; ?>
-                    <?php if ($overdueAmt > 0): ?>
-                        <tr class="overdue-row">
-                            <td>⚠ Overdue Charges</td>
-                            <td class="val">+$
-                                <?= number_format($overdueAmt, 2) ?>
-                            </td>
-                        </tr>
-                    <?php endif; ?>
-                    <?php if ($kmOverageChg > 0): ?>
-                        <tr style="color:#d97706">
-                            <td>🚗 KM Overage (<?= number_format($r['km_driven']) ?> km driven, limit
-                                <?= number_format($r['km_limit']) ?> km)
-                            </td>
-                            <td class="val">+$<?= number_format($kmOverageChg, 2) ?></td>
-                        </tr>
-                    <?php endif; ?>
-                    <?php if ($damageChg > 0): ?>
-                        <tr style="color:#ea580c">
-                            <td>🔧 Damage Charges</td>
-                            <td class="val">+$<?= number_format($damageChg, 2) ?></td>
-                        </tr>
-                    <?php endif; ?>
-                    <?php if ($additionalChg > 0): ?>
-                        <tr style="color:#c2410c">
-                            <td>Additional Charge</td>
-                            <td class="val">+$<?= number_format($additionalChg, 2) ?></td>
-                        </tr>
-                    <?php endif; ?>
-                    <?php if ($chellanChg > 0): ?>
-                        <tr style="color:#dc2626">
-                            <td>🚔 Chellan</td>
-                            <td class="val">+$<?= number_format($chellanChg, 2) ?></td>
-                        </tr>
-                    <?php endif; ?>
-                    <?php if ($discountAmt > 0): ?>
-                        <tr style="color:#16a34a">
-                            <td>🎫 Return Discount<?= $discType === 'percent' ? ' (' . $discVal . '%)' : '' ?></td>
-                            <td class="val">-$<?= number_format($discountAmt, 2) ?></td>
-                        </tr>
-                    <?php endif; ?>
-                    <?php if ($returnVoucherApplied > 0): ?>
-                        <tr style="color:#10b981">
-                            <td>Voucher Applied on Return</td>
-                            <td class="val">-$<?= number_format($returnVoucherApplied, 2) ?></td>
-                        </tr>
-                    <?php endif; ?>
-                    <?php if ($earlyVoucherCredit > 0): ?>
-                        <tr style="color:#10b981">
-                            <td>Early Return Voucher Credit (for next booking)</td>
-                            <td class="val">+$<?= number_format($earlyVoucherCredit, 2) ?></td>
-                        </tr>
-                    <?php endif; ?>
+                    <tr style="background:#f8fafc;font-weight:600">
+                        <td>Base Collected at Delivery</td>
+                        <td class="val">$<?= number_format($baseCollectedAtDelivery, 2) ?></td>
+                    </tr>
+                    <?php if (!$isQuotation): ?>
+                        <?php if ($overdueAmt > 0): ?>
+                            <tr class="overdue-row">
+                                <td>⚠ Overdue / Late Charges</td>
+                                <td class="val">+$
+                                    <?= number_format($overdueAmt, 2) ?>
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                        <?php if ($kmOverageChg > 0): ?>
+                            <tr style="color:#d97706">
+                                <td>🚗 KM Overage (<?= number_format($r['km_driven']) ?> km driven, limit
+                                    <?= number_format($r['km_limit']) ?> km)
+                                </td>
+                                <td class="val">+$<?= number_format($kmOverageChg, 2) ?></td>
+                            </tr>
+                        <?php endif; ?>
+                        <?php if ($damageChg > 0): ?>
+                            <tr style="color:#ea580c">
+                                <td>🔧 Damage Charges</td>
+                                <td class="val">+$<?= number_format($damageChg, 2) ?></td>
+                            </tr>
+                        <?php endif; ?>
+                        <?php if ($additionalChg > 0): ?>
+                            <tr style="color:#c2410c">
+                                <td>Additional Charge</td>
+                                <td class="val">+$<?= number_format($additionalChg, 2) ?></td>
+                            </tr>
+                        <?php endif; ?>
+                        <?php if ($chellanChg > 0): ?>
+                            <tr style="color:#dc2626">
+                                <td>🚔 Chellan</td>
+                                <td class="val">+$<?= number_format($chellanChg, 2) ?></td>
+                            </tr>
+                        <?php endif; ?>
+                        <?php if ($discountAmt > 0): ?>
+                            <tr style="color:#16a34a">
+                                <td>🎫 Return Discount<?= $discType === 'percent' ? ' (' . $discVal . '%)' : '' ?></td>
+                                <td class="val">-$<?= number_format($discountAmt, 2) ?></td>
+                            </tr>
+                        <?php endif; ?>
+                        <?php if ($returnVoucherApplied > 0): ?>
+                            <tr style="color:#10b981">
+                                <td>Voucher Applied on Return</td>
+                                <td class="val">-$<?= number_format($returnVoucherApplied, 2) ?></td>
+                            </tr>
+                        <?php endif; ?>
+                        <?php if ($earlyVoucherCredit > 0): ?>
+                            <tr style="color:#10b981">
+                                <td>Early Return Voucher Credit (for next booking)</td>
+                                <td class="val">+$<?= number_format($earlyVoucherCredit, 2) ?></td>
+                            </tr>
+                        <?php endif; ?>
+                    <?php endif; /* !isQuotation */ ?>
                 </tbody>
                 <tfoot>
-                    <tr class="total-row">
-                        <td>Amount Due at Return</td>
-                        <td class="val">$<?= number_format($cashDueAtReturn, 2) ?></td>
-                    </tr>
-                    <tr class="total-row" style="background:#f8fafc;color:#1e293b">
-                        <td>Total Collected for This Rental</td>
-                        <td class="val">$
-                            <?= number_format($totalCollected, 2) ?>
-                        </td>
-                    </tr>
+                    <?php if ($isQuotation): ?>
+                        <tr class="total-row" style="background:#f8fafc;color:#1e293b">
+                            <td>Estimated Total</td>
+                            <td class="val">$<?= number_format($baseCollectedAtDelivery, 2) ?></td>
+                        </tr>
+                    <?php else: ?>
+                        <tr class="total-row">
+                            <td>Amount Due at Return</td>
+                            <td class="val">$<?= number_format($cashDueAtReturn, 2) ?></td>
+                        </tr>
+                        <tr class="total-row" style="background:#f8fafc;color:#1e293b">
+                            <td>Total Collected for This Rental</td>
+                            <td class="val">$<?= number_format($totalCollected, 2) ?></td>
+                        </tr>
+                    <?php endif; ?>
                 </tfoot>
             </table>
 
@@ -763,7 +786,7 @@ function fdt(?string $dt): string
     <script>
         function downloadPDF() {
             const originalTitle = document.title;
-            document.title = 'Invoice-<?= str_pad($id, 5, '0', STR_PAD_LEFT) ?>';
+            document.title = '<?= $isQuotation ? 'Quotation' : 'Invoice' ?>-<?= str_pad($id, 5, '0', STR_PAD_LEFT) ?>';
             window.print();
             document.title = originalTitle;
         }

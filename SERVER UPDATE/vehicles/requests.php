@@ -10,6 +10,7 @@ try {
         client_name_free VARCHAR(120) DEFAULT NULL,
         vehicle_brand VARCHAR(80) NOT NULL,
         vehicle_model VARCHAR(80) NOT NULL,
+        people_count INT NOT NULL DEFAULT 1,
         notes TEXT DEFAULT NULL,
         status ENUM('pending','contacted','acquired','cancelled') NOT NULL DEFAULT 'pending',
         requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -17,6 +18,21 @@ try {
         FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 } catch (Exception $e) { /* already exists */
+}
+
+// Backward-safe migration for older installs.
+try {
+    $peopleColExists = (int) $pdo->query("
+        SELECT COUNT(*)
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'vehicle_requests'
+          AND COLUMN_NAME = 'people_count'
+    ")->fetchColumn();
+    if ($peopleColExists === 0) {
+        $pdo->exec("ALTER TABLE vehicle_requests ADD COLUMN people_count INT NOT NULL DEFAULT 1 AFTER vehicle_model");
+    }
+} catch (Throwable $e) {
 }
 
 // Fetch clients for dropdown
@@ -29,6 +45,7 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add') {
     $brand = trim($_POST['vehicle_brand'] ?? '');
     $model = trim($_POST['vehicle_model'] ?? '');
+    $peopleCount = max(1, (int) ($_POST['people_count'] ?? 1));
     $clientId = (int) ($_POST['client_id'] ?? 0) ?: null;
     $freeName = trim($_POST['client_name_free'] ?? '');
     $notes = trim($_POST['notes'] ?? '');
@@ -41,10 +58,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add')
         $errors[] = 'Please select a client or enter a client name.';
 
     if (empty($errors)) {
-        $stmt = $pdo->prepare("INSERT INTO vehicle_requests (client_id, client_name_free, vehicle_brand, vehicle_model, notes) VALUES (?,?,?,?,?)");
-        $stmt->execute([$clientId, $clientId ? null : $freeName, $brand, $model, $notes]);
+        $stmt = $pdo->prepare("INSERT INTO vehicle_requests (client_id, client_name_free, vehicle_brand, vehicle_model, people_count, notes) VALUES (?,?,?,?,?,?)");
+        $stmt->execute([$clientId, $clientId ? null : $freeName, $brand, $model, $peopleCount, $notes]);
         $success = 'Request logged successfully.';
     }
+}
+
+// Handle POST — update people count
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'people_count') {
+    $reqId = (int) ($_POST['req_id'] ?? 0);
+    $peopleCount = max(1, (int) ($_POST['people_count'] ?? 1));
+    if ($reqId) {
+        $pdo->prepare("UPDATE vehicle_requests SET people_count=? WHERE id=?")->execute([$peopleCount, $reqId]);
+    }
+    header('Location: requests.php?' . http_build_query(['filter' => $_POST['filter'] ?? '']));
+    exit;
 }
 
 // Handle POST — update status
@@ -173,6 +201,7 @@ $statusLabel = [
                         <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Date</th>
                         <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Client</th>
                         <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Vehicle Wanted</th>
+                        <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">People</th>
                         <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Notes</th>
                         <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Status</th>
                         <th class="px-5 py-3"></th>
@@ -204,6 +233,20 @@ $statusLabel = [
                                 <div class="text-mb-subtle text-xs">
                                     <?= e($req['vehicle_model']) ?>
                                 </div>
+                            </td>
+                            <td class="px-5 py-4">
+                                <form method="POST" class="flex items-center gap-2">
+                                    <input type="hidden" name="action" value="people_count">
+                                    <input type="hidden" name="req_id" value="<?= $req['id'] ?>">
+                                    <input type="hidden" name="filter" value="<?= e($filter) ?>">
+                                    <input type="number" name="people_count" min="1" step="1"
+                                        value="<?= (int) ($req['people_count'] ?? 1) ?>"
+                                        class="w-20 bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-1.5 text-white text-sm focus:outline-none focus:border-mb-accent">
+                                    <button type="submit"
+                                        class="text-xs px-2.5 py-1.5 rounded-lg border border-mb-subtle/20 text-mb-silver hover:text-white hover:border-mb-accent transition-colors">
+                                        Save
+                                    </button>
+                                </form>
                             </td>
                             <td class="px-5 py-4 text-mb-silver text-sm max-w-xs">
                                 <?= $req['notes'] ? e(mb_substr($req['notes'], 0, 80)) . (mb_strlen($req['notes']) > 80 ? '…' : '') : '<span class="text-mb-subtle">—</span>' ?>
@@ -259,7 +302,7 @@ $statusLabel = [
         <form method="POST" class="p-5 space-y-4">
             <input type="hidden" name="action" value="add">
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-sm text-mb-silver mb-1.5">Vehicle Brand <span
                             class="text-red-400">*</span></label>
@@ -272,6 +315,12 @@ $statusLabel = [
                             class="text-red-400">*</span></label>
                     <input type="text" name="vehicle_model" placeholder="e.g. Land Cruiser"
                         value="<?= e($_POST['vehicle_model'] ?? '') ?>"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent placeholder-mb-subtle">
+                </div>
+                <div>
+                    <label class="block text-sm text-mb-silver mb-1.5">People Requested</label>
+                    <input type="number" name="people_count" min="1" step="1"
+                        value="<?= e($_POST['people_count'] ?? '1') ?>"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent placeholder-mb-subtle">
                 </div>
             </div>

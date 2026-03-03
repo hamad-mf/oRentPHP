@@ -299,6 +299,13 @@ $_notifs = notif_all($pdo);
             }
             if ($isAdmin || array_intersect(['add_reservations', 'do_delivery', 'do_return'], $cuPerms)) {
                 echo navLink("{$root}reservations/index.php", 'Reservations', $icons['reservations'], $currentDir === 'reservations');
+                echo navLink("{$root}gps/index.php", 'GPS Tracking', $icons['gps'], $currentDir === 'gps');
+            }
+            if ($isAdmin || in_array('view_finances', $cuPerms, true)) {
+                $accountIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>';
+                $targetIcon  = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>';
+                echo navLink("{$root}accounts/index.php", 'Accounts', $accountIcon, $currentDir === 'accounts' && $currentPage !== 'targets.php');
+                echo navLink("{$root}accounts/targets.php", 'Targets', $targetIcon, $currentDir === 'accounts' && $currentPage === 'targets.php');
             }
             if ($isAdmin || in_array('manage_clients', $cuPerms, true)) {
                 echo navLink("{$root}clients/index.php", 'Clients', $icons['clients'], $currentDir === 'clients');
@@ -312,6 +319,10 @@ $_notifs = notif_all($pdo);
             if ($isAdmin) {
                 $attendanceIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>';
                 echo navLink("{$root}attendance/index.php", 'Attendance', $attendanceIcon, $currentDir === 'attendance');
+                $payrollIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>';
+                echo navLink("{$root}payroll/index.php", 'Payroll', $payrollIcon, $currentDir === 'payroll');
+                $investIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+                echo navLink("{$root}investments/index.php", 'Investments', $investIcon, $currentDir === 'investments');
             }
             echo navLink("{$root}settings/general.php", 'Settings', $icons['settings'], $currentDir === 'settings');
             ?>
@@ -509,20 +520,42 @@ $_notifs = notif_all($pdo);
                                         'due_soon' => 'bg-yellow-500',
                                         default => 'bg-blue-500'
                                     };
+                                    $notifTarget = !empty($n['reservation_id'])
+                                        ? '../reservations/show.php?id=' . (int) $n['reservation_id']
+                                        : '';
+                                    $notifClickHref = $notifTarget !== ''
+                                        ? $root . 'notifications/clear.php?action=mark_read&id=' . (int) $n['id'] . '&go=' . rawurlencode($notifTarget)
+                                        : '';
                                     ?>
                                     <div
                                         class="flex items-start gap-3 px-4 py-3 <?= $bg ?> border-b border-mb-subtle/10 hover:bg-mb-black/20 transition-colors group">
-                                        <span
-                                            class="w-2 h-2 mt-1.5 rounded-full <?= $dot ?> flex-shrink-0 <?= $n['is_read'] ? 'opacity-30' : '' ?>"></span>
-                                        <div class="flex-1 min-w-0">
-                                            <p
-                                                class="text-sm <?= $n['is_read'] ? 'text-mb-subtle' : 'text-white' ?> leading-snug">
-                                                <?= htmlspecialchars($n['message']) ?>
-                                            </p>
-                                            <p class="text-xs text-mb-subtle mt-0.5">
-                                                <?= date('d M, h:i A', strtotime($n['created_at'])) ?>
-                                            </p>
-                                        </div>
+                                        <?php if ($notifClickHref !== ''): ?>
+                                            <a href="<?= e($notifClickHref) ?>" class="flex items-start gap-3 flex-1 min-w-0">
+                                                <span
+                                                    class="w-2 h-2 mt-1.5 rounded-full <?= $dot ?> flex-shrink-0 <?= $n['is_read'] ? 'opacity-30' : '' ?>"></span>
+                                                <div class="flex-1 min-w-0">
+                                                    <p
+                                                        class="text-sm <?= $n['is_read'] ? 'text-mb-subtle' : 'text-white' ?> leading-snug hover:text-mb-accent transition-colors">
+                                                        <?= htmlspecialchars($n['message']) ?>
+                                                    </p>
+                                                    <p class="text-xs text-mb-subtle mt-0.5">
+                                                        <?= date('d M, h:i A', strtotime($n['created_at'])) ?>
+                                                    </p>
+                                                </div>
+                                            </a>
+                                        <?php else: ?>
+                                            <span
+                                                class="w-2 h-2 mt-1.5 rounded-full <?= $dot ?> flex-shrink-0 <?= $n['is_read'] ? 'opacity-30' : '' ?>"></span>
+                                            <div class="flex-1 min-w-0">
+                                                <p
+                                                    class="text-sm <?= $n['is_read'] ? 'text-mb-subtle' : 'text-white' ?> leading-snug">
+                                                    <?= htmlspecialchars($n['message']) ?>
+                                                </p>
+                                                <p class="text-xs text-mb-subtle mt-0.5">
+                                                    <?= date('d M, h:i A', strtotime($n['created_at'])) ?>
+                                                </p>
+                                            </div>
+                                        <?php endif; ?>
                                         <?php if (!$n['is_read']): ?>
                                             <form method="POST" action="<?= $root ?>notifications/clear.php"
                                                 class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">

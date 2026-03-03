@@ -163,6 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $payNow = max(0, $totalPrice - $voucherApplied);
                 $msg .= ' Voucher used: $' . number_format($voucherApplied, 2) . '. Collect at delivery: $' . number_format($payNow, 2) . '.';
             }
+            app_log('ACTION', "Created reservation (ID: $id)");
             flash('success', $msg);
             redirect("show.php?id=$id");
         } catch (Throwable $e) {
@@ -172,7 +173,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($e instanceof RuntimeException && $e->getMessage() === 'Vehicle overlap') {
                 $errors['vehicle_id'] = 'Selected vehicle is no longer available for the selected period.';
             } else {
-                $errors['db'] = 'Could not create reservation. Please try again.';
+                app_log('ERROR', 'Reservation creation failed: ' . $e->getMessage(), ['file' => $e->getFile() . ':' . $e->getLine()]);
+                $errors['db'] = 'Could not create reservation: ' . $e->getMessage();
             }
         }
     }

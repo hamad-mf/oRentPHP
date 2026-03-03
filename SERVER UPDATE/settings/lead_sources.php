@@ -17,7 +17,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         settings_set($pdo, 'lead_sources', lead_sources_encode_map($parsedSources));
-        flash('success', 'Lead sources updated successfully.');
+        app_log('ACTION', 'Updated lead sources settings');
+flash('success', 'Lead sources updated successfully.');
         redirect('lead_sources.php');
     }
 

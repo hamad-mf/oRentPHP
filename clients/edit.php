@@ -54,6 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($errors)) {
             $pdo->prepare('UPDATE clients SET name=?,email=?,phone=?,address=?,notes=?,proof_file=? WHERE id=?')
                 ->execute([$name, $email ?: null, $phone, $address, $notes, $proofFile, $id]);
+            app_log('ACTION', "Updated client: $name (ID: $id)");
             flash('success', 'Client updated successfully.');
             redirect("show.php?id=$id");
         }

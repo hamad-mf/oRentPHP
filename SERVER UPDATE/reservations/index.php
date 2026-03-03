@@ -228,9 +228,10 @@ require_once __DIR__ . '/../includes/header.php';
                                     $basePrice = (float) $r['total_price'];
                                     $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
                                     $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
+                                    $deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
                                     $delivDiscType = $r['delivery_discount_type'] ?? null;
                                     $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
-                                    $delivBase = max(0, $basePrice - $voucherApplied) + $deliveryCharge;
+                                    $delivBase = max(0, $basePrice - $voucherApplied) + $deliveryCharge + $deliveryManualAmount;
                                     $delivDiscountAmt = 0;
                                     if ($delivDiscType === 'percent') {
                                         $delivDiscountAmt = round($delivBase * min($delivDiscVal, 100) / 100, 2);

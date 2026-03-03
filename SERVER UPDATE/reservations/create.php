@@ -163,6 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $payNow = max(0, $totalPrice - $voucherApplied);
                 $msg .= ' Voucher used: $' . number_format($voucherApplied, 2) . '. Collect at delivery: $' . number_format($payNow, 2) . '.';
             }
+            app_log('ACTION', "Created reservation (ID: $id)");
             flash('success', $msg);
             redirect("show.php?id=$id");
         } catch (Throwable $e) {

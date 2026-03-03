@@ -52,13 +52,31 @@ $stageBadge = [
 ];
 
 // ── Filter params ───────────────────────────────────────────
-$filterStaff = (int) ($_GET['staff_filter'] ?? 0);
+$currentUser = current_user();
+$isAdmin = (($currentUser['role'] ?? '') === 'admin');
+$currentUserId = (int) ($currentUser['id'] ?? 0);
+$isStaffScopeLocked = (!$isAdmin && $currentUserId > 0);
+$importReport = null;
+if ($isAdmin && isset($_SESSION['lead_import_report']) && is_array($_SESSION['lead_import_report'])) {
+    $importReport = $_SESSION['lead_import_report'];
+    unset($_SESSION['lead_import_report']);
+}
+
+$requestedStaffFilter = (int) ($_GET['staff_filter'] ?? 0);
+$filterStaff = $isStaffScopeLocked ? $currentUserId : $requestedStaffFilter;
 $filterDateFrom = trim($_GET['date_from'] ?? '');
 $filterDateTo = trim($_GET['date_to'] ?? '');
 $filterSource = trim($_GET['source_filter'] ?? '');
 
 // Fetch all users for the staff filter dropdown
-$allStaffUsers = $pdo->query("SELECT id, name FROM users WHERE is_active = 1 ORDER BY name ASC")->fetchAll();
+$allStaffUsers = [];
+if (!$isStaffScopeLocked) {
+    $allStaffUsers = $pdo->query("SELECT id, name FROM users WHERE is_active = 1 ORDER BY name ASC")->fetchAll();
+}
+$importAssignableStaff = [];
+if ($isAdmin) {
+    $importAssignableStaff = $pdo->query("SELECT id, name FROM users WHERE is_active = 1 AND role = 'staff' ORDER BY name ASC")->fetchAll();
+}
 
 // ── Build dynamic leads query ────────────────────────────────
 $where = ['1=1'];
@@ -139,6 +157,12 @@ require_once __DIR__ . '/../includes/header.php';
             </p>
         </div>
         <div class="flex items-center gap-3">
+            <?php if ($isAdmin): ?>
+                <button type="button" id="openLeadImportModal"
+                    class="bg-mb-black border border-mb-subtle/20 text-mb-silver px-5 py-2 rounded-full hover:border-mb-accent/40 hover:text-white transition-colors text-sm font-medium">
+                    Import Leads
+                </button>
+            <?php endif; ?>
             <?php if (auth_has_perm('add_leads')): ?>
                 <a href="create.php"
                     class="bg-mb-accent text-white px-5 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-sm font-medium">
@@ -150,7 +174,80 @@ require_once __DIR__ . '/../includes/header.php';
 
     <!-- ── Filter Bar ── -->
     <?php
-    $activeFilters = (int) ($filterStaff > 0) + (int) ($filterDateFrom !== '') + (int) ($filterDateTo !== '') + (int) ($filterSource !== '');
+    if ($isAdmin && is_array($importReport)):
+        $importTotal = max(0, (int) ($importReport['total_rows'] ?? 0));
+        $importSuccess = max(0, (int) ($importReport['success_count'] ?? 0));
+        $importFailed = max(0, (int) ($importReport['failed_count'] ?? 0));
+        $importSuccessPct = $importTotal > 0 ? round(($importSuccess / $importTotal) * 100, 1) : 0;
+        $importFailedPct = $importTotal > 0 ? round(($importFailed / $importTotal) * 100, 1) : 0;
+        $importFailedEntries = (array) ($importReport['failed_entries'] ?? []);
+        $importFailedHiddenCount = max(0, (int) ($importReport['failed_hidden_count'] ?? 0));
+        $importFileName = (string) ($importReport['filename'] ?? 'Import file');
+        $importStaffNames = array_values(array_filter((array) ($importReport['staff_names'] ?? []), static fn($v) => trim((string) $v) !== ''));
+        ?>
+        <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-4 space-y-3">
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                    <p class="text-white text-sm font-medium">Lead Import Result</p>
+                    <p class="text-mb-subtle text-xs mt-0.5">
+                        File: <?= e($importFileName) ?>
+                        <?php if (!empty($importStaffNames)): ?>
+                            | Staff: <?= e(implode(', ', $importStaffNames)) ?>
+                        <?php endif; ?>
+                    </p>
+                </div>
+                <a href="import.php"
+                    class="text-xs bg-mb-black border border-mb-subtle/20 text-mb-silver px-3 py-1.5 rounded-full hover:border-mb-accent/40 hover:text-white transition-colors">
+                    Import Another File
+                </a>
+            </div>
+            <div class="h-2 bg-mb-black rounded-full overflow-hidden flex">
+                <div class="h-full bg-green-500/80" style="width: <?= $importSuccessPct ?>%"></div>
+                <div class="h-full bg-red-500/70" style="width: <?= $importFailedPct ?>%"></div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <div class="bg-mb-black/40 border border-mb-subtle/20 rounded-lg px-3 py-2">
+                    <span class="text-mb-subtle">Total Rows</span>
+                    <p class="text-white text-sm mt-0.5"><?= $importTotal ?></p>
+                </div>
+                <div class="bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-2">
+                    <span class="text-green-300/80">Success</span>
+                    <p class="text-green-300 text-sm mt-0.5"><?= $importSuccess ?></p>
+                </div>
+                <div class="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+                    <span class="text-red-300/80">Failed</span>
+                    <p class="text-red-300 text-sm mt-0.5"><?= $importFailed ?></p>
+                </div>
+            </div>
+            <?php if (!empty($importFailedEntries) || $importFailedHiddenCount > 0): ?>
+                <details class="bg-mb-black/40 border border-mb-subtle/20 rounded-lg">
+                    <summary class="px-3 py-2 text-xs text-mb-silver cursor-pointer select-none">
+                        View Failed Entries
+                        <?php if ($importFailedHiddenCount > 0): ?>
+                            (showing first <?= count($importFailedEntries) ?> of <?= $importFailed ?>)
+                        <?php endif; ?>
+                    </summary>
+                    <div class="border-t border-mb-subtle/20 max-h-64 overflow-y-auto">
+                        <?php foreach ($importFailedEntries as $failedEntry): ?>
+                            <div class="px-3 py-2 border-b border-mb-subtle/10 text-xs space-y-0.5">
+                                <p class="text-red-300">
+                                    Row <?= (int) ($failedEntry['row_number'] ?? 0) ?>:
+                                    <?= e((string) ($failedEntry['reason'] ?? 'Failed')) ?>
+                                </p>
+                                <p class="text-mb-subtle">
+                                    <?= e(trim((string) (($failedEntry['name'] ?? '') . ' | ' . ($failedEntry['phone'] ?? '') . ' | ' . ($failedEntry['email'] ?? '')))) ?>
+                                </p>
+                            </div>
+                        <?php endforeach; ?>
+                        <?php if ($importFailedHiddenCount > 0): ?>
+                            <p class="px-3 py-2 text-xs text-mb-subtle">...and <?= $importFailedHiddenCount ?> more failed rows.</p>
+                        <?php endif; ?>
+                    </div>
+                </details>
+            <?php endif; ?>
+        </div>
+    <?php endif;
+    $activeFilters = (int) ((!$isStaffScopeLocked) && ($filterStaff > 0)) + (int) ($filterDateFrom !== '') + (int) ($filterDateTo !== '') + (int) ($filterSource !== '');
     ?>
     <form method="GET" id="pipelineFilters"
         class="flex flex-wrap items-center gap-3 bg-mb-surface border border-mb-subtle/20 rounded-xl px-4 py-3">
@@ -161,15 +258,22 @@ require_once __DIR__ . '/../includes/header.php';
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                     d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
-            <select name="staff_filter" onchange="document.getElementById('pipelineFilters').submit()"
-                class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors cursor-pointer">
-                <option value="0">All Staff</option>
-                <?php foreach ($allStaffUsers as $su): ?>
-                    <option value="<?= $su['id'] ?>" <?= $filterStaff === (int) $su['id'] ? 'selected' : '' ?>>
-                        <?= e($su['name']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
+            <?php if ($isStaffScopeLocked): ?>
+                <span
+                    class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-sm text-mb-silver whitespace-nowrap">
+                    Your leads only
+                </span>
+            <?php else: ?>
+                <select name="staff_filter" onchange="document.getElementById('pipelineFilters').submit()"
+                    class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors cursor-pointer">
+                    <option value="0">All Staff</option>
+                    <?php foreach ($allStaffUsers as $su): ?>
+                        <option value="<?= $su['id'] ?>" <?= $filterStaff === (int) $su['id'] ? 'selected' : '' ?>>
+                            <?= e($su['name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            <?php endif; ?>
         </div>
 
         <div class="w-px h-5 bg-mb-subtle/20"></div>
@@ -289,15 +393,23 @@ require_once __DIR__ . '/../includes/header.php';
                             <div class="flex items-center gap-1.5 mt-0.5" onclick="event.stopPropagation()">
                                 <p class="text-mb-subtle text-xs"><?= e($l['phone']) ?></p>
                                 <?php if (!empty($l['phone'])): ?>
-                                    <a href="https://wa.me/<?= preg_replace('/\D/', '', $l['phone']) ?>" target="_blank"
-                                        rel="noopener noreferrer" title="Open in WhatsApp"
-                                        class="flex-shrink-0 text-[#25D366] hover:text-[#1aad52] transition-colors">
+                                    <?php
+                                    $phoneDigits = preg_replace('/\D/', '', (string) $l['phone']);
+                                    $phoneDial = preg_replace('/[^0-9+]/', '', (string) $l['phone']);
+                                    if ($phoneDial === '') {
+                                        $phoneDial = $phoneDigits;
+                                    }
+                                    ?>
+                                    <button type="button" title="Contact options"
+                                        data-dial="<?= e($phoneDial) ?>" data-wa="<?= e($phoneDigits) ?>"
+                                        onclick="event.stopPropagation(); openContactChoice(this);"
+                                        class="flex-shrink-0 text-mb-accent hover:text-white transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
                                             class="w-3.5 h-3.5">
                                             <path
-                                                d="M12.001 2C6.478 2 2 6.478 2 12.001c0 1.788.47 3.464 1.287 4.919L2.04 21.6a.5.5 0 0 0 .614.601l4.801-1.37A9.956 9.956 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12.001 2zm0 1.5A8.5 8.5 0 1 1 12 20.5a8.454 8.454 0 0 1-4.174-1.096.75.75 0 0 0-.566-.076l-3.538 1.01 .957-3.422a.75.75 0 0 0-.083-.583A8.46 8.46 0 0 1 3.5 12 8.5 8.5 0 0 1 12.001 3.5zm-2.39 4.05c-.197-.44-.427-.452-.622-.46-.163-.007-.35-.006-.537-.006a1.03 1.03 0 0 0-.748.35c-.256.28-.98.957-.98 2.334s1.003 2.707 1.143 2.894c.14.187 1.946 3.1 4.793 4.224 2.374.936 2.847.75 3.36.703.513-.047 1.657-.677 1.89-1.33.234-.653.234-1.213.164-1.33-.07-.117-.257-.187-.537-.327-.28-.14-1.657-.817-1.913-.91-.257-.094-.444-.14-.63.14-.187.28-.723.91-.886 1.097-.163.187-.327.21-.607.07-.28-.14-1.182-.436-2.251-1.39-.832-.743-1.394-1.66-1.558-1.94-.163-.28-.017-.43.122-.57.126-.124.28-.327.42-.49.14-.163.187-.28.28-.467.093-.187.047-.35-.023-.49-.07-.14-.617-1.523-.852-2.082z" />
+                                                d="M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.36 11.36 0 003.56.57 1 1 0 011 1V20a1 1 0 01-1 1C10.07 21 3 13.93 3 5a1 1 0 011-1h3.49a1 1 0 011 1 11.36 11.36 0 00.57 3.56 1 1 0 01-.24 1.01l-2.2 2.22z" />
                                         </svg>
-                                    </a>
+                                    </button>
                                 <?php endif; ?>
                             </div>
                             <?php if (!empty($l['assigned_to'])): ?>
@@ -379,6 +491,100 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
+<div id="contactChoiceModal" class="hidden fixed inset-0 z-50 bg-black/60 items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-mb-surface border border-mb-subtle/20 rounded-xl p-5 space-y-4">
+        <div>
+            <h3 class="text-white text-base font-medium">Contact Lead</h3>
+            <p class="text-mb-subtle text-xs mt-1">Choose where to open this lead contact.</p>
+        </div>
+        <div class="grid grid-cols-1 gap-2">
+            <button id="contactDialBtn" type="button"
+                class="w-full text-left bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-2.5 text-sm text-white hover:border-mb-accent/50 transition-colors">
+                Open Phone Dialer
+            </button>
+            <button id="contactWhatsBtn" type="button"
+                class="w-full text-left bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-2.5 text-sm text-white hover:border-[#25D366]/50 transition-colors">
+                Open WhatsApp
+            </button>
+        </div>
+        <div class="flex justify-end pt-1">
+            <button id="contactCancelBtn" type="button"
+                class="text-xs text-mb-subtle hover:text-white transition-colors px-2 py-1">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<?php if ($isAdmin): ?>
+    <div id="leadImportModal" class="hidden fixed inset-0 z-50 bg-black/60 items-center justify-center p-4">
+        <div class="w-full max-w-2xl bg-mb-surface border border-mb-subtle/20 rounded-xl p-5 space-y-4">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h3 class="text-white text-base font-medium">Import Leads</h3>
+                    <p class="text-mb-subtle text-xs mt-1">Download template, upload file, map columns, and import with round robin assignment.</p>
+                </div>
+                <button type="button" id="closeLeadImportModalTop"
+                    class="text-mb-subtle hover:text-white transition-colors text-sm">Close</button>
+            </div>
+
+            <div class="bg-mb-black/40 border border-mb-subtle/20 rounded-lg p-3 flex items-center justify-between flex-wrap gap-2">
+                <p class="text-xs text-mb-silver">Step 1: Download the sample Excel template.</p>
+                <a href="import.php?action=template"
+                    class="text-xs bg-mb-accent/15 border border-mb-accent/35 text-mb-accent px-3 py-1.5 rounded-full hover:bg-mb-accent/25 transition-colors">
+                    Download Template (.xlsx)
+                </a>
+            </div>
+
+            <form method="POST" action="import.php" enctype="multipart/form-data" id="pipelineLeadImportForm" class="space-y-4">
+                <input type="hidden" name="stage" value="prepare">
+
+                <div>
+                    <label class="block text-sm text-mb-silver mb-2">Import File</label>
+                    <input type="file" name="import_file" accept=".xlsx,.csv" required
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-sm text-white file:mr-4 file:rounded-md file:border-0 file:bg-mb-accent/20 file:px-3 file:py-1.5 file:text-xs file:text-mb-accent hover:file:bg-mb-accent/30">
+                    <p class="text-xs text-mb-subtle mt-1">Supported formats: .xlsx and .csv</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm text-mb-silver mb-2">Round Robin Staff <span class="text-red-400">*</span></label>
+                    <?php if (empty($importAssignableStaff)): ?>
+                        <p class="text-sm text-red-400">No active staff accounts found. Create active staff first.</p>
+                    <?php else: ?>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
+                            <?php foreach ($importAssignableStaff as $staffUser): ?>
+                                <label
+                                    class="flex items-center gap-2 bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-mb-silver hover:border-mb-accent/35 transition-colors cursor-pointer">
+                                    <input type="checkbox" name="staff_ids[]" value="<?= (int) $staffUser['id'] ?>" class="accent-[#00adef]">
+                                    <span><?= e($staffUser['name']) ?></span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <div id="pipelineLeadImportProgress" class="hidden bg-mb-black/60 border border-mb-subtle/20 rounded-lg px-4 py-3">
+                    <p class="text-xs text-mb-silver mb-2">Preparing import and loading mapping screen...</p>
+                    <div class="h-2 bg-mb-surface rounded-full overflow-hidden">
+                        <div class="h-full bg-mb-accent animate-pulse w-2/3"></div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-1">
+                    <button type="button" id="closeLeadImportModalBottom"
+                        class="text-xs text-mb-subtle hover:text-white transition-colors px-3 py-1.5">
+                        Cancel
+                    </button>
+                    <button type="submit" id="pipelineLeadImportSubmit"
+                        class="bg-mb-accent text-white px-4 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed">
+                        Upload and Map
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+<?php endif; ?>
+
 <style>
 </style>
 
@@ -386,6 +592,19 @@ require_once __DIR__ . '/../includes/header.php';
     const stageTransitions = <?= json_encode($stageTransitions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     const columnLeadSearchInputs = document.querySelectorAll('.columnLeadSearch');
     const pipelineColumns = document.querySelectorAll('.pipeline-column');
+    const contactChoiceModal = document.getElementById('contactChoiceModal');
+    const contactDialBtn = document.getElementById('contactDialBtn');
+    const contactWhatsBtn = document.getElementById('contactWhatsBtn');
+    const contactCancelBtn = document.getElementById('contactCancelBtn');
+    const openLeadImportModalBtn = document.getElementById('openLeadImportModal');
+    const leadImportModal = document.getElementById('leadImportModal');
+    const closeLeadImportModalTop = document.getElementById('closeLeadImportModalTop');
+    const closeLeadImportModalBottom = document.getElementById('closeLeadImportModalBottom');
+    const pipelineLeadImportForm = document.getElementById('pipelineLeadImportForm');
+    const pipelineLeadImportSubmit = document.getElementById('pipelineLeadImportSubmit');
+    const pipelineLeadImportProgress = document.getElementById('pipelineLeadImportProgress');
+    let pendingDialNumber = '';
+    let pendingWaNumber = '';
 
     function normalizeSearchTerm(value) {
         return (value || '').toString().trim().toLowerCase();
@@ -424,6 +643,62 @@ require_once __DIR__ . '/../includes/header.php';
     function isMoveAllowed(fromStage, toStage) {
         const allowed = stageTransitions[fromStage] || [];
         return allowed.includes(toStage);
+    }
+
+    function closeContactChoice() {
+        if (!contactChoiceModal) {
+            return;
+        }
+        contactChoiceModal.classList.add('hidden');
+        contactChoiceModal.classList.remove('flex');
+        pendingDialNumber = '';
+        pendingWaNumber = '';
+    }
+
+    function setContactActionState(button, isEnabled) {
+        if (!button) {
+            return;
+        }
+        button.disabled = !isEnabled;
+        button.classList.toggle('opacity-50', !isEnabled);
+        button.classList.toggle('cursor-not-allowed', !isEnabled);
+    }
+
+    function closeLeadImportModal() {
+        if (!leadImportModal) {
+            return;
+        }
+        leadImportModal.classList.add('hidden');
+        leadImportModal.classList.remove('flex');
+    }
+
+    function openLeadImportModal() {
+        if (!leadImportModal) {
+            return;
+        }
+        leadImportModal.classList.remove('hidden');
+        leadImportModal.classList.add('flex');
+    }
+
+    function openContactChoice(buttonEl) {
+        const dialNumber = (buttonEl.dataset.dial || '').trim();
+        const waNumber = (buttonEl.dataset.wa || '').trim();
+
+        if (!dialNumber && !waNumber) {
+            alert('No valid phone number found for this lead.');
+            return;
+        }
+
+        pendingDialNumber = dialNumber;
+        pendingWaNumber = waNumber;
+
+        setContactActionState(contactDialBtn, dialNumber !== '');
+        setContactActionState(contactWhatsBtn, waNumber !== '');
+
+        if (contactChoiceModal) {
+            contactChoiceModal.classList.remove('hidden');
+            contactChoiceModal.classList.add('flex');
+        }
     }
 
     function promptLostReason(targetStage) {
@@ -563,6 +838,87 @@ require_once __DIR__ . '/../includes/header.php';
         input.addEventListener('input', applyPipelineFilters);
     });
     applyPipelineFilters();
+
+    if (contactCancelBtn) {
+        contactCancelBtn.addEventListener('click', function () {
+            closeContactChoice();
+        });
+    }
+    if (contactDialBtn) {
+        contactDialBtn.addEventListener('click', function () {
+            if (!pendingDialNumber) {
+                return;
+            }
+            closeContactChoice();
+            window.location.href = 'tel:' + pendingDialNumber;
+        });
+    }
+    if (contactWhatsBtn) {
+        contactWhatsBtn.addEventListener('click', function () {
+            if (!pendingWaNumber) {
+                return;
+            }
+            closeContactChoice();
+            window.open('https://wa.me/' + pendingWaNumber, '_blank', 'noopener,noreferrer');
+        });
+    }
+    if (contactChoiceModal) {
+        contactChoiceModal.addEventListener('click', function (event) {
+            if (event.target === contactChoiceModal) {
+                closeContactChoice();
+            }
+        });
+    }
+    if (openLeadImportModalBtn) {
+        openLeadImportModalBtn.addEventListener('click', function () {
+            openLeadImportModal();
+        });
+    }
+    if (closeLeadImportModalTop) {
+        closeLeadImportModalTop.addEventListener('click', function () {
+            closeLeadImportModal();
+        });
+    }
+    if (closeLeadImportModalBottom) {
+        closeLeadImportModalBottom.addEventListener('click', function () {
+            closeLeadImportModal();
+        });
+    }
+    if (leadImportModal) {
+        leadImportModal.addEventListener('click', function (event) {
+            if (event.target === leadImportModal) {
+                closeLeadImportModal();
+            }
+        });
+    }
+    if (pipelineLeadImportForm) {
+        pipelineLeadImportForm.addEventListener('submit', function (event) {
+            const checkedStaff = pipelineLeadImportForm.querySelector('input[name="staff_ids[]"]:checked');
+            if (!checkedStaff) {
+                event.preventDefault();
+                alert('Select at least one staff member for round robin assignment.');
+                return;
+            }
+            if (pipelineLeadImportSubmit) {
+                pipelineLeadImportSubmit.disabled = true;
+                pipelineLeadImportSubmit.textContent = 'Preparing...';
+            }
+            if (pipelineLeadImportProgress) {
+                pipelineLeadImportProgress.classList.remove('hidden');
+            }
+        });
+    }
+    document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') {
+            return;
+        }
+        if (contactChoiceModal && !contactChoiceModal.classList.contains('hidden')) {
+            closeContactChoice();
+        }
+        if (leadImportModal && !leadImportModal.classList.contains('hidden')) {
+            closeLeadImportModal();
+        }
+    });
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

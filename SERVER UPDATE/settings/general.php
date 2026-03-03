@@ -24,7 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     settings_set($pdo, 'deposit_percentage', (string) $depositPct);
     $deliveryChargeDefault = max(0, (float) ($_POST['delivery_charge_default'] ?? 0));
     settings_set($pdo, 'delivery_charge_default', (string) $deliveryChargeDefault);
-    flash('success', 'Settings saved successfully.');
+    app_log('ACTION', 'Updated general settings');
+flash('success', 'Settings saved successfully.');
     redirect('general.php');
 }
 

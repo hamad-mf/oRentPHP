@@ -84,6 +84,9 @@ ALTER TABLE `vehicles` ADD COLUMN IF NOT EXISTS `rate_15day` decimal(10,2) DEFAU
 ALTER TABLE `vehicles` ADD COLUMN IF NOT EXISTS `rate_30day` decimal(10,2) DEFAULT NULL;
 ALTER TABLE `vehicles` ADD COLUMN IF NOT EXISTS `image_url` varchar(500) DEFAULT NULL;
 ALTER TABLE `vehicles` ADD COLUMN IF NOT EXISTS `vin` varchar(50) DEFAULT NULL;
+ALTER TABLE `vehicles` ADD COLUMN IF NOT EXISTS `maintenance_started_at` datetime DEFAULT NULL;
+ALTER TABLE `vehicles` ADD COLUMN IF NOT EXISTS `maintenance_expected_return` date DEFAULT NULL;
+ALTER TABLE `vehicles` ADD COLUMN IF NOT EXISTS `maintenance_workshop_name` varchar(255) DEFAULT NULL;
 
 -- 8. Add proof_file to clients
 ALTER TABLE `clients` ADD COLUMN IF NOT EXISTS `proof_file` varchar(500) DEFAULT NULL;

@@ -15,8 +15,8 @@ if (!$r) {
     redirect('index.php');
 }
 
-if (!in_array($r['status'], ['pending', 'confirmed'])) {
-    flash('error', 'Only pending or confirmed reservations can be edited.');
+if (!in_array($r['status'], ['pending', 'confirmed', 'active'])) {
+    flash('error', 'Only pending, confirmed, or active reservations can be edited.');
     redirect("show.php?id=$id");
 }
 
@@ -77,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         $pdo->prepare('UPDATE reservations SET client_id=?,vehicle_id=?,rental_type=?,start_date=?,end_date=?,total_price=? WHERE id=?')
             ->execute([$clientId, $vehicleId, $rentalType, $startDate, $endDate, $totalPrice, $id]);
+        app_log('ACTION', "Updated reservation (ID: $id)");
         flash('success', 'Reservation updated.');
         redirect("show.php?id=$id");
     }

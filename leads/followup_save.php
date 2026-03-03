@@ -1,5 +1,11 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/activity_log.php';
+auth_check();
+if (!auth_has_perm('add_leads')) {
+    flash('error', 'You are not allowed to schedule follow-ups.');
+    redirect('index.php');
+}
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     redirect('../leads/index.php');
 }
@@ -47,5 +53,10 @@ $pdo->prepare('INSERT INTO lead_followups (lead_id, type, scheduled_at, notes) V
     ->execute([$leadId, $type, $scheduledAt, $notes ?: null]);
 $pdo->prepare('INSERT INTO lead_activities (lead_id, note) VALUES (?,?)')
     ->execute([$leadId, "Follow-up scheduled: " . ucfirst($type) . " on " . $scheduledDt->format('d M Y, h:i A') . "."]);
+
+$staffLogDescription = "Scheduled " . ucfirst($type) . " follow-up for lead #$leadId on " . $scheduledDt->format('d M Y, h:i A') . ".";
+log_activity($pdo, 'scheduled_followup', 'lead', $leadId, $staffLogDescription);
+
+app_log('ACTION', "Scheduled followup for lead (ID: $leadId)");
 flash('success', 'Follow-up scheduled.');
 redirect("show.php?id=$leadId");

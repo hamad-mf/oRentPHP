@@ -29,10 +29,11 @@ $days = max(1, (int) ceil(($end - $start) / 86400) + 1); // inclusive: count bot
 $basePrice = (float) $r['total_price'];
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
+$deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
 // Delivery discount
 $delivDiscType = $r['delivery_discount_type'] ?? null;
 $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
-$delivBase = max(0, $basePrice - $voucherApplied) + $deliveryCharge;
+$delivBase = max(0, $basePrice - $voucherApplied) + $deliveryCharge + $deliveryManualAmount;
 $delivDiscountAmt = 0;
 if ($delivDiscType === 'percent') {
     $delivDiscountAmt = round($delivBase * min($delivDiscVal, 100) / 100, 2);
@@ -61,6 +62,14 @@ if ($discType === 'percent') {
 $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
 $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
 $totalCollected = $baseCollectedAtDelivery + $cashDueAtReturn;
+$deliveryIncludes = [];
+if ($deliveryCharge > 0) {
+    $deliveryIncludes[] = 'delivery charge';
+}
+if ($deliveryManualAmount > 0) {
+    $deliveryIncludes[] = 'manual additional amount';
+}
+$deliveryCollectedLabelSuffix = empty($deliveryIncludes) ? '' : ' (incl. ' . implode(' + ', $deliveryIncludes) . ')';
 
 
 // Format datetime helper
@@ -657,7 +666,7 @@ function fdt(?string $dt): string
                 <tbody>
                     <tr>
                         <td>
-                            Base Collected at Delivery<?= $deliveryCharge > 0 ? ' (incl. delivery charge)' : '' ?>:
+                            Base Collected at Delivery<?= e($deliveryCollectedLabelSuffix) ?>:
                             <?= e($r['brand']) ?>
                             <?= e($r['model']) ?> ×
                             <?= $days ?> day
@@ -683,7 +692,7 @@ function fdt(?string $dt): string
                     <?php endif; ?>
                     <?php if ($overdueAmt > 0): ?>
                         <tr class="overdue-row">
-                            <td>⚠ Overdue Charges</td>
+                            <td>⚠ Overdue / Late Charges</td>
                             <td class="val">+$
                                 <?= number_format($overdueAmt, 2) ?>
                             </td>

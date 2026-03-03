@@ -1,5 +1,11 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/activity_log.php';
+auth_check();
+if (!auth_has_perm('add_leads')) {
+    flash('error', 'You are not allowed to convert leads.');
+    redirect('index.php');
+}
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     redirect('../leads/index.php');
 }
@@ -71,6 +77,13 @@ try {
     $message = $linkedExistingClient
         ? 'Lead linked to existing client successfully! You can now create a reservation for them.'
         : 'Lead converted to client successfully! You can now create a reservation for them.';
+
+    $staffLogDescription = $linkedExistingClient
+        ? "Linked lead #$id ({$lead['name']}) to existing client #$clientId."
+        : "Converted lead #$id ({$lead['name']}) to new client #$clientId.";
+    log_activity($pdo, 'converted_lead', 'lead', $id, $staffLogDescription);
+
+    app_log('ACTION', "Converted lead (ID: $id) to client (ID: $clientId)");
     flash('success', $message);
     redirect("../clients/show.php?id=$clientId");
 } catch (Throwable $e) {

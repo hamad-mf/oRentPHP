@@ -32,5 +32,6 @@ foreach ($docs->fetchAll() as $doc) {
 }
 
 $pdo->prepare('DELETE FROM vehicles WHERE id = ?')->execute([$id]);
+app_log('ACTION', "Deleted vehicle: {$vehicle['brand']} {$vehicle['model']} (ID: $id)");
 flash('success', "{$vehicle['brand']} {$vehicle['model']} has been removed from the fleet.");
 redirect('index.php');

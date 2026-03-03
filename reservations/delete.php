@@ -26,6 +26,7 @@ if (!in_array($r['status'], ['active', 'completed'])) {
         }
     }
     $pdo->prepare('DELETE FROM reservations WHERE id=?')->execute([$id]);
+    app_log('ACTION', "Deleted reservation (ID: $id)");
     flash('success', 'Reservation cancelled and removed.');
     redirect('index.php');
 } else {

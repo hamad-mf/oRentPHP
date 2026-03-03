@@ -40,8 +40,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'permissions' => $permissions,
             ];
 
+            app_log('ACTION', "Login successful: $username (role: {$user['role']})");
             redirect('../index.php');
         } else {
+            app_log('ACTION', "Login failed for username: $username");
             $error = 'Invalid username or password.';
         }
     }

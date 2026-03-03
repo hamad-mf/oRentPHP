@@ -174,3 +174,80 @@ function lead_sources_parse_textarea(string $input): array
 
     return $map;
 }
+
+// ── Pagination Helper ──────────────────────────────────────────────────────
+
+/**
+ * Get the configured items per page (with a safe fallback).
+ */
+function get_per_page(PDO $pdo, int $default = 25): int {
+    $v = (int) settings_get($pdo, 'per_page', (string) $default);
+    return max(5, min(200, $v ?: $default));
+}
+
+/**
+ * Run a paginated query.
+ * Returns ['rows'=>[], 'total'=>int, 'page'=>int, 'per_page'=>int, 'total_pages'=>int].
+ *
+ * $countSql must be a SELECT COUNT(*) ... with the same WHERE as $sql.
+ * $sql must NOT already have a LIMIT clause.
+ */
+function paginate_query(PDO $pdo, string $sql, string $countSql, array $params, int $page, int $perPage): array {
+    $page    = max(1, $page);
+    $total   = (int) $pdo->prepare($countSql)->execute($params) ? 0 : 0;
+    $cStmt   = $pdo->prepare($countSql);
+    $cStmt->execute($params);
+    $total   = (int) $cStmt->fetchColumn();
+    $totalPages = $perPage > 0 ? (int) ceil($total / $perPage) : 1;
+    $page    = min($page, max(1, $totalPages));
+    $offset  = ($page - 1) * $perPage;
+    $stmt    = $pdo->prepare($sql . " LIMIT " . (int)$perPage . " OFFSET " . (int)$offset);
+    $stmt->execute($params);
+    return [
+        'rows'        => $stmt->fetchAll(),
+        'total'       => $total,
+        'page'        => $page,
+        'per_page'    => $perPage,
+        'total_pages' => $totalPages,
+    ];
+}
+
+/**
+ * Render pagination navigation HTML.
+ * $queryParams = current $_GET array (page will be overwritten).
+ */
+function render_pagination(array $pg, array $queryParams = []): string {
+    if ($pg['total_pages'] <= 1) return '';
+    $cur   = $pg['page'];
+    $total = $pg['total_pages'];
+    $from  = max(1, $cur - 2);
+    $to    = min($total, $cur + 2);
+    $html  = '<div class="flex items-center justify-between px-4 py-3 border-t border-mb-subtle/10">';
+    $html .= '<span class="text-xs text-mb-subtle">';
+    $start = ($cur - 1) * $pg['per_page'] + 1;
+    $end   = min($cur * $pg['per_page'], $pg['total']);
+    $html .= "Showing {$start}–{$end} of {$pg['total']}";
+    $html .= '</span>';
+    $html .= '<div class="flex items-center gap-1">';
+    // Prev
+    if ($cur > 1) {
+        $qp = array_merge($queryParams, ['page' => $cur - 1]);
+        $html .= '<a href="?' . http_build_query($qp) . '" class="px-2.5 py-1.5 rounded text-mb-subtle hover:text-white hover:bg-white/5 text-sm transition-colors">&#8592;</a>';
+    }
+    // Page numbers
+    for ($i = $from; $i <= $to; $i++) {
+        $qp = array_merge($queryParams, ['page' => $i]);
+        if ($i === $cur) {
+            $html .= '<span class="px-3 py-1.5 rounded bg-mb-accent text-white text-sm font-medium">' . $i . '</span>';
+        } else {
+            $html .= '<a href="?' . http_build_query($qp) . '" class="px-2.5 py-1.5 rounded text-mb-subtle hover:text-white hover:bg-white/5 text-sm transition-colors">' . $i . '</a>';
+        }
+    }
+    // Next
+    if ($cur < $total) {
+        $qp = array_merge($queryParams, ['page' => $cur + 1]);
+        $html .= '<a href="?' . http_build_query($qp) . '" class="px-2.5 py-1.5 rounded text-mb-subtle hover:text-white hover:bg-white/5 text-sm transition-colors">&#8594;</a>';
+    }
+    $html .= '</div></div>';
+    return $html;
+}

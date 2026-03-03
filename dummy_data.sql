@@ -1,20 +1,76 @@
--- ============================================================
--- O Rent CRM — Dummy Data: 5 Vehicles + 4 Clients
--- Run this in phpMyAdmin or MySQL CLI against the `orent` database
--- Does NOT touch reservations or any other tables
+﻿-- ============================================================
+-- oRentPHP — Dummy Staff Seed Data
+-- Run this AFTER wipe_and_reset.sql
+-- Username = Password for each staff member
 -- ============================================================
 
--- ── 5 Dummy Vehicles ─────────────────────────────────────────
-INSERT INTO vehicles (brand, model, year, license_plate, color, vin, status, daily_rate, monthly_rate, image_url) VALUES
-('Toyota',   'Camry',        2022, 'ABC-1234', 'White',      'JT2BG22K1W0123456', 'available',   120.00, 2800.00, NULL),
-('Honda',    'Civic',        2021, 'DEF-5678', 'Silver',     '2HGFG3B55CH123456', 'available',   100.00, 2400.00, NULL),
-('Nissan',   'Patrol',       2023, 'GHI-9012', 'Black',      '5N1AA0NC5DN123456', 'maintenance', 200.00, 4500.00, NULL),
-('Hyundai',  'Tucson',       2022, 'JKL-3456', 'Blue',       'KM8J33A42NU123456', 'available',   130.00, 3000.00, NULL),
-('Mercedes', 'C-Class',      2023, 'MNO-7890', 'Midnight Grey','WDD2050421R123456','available',  250.00, 5500.00, NULL);
+-- Ahmed Ali (username/password: ahmed_ali)
+INSERT INTO staff (name, role, phone, salary, joined_date) VALUES ('Ahmed Ali', 'Driver', '+971501111001', 2500, '2025-01-01');
+SET @sid = LAST_INSERT_ID();
+INSERT INTO users (name, username, password_hash, role, staff_id) VALUES ('Ahmed Ali', 'ahmed_ali', '$2y$10$rrtJcUADuXxEUHYw5ZCc3ue0NImMHzPSlMS/mr3GNh2USpMGL3kEu', 'staff', @sid);
+SET @uid = LAST_INSERT_ID();
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_vehicles');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_reservations');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'do_delivery');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'do_return');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_leads');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'manage_clients');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'view_finances');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'manage_staff');
 
--- ── 4 Dummy Clients ──────────────────────────────────────────
-INSERT INTO clients (name, email, phone, address, rating, is_blacklisted, blacklist_reason, notes) VALUES
-('Ahmed Al-Rashidi',  'ahmed.rashidi@email.com',  '+966501234567', '12 King Fahd Rd, Riyadh, SA',       4, 0, NULL, 'Regular customer, always returns on time.'),
-('Sara Johnson',      'sara.johnson@email.com',   '+971501234568', 'Flat 5B, Marina Towers, Dubai, UAE', 5, 0, NULL, 'VIP client, prefers luxury vehicles.'),
-('Omar Khalid',       'omar.khalid@email.com',    '+966551234569', '8 Al Olaya St, Riyadh, SA',         3, 0, NULL, 'Occasional late returns, monitor closely.'),
-('Fatima Al-Mansoori','fatima.mansoori@email.com','+971551234570', 'Villa 22, Jumeirah, Dubai, UAE',     5, 0, NULL, 'Long-term client, monthly rental preferred.');
+-- Sara Khan (username/password: sara_khan)
+INSERT INTO staff (name, role, phone, salary, joined_date) VALUES ('Sara Khan', 'Coordinator', '+971501111002', 3000, '2025-01-01');
+SET @sid = LAST_INSERT_ID();
+INSERT INTO users (name, username, password_hash, role, staff_id) VALUES ('Sara Khan', 'sara_khan', '$2y$10$KTAC.vU2g4Fj3VQVm9WcDuIk2M8cBhJhFWSxOe9F8.afB8/kT1.76', 'staff', @sid);
+SET @uid = LAST_INSERT_ID();
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_vehicles');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_reservations');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'do_delivery');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'do_return');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_leads');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'manage_clients');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'view_finances');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'manage_staff');
+
+-- Omar Hassan (username/password: omar_hassan)
+INSERT INTO staff (name, role, phone, salary, joined_date) VALUES ('Omar Hassan', 'Sales', '+971501111003', 2800, '2025-01-01');
+SET @sid = LAST_INSERT_ID();
+INSERT INTO users (name, username, password_hash, role, staff_id) VALUES ('Omar Hassan', 'omar_hassan', '$2y$10$ZeSc4.PKoXnLp2YmI27m/.DQOmi1N8fAIwAO3flJMijKz2VRLmvHi', 'staff', @sid);
+SET @uid = LAST_INSERT_ID();
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_vehicles');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_reservations');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'do_delivery');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'do_return');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_leads');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'manage_clients');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'view_finances');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'manage_staff');
+
+-- Fatima Noor (username/password: fatima_noor)
+INSERT INTO staff (name, role, phone, salary, joined_date) VALUES ('Fatima Noor', 'Operations', '+971501111004', 3200, '2025-01-01');
+SET @sid = LAST_INSERT_ID();
+INSERT INTO users (name, username, password_hash, role, staff_id) VALUES ('Fatima Noor', 'fatima_noor', '$2y$10$zImVun.OymO/dlPeeTgVt.fizl2.KGw6ONCc/QrbdACPmUT.fZwwa', 'staff', @sid);
+SET @uid = LAST_INSERT_ID();
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_vehicles');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_reservations');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'do_delivery');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'do_return');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_leads');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'manage_clients');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'view_finances');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'manage_staff');
+
+-- Khalid Rashid (username/password: khalid_rashid)
+INSERT INTO staff (name, role, phone, salary, joined_date) VALUES ('Khalid Rashid', 'Driver', '+971501111005', 2600, '2025-01-01');
+SET @sid = LAST_INSERT_ID();
+INSERT INTO users (name, username, password_hash, role, staff_id) VALUES ('Khalid Rashid', 'khalid_rashid', '$2y$10$D36Y4oTiIXRjwo8GBYC7Me7avXmznX0fs1mA8BmHiFZniK3544.hK', 'staff', @sid);
+SET @uid = LAST_INSERT_ID();
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_vehicles');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_reservations');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'do_delivery');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'do_return');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'add_leads');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'manage_clients');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'view_finances');
+INSERT INTO staff_permissions (user_id, permission) VALUES (@uid, 'manage_staff');
+

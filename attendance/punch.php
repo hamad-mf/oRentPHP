@@ -14,13 +14,15 @@ $user = current_user();
 
 // Admins do not use punch system
 if (($user['role'] ?? '') === 'admin') {
-    echo json_encode(['ok' => false, 'message' => 'Admins do not use the punch system.']);
+    app_log('ACTION', 'Attendance punch recorded');
+echo json_encode(['ok' => false, 'message' => 'Admins do not use the punch system.']);
     exit;
 }
 
 $action = $_POST['action'] ?? '';
 if (!in_array($action, ['punch_in', 'punch_out'], true)) {
-    echo json_encode(['ok' => false, 'message' => 'Invalid action.']);
+    app_log('ACTION', 'Attendance punch recorded');
+echo json_encode(['ok' => false, 'message' => 'Invalid action.']);
     exit;
 }
 
@@ -73,7 +75,8 @@ if ($action === 'punch_in') {
         $warnMsg = 'You are punching in outside the allowed window — recorded with a warning.';
     }
     if ($rec && $rec['punch_in'] !== null) {
-        echo json_encode(['ok' => false, 'message' => 'You have already punched in today.']);
+        app_log('ACTION', 'Attendance punch recorded');
+echo json_encode(['ok' => false, 'message' => 'You have already punched in today.']);
         exit;
     }
 } else {
@@ -84,11 +87,13 @@ if ($action === 'punch_in') {
         $warnMsg = 'You are punching out outside the allowed window — recorded with a warning.';
     }
     if (!$rec || $rec['punch_in'] === null) {
-        echo json_encode(['ok' => false, 'message' => 'You have not punched in today yet.']);
+        app_log('ACTION', 'Attendance punch recorded');
+echo json_encode(['ok' => false, 'message' => 'You have not punched in today yet.']);
         exit;
     }
     if ($rec['punch_out'] !== null) {
-        echo json_encode(['ok' => false, 'message' => 'You have already punched out today.']);
+        app_log('ACTION', 'Attendance punch recorded');
+echo json_encode(['ok' => false, 'message' => 'You have already punched out today.']);
         exit;
     }
 }
@@ -109,7 +114,8 @@ try {
         $stmt->execute([$nowDt, $warning ? 1 : 0, $user['id'], $todayIst]);
     }
 } catch (Throwable $e) {
-    echo json_encode(['ok' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+    app_log('ACTION', 'Attendance punch recorded');
+echo json_encode(['ok' => false, 'message' => 'Database error: ' . $e->getMessage()]);
     exit;
 }
 

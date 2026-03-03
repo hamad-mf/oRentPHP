@@ -100,7 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $pdo->commit();
-            flash('success', "Staff member '$name' added successfully.");
+            app_log('ACTION', "Created staff: $name");
+flash('success', "Staff member '$name' added successfully.");
             redirect('index.php');
         } catch (Throwable $e) {
             $pdo->rollBack();

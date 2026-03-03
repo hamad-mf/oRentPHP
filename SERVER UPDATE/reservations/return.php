@@ -6,10 +6,12 @@ if (!auth_has_perm('do_return')) {
 }
 require_once __DIR__ . '/../includes/voucher_helpers.php';
 require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
+require_once __DIR__ . '/../includes/ledger_helpers.php';
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
 voucher_ensure_schema($pdo);
 reservation_payment_ensure_schema($pdo);
+ledger_ensure_schema($pdo);
 
 $rStmt = $pdo->prepare('SELECT r.*, c.name AS client_name, c.rating AS client_rating_current, c.voucher_balance AS client_voucher_balance, v.brand, v.model, v.license_plate, v.daily_rate FROM reservations r JOIN clients c ON r.client_id=c.id JOIN vehicles v ON r.vehicle_id=v.id WHERE r.id=?');
 $rStmt->execute([$id]);
@@ -35,10 +37,11 @@ $startDt = new DateTime($r['start_date']);
 $scheduledEndDt = new DateTime($r['end_date']);
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
+$deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
 // Account for delivery discount when showing what was actually collected at delivery
 $delivDiscType_ = $r['delivery_discount_type'] ?? null;
 $delivDiscVal_ = (float) ($r['delivery_discount_value'] ?? 0);
-$delivBase_ = max(0, (float) $r['total_price'] - $voucherApplied) + $deliveryCharge;
+$delivBase_ = max(0, (float) $r['total_price'] - $voucherApplied) + $deliveryCharge + $deliveryManualAmount;
 $delivDiscAmt_ = 0;
 if ($delivDiscType_ === 'percent') {
     $delivDiscAmt_ = round($delivBase_ * min($delivDiscVal_, 100) / 100, 2);
@@ -111,6 +114,9 @@ $initialEarlyVoucherCredit = $calculateEarlyReturnCredit($startDt, $scheduledEnd
 $additionalChg = max(0, (float) ($_POST['additional_charge'] ?? ($r['additional_charge'] ?? 0)));
 $chellanAmt = max(0, (float) ($_POST['chellan_amount'] ?? ($r['chellan_amount'] ?? 0)));
 $returnPaymentMethod = reservation_payment_method_normalize($_POST['return_payment_method'] ?? ($r['return_payment_method'] ?? 'cash')) ?? 'cash';
+$returnBankAccountId = (int) ($_POST['return_bank_account_id'] ?? 0);
+$returnBankAccountId = $returnBankAccountId > 0 ? $returnBankAccountId : null;
+$activeBankAccounts = array_values(array_filter(ledger_get_accounts($pdo), fn($a) => (int) ($a['is_active'] ?? 0) === 1));
 
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -129,9 +135,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $actualReturnMin = (int) ($_POST['actual_return_min'] ?? 0);
     $actualReturnAMPM = $_POST['actual_return_ampm'] ?? 'AM';
     $clientRating = (int) ($_POST['client_rating'] ?? 0);
-    $returnVoucherRequest = max(0, (float) ($_POST['return_voucher_amount'] ?? 0));
+    $returnVoucherRequest = max(0, round((float) ($_POST['return_voucher_amount'] ?? 0), 2));
     $depositReturned = max(0, (float) ($_POST['deposit_returned'] ?? 0));
     $returnPaymentMethod = reservation_payment_method_normalize($_POST['return_payment_method'] ?? null);
+    $returnBankAccountId = (int) ($_POST['return_bank_account_id'] ?? 0);
+    $returnBankAccountId = $returnBankAccountId > 0 ? $returnBankAccountId : null;
     $returnVoucherApplied = 0.0;
 
     $actualDt = $parseActualReturnDateTime($actualReturnDate, $actualReturnHour, $actualReturnMin, $actualReturnAMPM);
@@ -171,13 +179,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
     if ($returnVoucherRequest > 0) {
-        if ($returnVoucherRequest > $clientVoucherBalance) {
-            $errors['return_voucher_amount'] = 'Voucher amount cannot exceed client voucher balance ($' . number_format($clientVoucherBalance, 2) . ').';
-        } elseif ($returnVoucherRequest > $amountDueAtReturn) {
-            $errors['return_voucher_amount'] = 'Voucher amount cannot exceed return amount due ($' . number_format($amountDueAtReturn, 2) . ').';
-        } else {
-            $returnVoucherApplied = round(min($returnVoucherRequest, $clientVoucherBalance, $amountDueAtReturn), 2);
-        }
+        // Auto-cap voucher to the maximum usable value instead of failing validation.
+        $returnVoucherApplied = round(min($returnVoucherRequest, $clientVoucherBalance, $amountDueAtReturn), 2);
     }
     $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
     $earlyVoucherCredit = $calculateEarlyReturnCredit($startDt, $scheduledEndDt, $actualDt, (float) $r['total_price']);
@@ -188,8 +191,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['mileage'] = 'Mileage must be 0 or more.';
     if ($additionalChgInput < 0)
         $errors['additional_charge'] = 'Additional charge cannot be negative.';
+    $maxDepositCollected = max(0, (float) ($r['deposit_amount'] ?? 0));
+    if ($depositReturned > $maxDepositCollected) {
+        $errors['deposit_returned'] = 'Deposit returned cannot exceed collected deposit ($' . number_format($maxDepositCollected, 2) . ').';
+    }
     if ($cashDueAtReturn > 0 && $returnPaymentMethod === null)
         $errors['return_payment_method'] = 'Please select how the return payment was received.';
+    if ($cashDueAtReturn > 0 && $returnPaymentMethod === 'account') {
+        if ($returnBankAccountId === null) {
+            $errors['return_bank_account_id'] = 'Please select the bank account that received this payment.';
+        } else {
+            $chk = $pdo->prepare("SELECT COUNT(*) FROM bank_accounts WHERE id = ? AND is_active = 1");
+            $chk->execute([$returnBankAccountId]);
+            if ((int) $chk->fetchColumn() === 0) {
+                $errors['return_bank_account_id'] = 'Selected bank account is invalid or inactive.';
+            }
+        }
+    } else {
+        $returnBankAccountId = null;
+    }
     if ($clientRating < 1 || $clientRating > 5)
         $errors['client_rating'] = 'Please rate the client (1 to 5 stars) before completing return.';
 
@@ -275,6 +295,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
+            app_log('ERROR', 'Return process failed (res #' . $id . '): ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
             $errors['db'] = 'Could not complete return. Please try again.';
         }
 
@@ -312,6 +333,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msg .= " | Additional: +$" . number_format($additionalChg, 2);
             if ($discountAmt > 0)
                 $msg .= " | Discount: -$" . number_format($discountAmt, 2);
+            app_log('ACTION', "Returned reservation (ID: $id)");
+            // ── Auto-post income to ledger ──────────────────────────────
+            ledger_post_reservation_event($pdo, $id, 'return', $cashDueAtReturn, $returnPaymentMethodSave, $_SESSION['user']['id'] ?? 0, $returnBankAccountId);
             flash('success', $msg);
             // Log staff activity
             require_once __DIR__ . '/../includes/activity_log.php';
@@ -560,10 +584,13 @@ require_once __DIR__ . '/../includes/header.php';
                                 <option value="percent" <?= ($_POST['discount_type'] ?? '') === 'percent' ? 'selected' : '' ?>>% Percentage</option>
                                 <option value="amount" <?= ($_POST['discount_type'] ?? '') === 'amount' ? 'selected' : '' ?>>$ Fixed Amount</option>
                             </select>
-                            <input type="number" name="discount_value" id="discountValue" min="0" step="0.01"
-                                placeholder="0" value="<?= e($_POST['discount_value'] ?? '0') ?>"
-                                oninput="updateSummary()"
-                                class="flex-1 bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors">
+                            <div id="returnDiscountValueWrap"
+                                class="flex-1 <?= in_array(($_POST['discount_type'] ?? ''), ['percent', 'amount'], true) ? '' : 'hidden' ?>">
+                                <input type="number" name="discount_value" id="discountValue" min="0" step="0.01"
+                                    placeholder="0" value="<?= e($_POST['discount_value'] ?? '0') ?>"
+                                    oninput="updateSummary()"
+                                    class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors">
+                            </div>
                         </div>
                     </div>
 
@@ -577,8 +604,9 @@ require_once __DIR__ . '/../includes/header.php';
                             placeholder="0.00" value="<?= e($_POST['return_voucher_amount'] ?? '') ?>"
                             oninput="updateSummary()"
                             class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors">
-                        <p class="text-xs text-mb-subtle">This will reduce amount due at return using existing voucher
-                            balance.</p>
+                        <p class="text-xs text-mb-subtle">This reduces return dues using voucher balance. If requested
+                            amount is higher than allowed, it is auto-capped.</p>
+                        <p id="returnVoucherAppliedHint" class="hidden text-emerald-300 text-xs"></p>
                         <p id="returnVoucherValidation" class="hidden text-red-400 text-xs"></p>
                         <?php if (isset($errors['return_voucher_amount'])): ?>
                             <p class="text-red-400 text-xs mt-1">
@@ -589,7 +617,7 @@ require_once __DIR__ . '/../includes/header.php';
 
                     <div>
                         <label class="block text-sm text-mb-silver mb-2">Return Payment Method</label>
-                        <select name="return_payment_method" id="returnPaymentMethod"
+                        <select name="return_payment_method" id="returnPaymentMethod" onchange="toggleReturnBankField()"
                             class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors">
                             <option value="cash" <?= $returnPaymentMethod === 'cash' ? 'selected' : '' ?>>Cash</option>
                             <option value="account" <?= $returnPaymentMethod === 'account' ? 'selected' : '' ?>>Account
@@ -600,6 +628,25 @@ require_once __DIR__ . '/../includes/header.php';
                         <p class="text-xs text-mb-subtle mt-1">Applied only when there is an amount due at return.</p>
                         <?php if (isset($errors['return_payment_method'])): ?>
                             <p class="text-red-400 text-xs mt-1"><?= e($errors['return_payment_method']) ?></p>
+                        <?php endif; ?>
+                    </div>
+                    <div id="returnBankWrap"
+                        class="<?= $returnPaymentMethod === 'account' ? '' : 'hidden' ?>">
+                        <label class="block text-sm text-mb-silver mb-2">Bank Account</label>
+                        <select name="return_bank_account_id" id="returnBankAccount"
+                            class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors">
+                            <option value="">Select account</option>
+                            <?php foreach ($activeBankAccounts as $acc): ?>
+                                <option value="<?= (int) $acc['id'] ?>" <?= (int) ($returnBankAccountId ?? 0) === (int) $acc['id'] ? 'selected' : '' ?>>
+                                    <?= e($acc['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if (isset($errors['return_bank_account_id'])): ?>
+                            <p class="text-red-400 text-xs mt-1"><?= e($errors['return_bank_account_id']) ?></p>
+                        <?php endif; ?>
+                        <?php if (empty($activeBankAccounts)): ?>
+                            <p class="text-red-400 text-xs mt-1">No active bank account found. Go to Accounts and add one for account mode.</p>
                         <?php endif; ?>
                     </div>
 
@@ -623,6 +670,9 @@ require_once __DIR__ . '/../includes/header.php';
                                 </div>
                                 <p class="text-xs text-mb-subtle mt-1">Amount given back to the client from their original
                                     deposit.</p>
+                                <?php if (isset($errors['deposit_returned'])): ?>
+                                    <p class="text-red-400 text-xs mt-1"><?= e($errors['deposit_returned']) ?></p>
+                                <?php endif; ?>
                             </div>
                         </div>
                     <?php endif; ?>
@@ -668,7 +718,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <div id="previewDiscRow" class="justify-between text-green-400 hidden"><span
                                 id="previewDiscLabel">Discount</span><span id="previewDiscAmt"></span></div>
                         <div id="previewReturnVoucherRow" class="justify-between text-emerald-300 hidden">
-                            <span>Voucher Applied on Return</span>
+                            <span id="previewReturnVoucherLabel">Voucher Applied on Return</span>
                             <span id="previewReturnVoucherAmt"></span>
                         </div>
                         <div id="previewEarlyCreditRow"
@@ -814,20 +864,54 @@ function calcEarlyReturnCredit() {
     return BASE_PRICE * (unusedMs / totalMs);
 }
 
+function getReturnDueAmount() {
+    var el = document.getElementById("grandTotalDisplay");
+    if (!el) return 0;
+    var raw = String(el.textContent || "0").replace(/[^0-9.-]/g, "");
+    return parseFloat(raw) || 0;
+}
+
+function toggleReturnBankField() {
+    var modeEl = document.getElementById("returnPaymentMethod");
+    var wrapEl = document.getElementById("returnBankWrap");
+    var bankEl = document.getElementById("returnBankAccount");
+    if (!modeEl || !wrapEl || !bankEl) return;
+
+    var needsBank = modeEl.value === "account" && getReturnDueAmount() > 0;
+    wrapEl.classList.toggle("hidden", !needsBank);
+    if (needsBank) {
+        bankEl.setAttribute("required", "required");
+    } else {
+        bankEl.removeAttribute("required");
+        bankEl.value = "";
+    }
+}
+
+function toggleReturnDiscountValueField() {
+    var typeEl = document.getElementById("discountType");
+    var valueWrapEl = document.getElementById("returnDiscountValueWrap");
+    if (!typeEl || !valueWrapEl) return;
+    var hasDiscount = typeEl.value === "percent" || typeEl.value === "amount";
+    valueWrapEl.classList.toggle("hidden", !hasDiscount);
+}
+
 function updateSummary(){
     var kmDrivenEl=document.getElementById("kmDriven");
     var dmgHiddenEl=document.getElementById("damageCharge");
     var additionalChgEl=document.getElementById("additionalCharge");
     var chellanEl=document.getElementById("chellanAmount");
-    var discType=document.getElementById("discountType").value;
-    var discVal=parseFloat(document.getElementById("discountValue").value)||0;
+    var discountTypeEl=document.getElementById("discountType");
+    var discountValueEl=document.getElementById("discountValue");
+    var discType=discountTypeEl?discountTypeEl.value:"";
+    toggleReturnDiscountValueField();
+    var discValRaw=parseFloat(discountValueEl?discountValueEl.value:"0")||0;
+    var discVal=(discType==="percent"||discType==="amount")?discValRaw:0;
     var kmDriven=kmDrivenEl?parseFloat(kmDrivenEl.value)||0:0;
     var additionalChg=additionalChgEl?parseFloat(additionalChgEl.value)||0:0;
     if(additionalChg<0) additionalChg=0;
     var chellanChg=chellanEl?parseFloat(chellanEl.value)||0:0;
     if(chellanChg<0) chellanChg=0;
     var returnVoucherInput=document.getElementById("returnVoucherAmount");
-    var returnVoucherValidation=document.getElementById("returnVoucherValidation");
 
     // Damage from checkboxes or manual input
     var dmg = 0;
@@ -858,26 +942,26 @@ function updateSummary(){
     var returnVoucherReq=returnVoucherInput?(parseFloat(returnVoucherInput.value)||0):0;
     if(returnVoucherReq<0) returnVoucherReq=0;
     var returnVoucherMax=Math.max(0,Math.min(CLIENT_VOUCHER_BALANCE,totalAfterDiscount));
-    var voucherError="";
-    if(returnVoucherReq>CLIENT_VOUCHER_BALANCE){
-        voucherError="Voucher cannot exceed available balance ($"+CLIENT_VOUCHER_BALANCE.toFixed(2)+").";
-    }else if(returnVoucherReq>totalAfterDiscount){
-        voucherError="Voucher cannot exceed return amount due ($"+totalAfterDiscount.toFixed(2)+").";
-    }
+    var returnVoucherApplied=Math.min(returnVoucherReq,returnVoucherMax);
+    var voucherAutoCapped = returnVoucherReq > returnVoucherApplied;
+    var voucherInfoEl=document.getElementById("returnVoucherAppliedHint");
     if(returnVoucherInput){
         returnVoucherInput.max=returnVoucherMax.toFixed(2);
-        returnVoucherInput.setCustomValidity(voucherError);
+        returnVoucherInput.setCustomValidity("");
     }
-    if(returnVoucherValidation){
-        if(voucherError){
-            returnVoucherValidation.textContent=voucherError;
-            returnVoucherValidation.classList.remove("hidden");
+    if(voucherInfoEl){
+        if(returnVoucherReq>0){
+            var voucherInfoText = "Requested: $" + returnVoucherReq.toFixed(2) + " | Applied: $" + returnVoucherApplied.toFixed(2);
+            if(voucherAutoCapped){
+                voucherInfoText += " (auto-capped)";
+            }
+            voucherInfoEl.textContent=voucherInfoText;
+            voucherInfoEl.classList.remove("hidden");
         }else{
-            returnVoucherValidation.textContent="";
-            returnVoucherValidation.classList.add("hidden");
+            voucherInfoEl.textContent="";
+            voucherInfoEl.classList.add("hidden");
         }
     }
-    var returnVoucherApplied=voucherError?0:Math.min(returnVoucherReq,returnVoucherMax);
     var total=Math.max(0,totalAfterDiscount-returnVoucherApplied);
 
     // Overdue row
@@ -957,14 +1041,23 @@ function updateSummary(){
     if(discRow){if(disc>0){discRow.classList.remove("hidden");discRow.classList.add("flex");document.getElementById("previewDiscLabel").textContent=discType==="percent"?"Discount ("+discVal+"%):":"Discount:";document.getElementById("previewDiscAmt").textContent="-$"+disc.toFixed(2);}else{discRow.classList.add("hidden");discRow.classList.remove("flex");}}
     // Return voucher row
     var returnVoucherRow=document.getElementById("previewReturnVoucherRow");
+    var returnVoucherLabel=document.getElementById("previewReturnVoucherLabel");
     if(returnVoucherRow){
         if(returnVoucherApplied>0){
             returnVoucherRow.classList.remove("hidden");
             returnVoucherRow.classList.add("flex");
+            if(returnVoucherLabel){
+                returnVoucherLabel.textContent = returnVoucherReq > 0
+                    ? "Voucher Applied on Return (Requested $" + returnVoucherReq.toFixed(2) + ")"
+                    : "Voucher Applied on Return";
+            }
             document.getElementById("previewReturnVoucherAmt").textContent="-$"+returnVoucherApplied.toFixed(2);
         }else{
             returnVoucherRow.classList.add("hidden");
             returnVoucherRow.classList.remove("flex");
+            if(returnVoucherLabel){
+                returnVoucherLabel.textContent="Voucher Applied on Return";
+            }
             document.getElementById("previewReturnVoucherAmt").textContent="";
         }
     }
@@ -981,6 +1074,7 @@ function updateSummary(){
         }
     }
     document.getElementById("grandTotalDisplay").textContent="$"+total.toFixed(2);
+    toggleReturnBankField();
 }
 const slider=document.getElementById("fuelSlider");
 const valEl=document.getElementById("fuel-val");
@@ -1000,6 +1094,10 @@ if(returnVoucherInput){
         }
         updateSummary();
     });
+}
+const returnPaymentMethodEl=document.getElementById("returnPaymentMethod");
+if(returnPaymentMethodEl){
+    returnPaymentMethodEl.addEventListener("change", toggleReturnBankField);
 }
 
 const returnForm=document.getElementById("returnForm");

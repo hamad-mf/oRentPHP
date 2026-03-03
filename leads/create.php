@@ -97,6 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         require_once __DIR__ . '/../includes/activity_log.php';
         log_activity($pdo, 'created_lead', 'lead', $newId, "Created lead \"$name\" ($phone) with status: $status.");
 
+        app_log('ACTION', "Created lead: $name (ID: $newId)");
         flash('success', "Lead \"$name\" added successfully.");
         redirect("show.php?id=$newId");
     }

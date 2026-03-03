@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS vehicles (
     color VARCHAR(50) DEFAULT NULL,
     vin VARCHAR(50) DEFAULT NULL,
     status ENUM('available','rented','maintenance') NOT NULL DEFAULT 'available',
+    maintenance_started_at DATETIME DEFAULT NULL,
+    maintenance_expected_return DATE DEFAULT NULL,
+    maintenance_workshop_name VARCHAR(255) DEFAULT NULL,
     daily_rate DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     monthly_rate DECIMAL(10,2) DEFAULT NULL,
     rate_1day DECIMAL(10,2) DEFAULT NULL COMMENT 'Special 1-day package rate',
@@ -27,6 +30,10 @@ CREATE TABLE IF NOT EXISTS vehicles (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
+
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS maintenance_started_at DATETIME DEFAULT NULL;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS maintenance_expected_return DATE DEFAULT NULL;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS maintenance_workshop_name VARCHAR(255) DEFAULT NULL;
 
 -- ── 2. DOCUMENTS (vehicle files) ──────────────────────────────
 CREATE TABLE IF NOT EXISTS documents (

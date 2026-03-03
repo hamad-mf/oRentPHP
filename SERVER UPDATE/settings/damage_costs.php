@@ -11,7 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cost = (float) ($_POST['cost'] ?? 0);
         if ($name !== '') {
             $pdo->prepare("INSERT INTO damage_costs (item_name, cost) VALUES (?, ?)")->execute([$name, $cost]);
-            flash('success', 'Damage cost item added successfully.');
+            app_log('ACTION', 'Updated damage costs settings');
+flash('success', 'Damage cost item added successfully.');
         }
     } elseif ($action === 'edit') {
         $id = (int) ($_POST['id'] ?? 0);
@@ -19,13 +20,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cost = (float) ($_POST['cost'] ?? 0);
         if ($id > 0 && $name !== '') {
             $pdo->prepare("UPDATE damage_costs SET item_name = ?, cost = ? WHERE id = ?")->execute([$name, $cost, $id]);
-            flash('success', 'Damage cost item updated successfully.');
+            app_log('ACTION', 'Updated damage costs settings');
+flash('success', 'Damage cost item updated successfully.');
         }
     } elseif ($action === 'delete') {
         $id = (int) ($_POST['id'] ?? 0);
         if ($id > 0) {
             $pdo->prepare("DELETE FROM damage_costs WHERE id = ?")->execute([$id]);
-            flash('success', 'Damage cost item deleted.');
+            app_log('ACTION', 'Updated damage costs settings');
+flash('success', 'Damage cost item deleted.');
         }
     }
     redirect('damage_costs.php');

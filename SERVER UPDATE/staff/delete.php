@@ -30,7 +30,8 @@ try {
     // Delete staff
     $pdo->prepare("DELETE FROM staff WHERE id = ?")->execute([$id]);
     $pdo->commit();
-    flash('success', "Staff member '{$staff['name']}' deleted.");
+    app_log('ACTION', "Deleted staff: {$staff['name']} (ID: $id)");
+flash('success', "Staff member '{$staff['name']}' deleted.");
 } catch (Throwable $e) {
     $pdo->rollBack();
     flash('error', 'Delete failed: ' . $e->getMessage());

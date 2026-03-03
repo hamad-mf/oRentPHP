@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $rating = (int) ($_POST['rating'] ?? 0);
         if ($rating >= 1 && $rating <= 5) {
             $pdo->prepare('UPDATE clients SET rating=? WHERE id=?')->execute([$rating, $id]);
+            app_log('ACTION', "Updated client rating to $rating stars (ID: $id)");
             flash('success', "Rating updated to $rating stars.");
         }
         redirect("show.php?id=$id");
@@ -25,10 +26,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $c = $cStmt->fetch();
         if ($c['is_blacklisted']) {
             $pdo->prepare('UPDATE clients SET is_blacklisted=0, blacklist_reason=NULL WHERE id=?')->execute([$id]);
+            app_log('ACTION', "Removed client from blacklist: {$c['name']} (ID: $id)");
             flash('success', "{$c['name']} removed from blacklist.");
         } else {
             $reason = trim($_POST['blacklist_reason'] ?? '');
             $pdo->prepare('UPDATE clients SET is_blacklisted=1, blacklist_reason=? WHERE id=?')->execute([$reason, $id]);
+            app_log('ACTION', "Added client to blacklist: {$c['name']} (ID: $id)");
             flash('success', "{$c['name']} added to blacklist.");
         }
         redirect("show.php?id=$id");

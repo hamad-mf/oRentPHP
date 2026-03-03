@@ -40,7 +40,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['user']['permissions'] = $fresh->fetchAll(PDO::FETCH_COLUMN);
     }
 
-    flash('success', 'Permissions updated successfully.');
+    app_log('ACTION', 'Updated staff permissions settings');
+flash('success', 'Permissions updated successfully.');
     redirect('staff_permissions.php');
 }
 

@@ -8,6 +8,8 @@
 
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/export_enabled.php';
+require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
+require_once __DIR__ . '/../includes/vehicle_helpers.php';
 
 // ── Kill-switch ────────────────────────────────────────────────────────────
 if (!defined('EXPORT_ENABLED') || !EXPORT_ENABLED) {
@@ -18,6 +20,8 @@ if (!defined('EXPORT_ENABLED') || !EXPORT_ENABLED) {
 
 auth_require_admin();
 $pdo = db();
+reservation_payment_ensure_schema($pdo);
+vehicle_ensure_schema($pdo);
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Pure-PHP ZIP builder (no ZipArchive / php_zip extension needed)
@@ -178,6 +182,7 @@ $sheetsData = [];
 
 // 1. Vehicles
 $rows = safeFetch($pdo, 'SELECT id, brand, model, year, license_plate, color, vin, status,
+    maintenance_started_at, maintenance_expected_return, maintenance_workshop_name,
     daily_rate, monthly_rate, rate_1day, rate_7day, rate_15day, rate_30day, created_at
     FROM vehicles ORDER BY id');
 $sheetsData[] = [
@@ -193,6 +198,9 @@ $sheetsData[] = [
                 'Color',
                 'VIN',
                 'Status',
+                'Maintenance Started At',
+                'Maintenance Expected Return',
+                'Maintenance Workshop Name',
                 'Daily Rate',
                 'Monthly Rate',
                 '1-Day Rate',
@@ -235,7 +243,7 @@ $sheetsData[] = [
 $rows = safeFetch($pdo, '
     SELECT r.id, c.name AS client_name, v.license_plate,
            r.rental_type, r.status, r.start_date, r.end_date, r.actual_end_date,
-           r.total_price, r.delivery_charge, r.delivery_payment_method, r.delivery_paid_amount,
+           r.total_price, r.delivery_charge, r.delivery_manual_amount, r.delivery_payment_method, r.delivery_paid_amount,
            r.overdue_amount, r.km_limit, r.extra_km_price, r.km_driven, r.km_overage_charge,
            r.damage_charge, r.additional_charge, r.discount_type, r.discount_value,
            r.voucher_applied, r.return_voucher_applied, r.return_payment_method,
@@ -259,6 +267,7 @@ $sheetsData[] = [
                 'Actual End Date',
                 'Total Price',
                 'Delivery Charge',
+                'Delivery Manual Amount',
                 'Delivery Pay Method',
                 'Delivery Paid',
                 'Overdue',

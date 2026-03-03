@@ -1,6 +1,9 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/db.php';
 $pdo = db();
+require_once __DIR__ . '/../includes/settings_helpers.php';
+$perPage = get_per_page($pdo);
+$page    = max(1, (int) ($_GET['page'] ?? 1));
 
 // Auto-migrate table
 try {
@@ -10,6 +13,7 @@ try {
         client_name_free VARCHAR(120) DEFAULT NULL,
         vehicle_brand VARCHAR(80) NOT NULL,
         vehicle_model VARCHAR(80) NOT NULL,
+        people_count INT NOT NULL DEFAULT 1,
         notes TEXT DEFAULT NULL,
         status ENUM('pending','contacted','acquired','cancelled') NOT NULL DEFAULT 'pending',
         requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -19,16 +23,32 @@ try {
 } catch (Exception $e) { /* already exists */
 }
 
+// Backward-safe migration for older installs.
+try {
+    $peopleColExists = (int) $pdo->query("
+        SELECT COUNT(*)
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'vehicle_requests'
+          AND COLUMN_NAME = 'people_count'
+    ")->fetchColumn();
+    if ($peopleColExists === 0) {
+        $pdo->exec("ALTER TABLE vehicle_requests ADD COLUMN people_count INT NOT NULL DEFAULT 1 AFTER vehicle_model");
+    }
+} catch (Throwable $e) {
+}
+
 // Fetch clients for dropdown
 $clients = $pdo->query("SELECT id, name FROM clients ORDER BY name")->fetchAll();
 
 $errors = [];
 $success = '';
 
-// Handle POST — add new request
+// Handle POST â€” add new request
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add') {
     $brand = trim($_POST['vehicle_brand'] ?? '');
     $model = trim($_POST['vehicle_model'] ?? '');
+    $peopleCount = max(1, (int) ($_POST['people_count'] ?? 1));
     $clientId = (int) ($_POST['client_id'] ?? 0) ?: null;
     $freeName = trim($_POST['client_name_free'] ?? '');
     $notes = trim($_POST['notes'] ?? '');
@@ -41,13 +61,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add')
         $errors[] = 'Please select a client or enter a client name.';
 
     if (empty($errors)) {
-        $stmt = $pdo->prepare("INSERT INTO vehicle_requests (client_id, client_name_free, vehicle_brand, vehicle_model, notes) VALUES (?,?,?,?,?)");
-        $stmt->execute([$clientId, $clientId ? null : $freeName, $brand, $model, $notes]);
+        $stmt = $pdo->prepare("INSERT INTO vehicle_requests (client_id, client_name_free, vehicle_brand, vehicle_model, people_count, notes) VALUES (?,?,?,?,?,?)");
+        $stmt->execute([$clientId, $clientId ? null : $freeName, $brand, $model, $peopleCount, $notes]);
         $success = 'Request logged successfully.';
     }
 }
 
-// Handle POST — update status
+// Handle POST â€” update people count
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'people_count') {
+    $reqId = (int) ($_POST['req_id'] ?? 0);
+    $peopleCount = max(1, (int) ($_POST['people_count'] ?? 1));
+    if ($reqId) {
+        $pdo->prepare("UPDATE vehicle_requests SET people_count=? WHERE id=?")->execute([$peopleCount, $reqId]);
+    }
+    header('Location: requests.php?' . http_build_query(['filter' => $_POST['filter'] ?? '']));
+    exit;
+}
+
+// Handle POST â€” update status
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'status') {
     $reqId = (int) ($_POST['req_id'] ?? 0);
     $status = $_POST['status'] ?? '';
@@ -58,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'statu
     exit;
 }
 
-// Handle POST — delete
+// Handle POST â€” delete
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
     $reqId = (int) ($_POST['req_id'] ?? 0);
     if ($reqId)
@@ -77,7 +108,11 @@ if ($filter && in_array($filter, $validStatuses)) {
     $sql .= " WHERE vr.status = " . $pdo->quote($filter);
 }
 $sql .= " ORDER BY vr.requested_at DESC";
-$requests = $pdo->query($sql)->fetchAll();
+$_reqCountSql = preg_replace("/^SELECT .+? FROM\s/si", "SELECT COUNT(*) FROM ", explode("ORDER BY", $sql)[0]);
+$pgRequests = paginate_query($pdo, $sql, $_reqCountSql, [], $page, $perPage);
+$requests   = $pgRequests[
+'rows'
+];
 
 // Counts per status
 $counts = ['all' => 0, 'pending' => 0, 'contacted' => 0, 'acquired' => 0, 'cancelled' => 0];
@@ -129,7 +164,7 @@ $statusLabel = [
 
     <?php if ($success): ?>
         <div class="bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg px-4 py-3 mb-5 text-sm">
-            ✅
+            âœ…
             <?= e($success) ?>
         </div>
     <?php endif; ?>
@@ -160,7 +195,7 @@ $statusLabel = [
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
         <?php if (empty($requests)): ?>
             <div class="py-16 text-center">
-                <div class="text-mb-subtle text-4xl mb-3">🚗</div>
+                <div class="text-mb-subtle text-4xl mb-3">ðŸš—</div>
                 <p class="text-mb-silver text-sm">No requests found
                     <?= $filter ? ' for this status' : '' ?>.
                 </p>
@@ -173,6 +208,7 @@ $statusLabel = [
                         <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Date</th>
                         <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Client</th>
                         <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Vehicle Wanted</th>
+                        <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">People</th>
                         <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Notes</th>
                         <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Status</th>
                         <th class="px-5 py-3"></th>
@@ -194,7 +230,7 @@ $statusLabel = [
                                     <?= e($req['client_name_free']) ?>
                                     <span class="text-mb-subtle text-xs">(walk-in)</span>
                                 <?php else: ?>
-                                    <span class="text-mb-subtle">—</span>
+                                    <span class="text-mb-subtle">â€”</span>
                                 <?php endif; ?>
                             </td>
                             <td class="px-5 py-4">
@@ -205,11 +241,25 @@ $statusLabel = [
                                     <?= e($req['vehicle_model']) ?>
                                 </div>
                             </td>
+                            <td class="px-5 py-4">
+                                <form method="POST" class="flex items-center gap-2">
+                                    <input type="hidden" name="action" value="people_count">
+                                    <input type="hidden" name="req_id" value="<?= $req['id'] ?>">
+                                    <input type="hidden" name="filter" value="<?= e($filter) ?>">
+                                    <input type="number" name="people_count" min="1" step="1"
+                                        value="<?= (int) ($req['people_count'] ?? 1) ?>"
+                                        class="w-20 bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-1.5 text-white text-sm focus:outline-none focus:border-mb-accent">
+                                    <button type="submit"
+                                        class="text-xs px-2.5 py-1.5 rounded-lg border border-mb-subtle/20 text-mb-silver hover:text-white hover:border-mb-accent transition-colors">
+                                        Save
+                                    </button>
+                                </form>
+                            </td>
                             <td class="px-5 py-4 text-mb-silver text-sm max-w-xs">
-                                <?= $req['notes'] ? e(mb_substr($req['notes'], 0, 80)) . (mb_strlen($req['notes']) > 80 ? '…' : '') : '<span class="text-mb-subtle">—</span>' ?>
+                                <?= $req['notes'] ? e(mb_substr($req['notes'], 0, 80)) . (mb_strlen($req['notes']) > 80 ? 'â€¦' : '') : '<span class="text-mb-subtle">â€”</span>' ?>
                             </td>
                             <td class="px-5 py-4">
-                                <!-- Clickable status badge — cycles to next status -->
+                                <!-- Clickable status badge â€” cycles to next status -->
                                 <form method="POST" class="inline">
                                     <input type="hidden" name="action" value="status">
                                     <input type="hidden" name="req_id" value="<?= $req['id'] ?>">
@@ -259,7 +309,7 @@ $statusLabel = [
         <form method="POST" class="p-5 space-y-4">
             <input type="hidden" name="action" value="add">
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-sm text-mb-silver mb-1.5">Vehicle Brand <span
                             class="text-red-400">*</span></label>
@@ -274,6 +324,12 @@ $statusLabel = [
                         value="<?= e($_POST['vehicle_model'] ?? '') ?>"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent placeholder-mb-subtle">
                 </div>
+                <div>
+                    <label class="block text-sm text-mb-silver mb-1.5">People Requested</label>
+                    <input type="number" name="people_count" min="1" step="1"
+                        value="<?= e($_POST['people_count'] ?? '1') ?>"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent placeholder-mb-subtle">
+                </div>
             </div>
 
             <div>
@@ -281,7 +337,7 @@ $statusLabel = [
                 <div class="space-y-2">
                     <select name="client_id" id="reqClientSelect"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent">
-                        <option value="">— Select existing client —</option>
+                        <option value="">â€” Select existing client â€”</option>
                         <?php foreach ($clients as $c): ?>
                             <option value="<?= $c['id'] ?>">
                                 <?= e($c['name']) ?>
@@ -291,7 +347,7 @@ $statusLabel = [
                     <input type="text" name="client_name_free" id="reqClientFree"
                         placeholder="Or type client / walk-in name"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent placeholder-mb-subtle">
-                    <p class="text-mb-subtle text-xs">Select from dropdown OR type a name below it — not both needed.
+                    <p class="text-mb-subtle text-xs">Select from dropdown OR type a name below it â€” not both needed.
                     </p>
                 </div>
             </div>

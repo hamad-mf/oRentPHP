@@ -36,10 +36,11 @@ $overdue = isOverdue($r['end_date'], $r['status']);
 $basePrice = (float) $r['total_price'];
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
+$deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
 // Delivery discount
 $delivDiscType = $r['delivery_discount_type'] ?? null;
 $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
-$delivBaseWithCharge = max(0, $basePrice - $voucherApplied) + $deliveryCharge;
+$delivBaseWithCharge = max(0, $basePrice - $voucherApplied) + $deliveryCharge + $deliveryManualAmount;
 $delivDiscountAmt = 0;
 if ($delivDiscType === 'percent') {
     $delivDiscountAmt = round($delivBaseWithCharge * min($delivDiscVal, 100) / 100, 2);
@@ -213,6 +214,12 @@ function fuelBar(int $pct): string
                         <span class="text-green-500/80">-$<?= number_format($delivDiscountAmt, 2) ?></span>
                     </div>
                 <?php endif; ?>
+                <?php if ($deliveryManualAmount > 0): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-orange-400/80">Manual Additional at Delivery</span>
+                        <span class="text-orange-400/80">+$<?= number_format($deliveryManualAmount, 2) ?></span>
+                    </div>
+                <?php endif; ?>
                 <div class="flex justify-between text-sm">
                     <span class="text-mb-subtle">Base Collected at Delivery</span>
                     <span class="text-white">$<?= number_format($baseCollectedAtDelivery, 2) ?></span>
@@ -234,7 +241,7 @@ function fuelBar(int $pct): string
 
                 <?php if ($overdueAmt > 0): ?>
                     <div class="flex justify-between text-sm">
-                        <span class="text-red-400">Overdue Charge</span>
+                        <span class="text-red-400">Overdue / Late Charge</span>
                         <span class="text-red-400">+$<?= number_format($overdueAmt, 2) ?></span>
                     </div>
                 <?php endif; ?>

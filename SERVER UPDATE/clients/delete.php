@@ -24,5 +24,6 @@ if ($activeCount > 0) {
 }
 
 $pdo->prepare('DELETE FROM clients WHERE id=?')->execute([$id]);
+app_log('ACTION', "Deleted client: {$c['name']} (ID: $id)");
 flash('success', "{$c['name']} has been removed.");
 redirect('index.php');

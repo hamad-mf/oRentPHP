@@ -1,9 +1,20 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/vehicle_helpers.php';
 
 $pdo = db();
+require_once __DIR__ . '/../includes/settings_helpers.php';
+$perPage = get_per_page($pdo);
+$page    = max(1, (int) ($_GET['page'] ?? 1));
+vehicle_ensure_schema($pdo);
 $search = trim($_GET['search'] ?? '');
 $status = $_GET['status'] ?? '';
+$rentedDate = trim($_GET['rented_date'] ?? '');
+$sort = strtolower(trim($_GET['sort'] ?? 'desc'));
+if (!in_array($sort, ['asc', 'desc'], true)) {
+    $sort = 'desc';
+}
+$orderDirection = strtoupper($sort);
 
 $where = ['1=1'];
 $params = [];
@@ -16,11 +27,40 @@ if ($status !== '') {
     $where[] = 'status = ?';
     $params[] = $status;
 }
+if ($rentedDate !== '') {
+    $dateCheck = DateTime::createFromFormat('Y-m-d', $rentedDate);
+    if ($dateCheck && $dateCheck->format('Y-m-d') === $rentedDate) {
+        $where[] = 'DATE(ar.start_date) = ?';
+        $params[] = $rentedDate;
+    } else {
+        $rentedDate = '';
+    }
+}
 
-$sql = 'SELECT v.*, (SELECT COUNT(*) FROM documents d WHERE d.vehicle_id = v.id) AS doc_count FROM vehicles v WHERE ' . implode(' AND ', $where) . ' ORDER BY v.created_at DESC';
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$vehicles = $stmt->fetchAll();
+$sql = 'SELECT v.*,
+               ar.start_date AS rented_start_date,
+               ar.end_date AS rented_end_date,
+               rc.name AS rented_client_name,
+               (SELECT COUNT(*) FROM documents d WHERE d.vehicle_id = v.id) AS doc_count
+        FROM vehicles v
+        LEFT JOIN (
+            SELECT r1.vehicle_id, r1.client_id, r1.start_date, r1.end_date
+            FROM reservations r1
+            INNER JOIN (
+                SELECT vehicle_id, MAX(id) AS max_id
+                FROM reservations
+                WHERE status = "active"
+                GROUP BY vehicle_id
+            ) latest ON latest.max_id = r1.id
+        ) ar ON ar.vehicle_id = v.id
+        LEFT JOIN clients rc ON rc.id = ar.client_id
+        WHERE ' . implode(' AND ', $where) . '
+        ORDER BY CASE WHEN v.status = "rented" THEN 0 ELSE 1 END,
+                 v.created_at ' . $orderDirection;
+// Count query (same WHERE, no ORDER BY)
+$countSql2 = preg_replace("/SELECT .+ FROM vehicles/s", "SELECT COUNT(*) FROM vehicles", explode("ORDER BY", $sql)[0]);
+$pgResult  = paginate_query($pdo, $sql, $countSql2, $params, $page, $perPage);
+$vehicles  = $pgResult['rows'];
 
 $totalCount = $pdo->query('SELECT COUNT(*) FROM vehicles')->fetchColumn();
 $available = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='available'")->fetchColumn();
@@ -41,7 +81,7 @@ try {
     $vehicleImgMap = [];
 }
 
-// Build catalog share URL — handles both root-level and subdirectory installs cleanly
+// Build catalog share URL â€” handles both root-level and subdirectory installs cleanly
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $basePath = trim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/vehicles/index.php')), '/');
@@ -83,7 +123,12 @@ require_once __DIR__ . '/../includes/header.php';
         ];
         $borderActive = ['' => 'border-white/30', 'available' => 'border-green-500/50', 'rented' => 'border-mb-accent/50', 'maintenance' => 'border-red-500/50'];
         foreach ($statusCards as $card):
-            $href = '?' . http_build_query(array_filter(['status' => $card['filter'], 'search' => $search]));
+            $href = '?' . http_build_query(array_filter([
+                'status' => $card['filter'],
+                'search' => $search,
+                'rented_date' => $rentedDate,
+                'sort' => $sort !== 'desc' ? $sort : null,
+            ], static fn($v) => $v !== null && $v !== ''));
             $activeBorder = $card['active'] ? ($borderActive[$card['filter']] ?? 'border-white/20') : '';
             ?>
             <a href="<?= $href ?>"
@@ -100,7 +145,7 @@ require_once __DIR__ . '/../includes/header.php';
 
     <!-- Toolbar -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <form method="GET" class="flex items-center gap-3 flex-1">
+        <form method="GET" class="flex flex-wrap items-center gap-3 flex-1">
             <?php if ($status): ?><input type="hidden" name="status" value="<?= e($status) ?>">
             <?php endif; ?>
             <div class="relative flex-1 max-w-sm">
@@ -112,8 +157,16 @@ require_once __DIR__ . '/../includes/header.php';
                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
             </div>
+            <input type="date" name="rented_date" value="<?= e($rentedDate) ?>"
+                class="bg-mb-surface border border-mb-subtle/20 rounded-full py-2 px-4 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors"
+                title="Filter by rented start date">
+            <select name="sort" onchange="this.form.submit()"
+                class="bg-mb-surface border border-mb-subtle/20 rounded-full py-2 px-4 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors">
+                <option value="desc" <?= $sort === 'desc' ? 'selected' : '' ?>>Newest first</option>
+                <option value="asc" <?= $sort === 'asc' ? 'selected' : '' ?>>Oldest first</option>
+            </select>
             <button type="submit" class="text-mb-silver hover:text-white text-sm transition-colors">Search</button>
-            <?php if ($search || $status): ?><a href="index.php"
+            <?php if ($search || $status || $rentedDate || $sort !== 'desc'): ?><a href="index.php"
                     class="text-mb-subtle hover:text-white text-sm transition-colors">Clear</a>
             <?php endif; ?>
         </form>
@@ -137,7 +190,7 @@ require_once __DIR__ . '/../includes/header.php';
         </button>
     </div>
 
-    <!-- ── Catalog Share Modal ── -->
+    <!-- â”€â”€ Catalog Share Modal â”€â”€ -->
     <div id="catalogModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
         onclick="if(event.target===this)this.classList.add('hidden')">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
@@ -147,7 +200,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="flex items-start justify-between mb-5">
                 <div>
                     <h3 class="text-white font-semibold text-lg">Share Vehicle Catalog</h3>
-                    <p class="text-mb-subtle text-sm mt-0.5">Anyone with this link can browse your available fleet — no
+                    <p class="text-mb-subtle text-sm mt-0.5">Anyone with this link can browse your available fleet â€” no
                         login required.</p>
                 </div>
                 <button onclick="document.getElementById('catalogModal').classList.add('hidden')"
@@ -193,7 +246,7 @@ require_once __DIR__ . '/../includes/header.php';
                 </button>
                 <a href="<?= e($catalogUrl) ?>" target="_blank"
                     class="flex-1 text-center border border-mb-subtle/20 text-mb-silver hover:text-white hover:border-white/20 py-2.5 rounded-full transition-colors text-sm font-medium">
-                    Preview ↗
+                    Preview â†—
                 </a>
             </div>
         </div>
@@ -224,12 +277,68 @@ require_once __DIR__ . '/../includes/header.php';
                 $statusLabel = ucfirst($v['status']);
                 $badgeCls = $badge[$v['status']] ?? 'bg-gray-500/20 text-gray-400';
                 $dotCls = $dot[$v['status']] ?? 'bg-gray-500';
+                $remainingLabel = '';
+                $remainingTone = 'text-mb-subtle';
+                $maintenanceLabel = '';
+                $maintenanceSinceLabel = '';
+                $maintenanceWorkshopLabel = trim((string) ($v['maintenance_workshop_name'] ?? ''));
+                if (($v['status'] ?? '') === 'rented' && !empty($v['rented_end_date'])) {
+                    $endTs = strtotime((string) $v['rented_end_date']);
+                    $nowTs = time();
+                    if ($endTs !== false) {
+                        if ($endTs > $nowTs) {
+                            $diff = $endTs - $nowTs;
+                            $days = intdiv($diff, 86400);
+                            $hours = intdiv($diff % 86400, 3600);
+                            $mins = intdiv($diff % 3600, 60);
+                            if ($days > 0) {
+                                $remainingLabel = $days . 'd ' . $hours . 'h left';
+                            } elseif ($hours > 0) {
+                                $remainingLabel = $hours . 'h ' . max(1, $mins) . 'm left';
+                            } else {
+                                $remainingLabel = max(1, $mins) . 'm left';
+                            }
+                            $remainingTone = 'text-mb-accent';
+                        } else {
+                            $diff = $nowTs - $endTs;
+                            $days = intdiv($diff, 86400);
+                            $hours = intdiv($diff % 86400, 3600);
+                            if ($days > 0) {
+                                $remainingLabel = 'Overdue by ' . $days . 'd ' . $hours . 'h';
+                            } else {
+                                $remainingLabel = 'Overdue by ' . max(1, $hours) . 'h';
+                            }
+                            $remainingTone = 'text-red-400';
+                        }
+                    }
+                }
+                if (($v['status'] ?? '') === 'maintenance') {
+                    $maintenanceStartRaw = (string) ($v['maintenance_started_at'] ?? '');
+                    if ($maintenanceStartRaw === '') {
+                        $maintenanceStartRaw = (string) ($v['updated_at'] ?? $v['created_at'] ?? '');
+                    }
+                    $startTs = $maintenanceStartRaw !== '' ? strtotime($maintenanceStartRaw) : false;
+                    if ($startTs !== false) {
+                        $elapsed = max(0, time() - $startTs);
+                        $days = intdiv($elapsed, 86400);
+                        $hours = intdiv($elapsed % 86400, 3600);
+                        $mins = intdiv($elapsed % 3600, 60);
+                        if ($days > 0) {
+                            $maintenanceLabel = $days . 'd ' . $hours . 'h in maintenance';
+                        } elseif ($hours > 0) {
+                            $maintenanceLabel = $hours . 'h ' . max(1, $mins) . 'm in maintenance';
+                        } else {
+                            $maintenanceLabel = max(1, $mins) . 'm in maintenance';
+                        }
+                        $maintenanceSinceLabel = date('d M Y, h:i A', $startTs);
+                    }
+                }
                 ?>
                 <div onclick="window.location='show.php?id=<?= $v['id'] ?>'"
                     class="bg-mb-surface rounded-xl border border-mb-subtle/20 overflow-hidden group hover:border-mb-accent/30 transition-all duration-300 flex flex-col cursor-pointer">
                     <!-- Image -->
                     <div class="h-44 bg-mb-black relative overflow-hidden">
-                        <?php 
+                        <?php
                         $gridImg = !empty($vehicleImgMap[$v['id']]) ? '../' . $vehicleImgMap[$v['id']][0] : ($v['image_url'] ?? '');
                         if ($gridImg): ?>
                             <img src="<?= e($gridImg) ?>" alt="<?= e($v['brand']) ?> <?= e($v['model']) ?>"
@@ -277,6 +386,56 @@ require_once __DIR__ . '/../includes/header.php';
                             <p class="text-mb-subtle text-xs mt-0.5">
                                 <?= e($v['color']) ?>
                             </p>
+                        <?php endif; ?>
+                        <?php if (($v['status'] ?? '') === 'rented'): ?>
+                            <div class="mt-3 rounded-lg bg-mb-black/40 border border-mb-subtle/20 px-3 py-2">
+                                <?php if ($remainingLabel !== ''): ?>
+                                    <p class="text-xs font-medium <?= $remainingTone ?>">
+                                        <?= e($remainingLabel) ?>
+                                    </p>
+                                <?php else: ?>
+                                    <p class="text-xs font-medium text-mb-subtle">Rented</p>
+                                <?php endif; ?>
+                                <?php if (!empty($v['rented_start_date']) && !empty($v['rented_end_date'])): ?>
+                                    <p class="text-[10px] text-mb-subtle mt-0.5">
+                                        <?= e(date('d M Y, h:i A', strtotime((string) $v['rented_start_date']))) ?> â†’
+                                        <?= e(date('d M Y, h:i A', strtotime((string) $v['rented_end_date']))) ?>
+                                    </p>
+                                <?php endif; ?>
+                                <?php if (!empty($v['rented_client_name'])): ?>
+                                    <p class="text-[10px] text-mb-subtle mt-0.5">Client: <?= e((string) $v['rented_client_name']) ?></p>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                        <?php if (($v['status'] ?? '') === 'maintenance'): ?>
+                            <div class="mt-3 rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2">
+                                <p class="text-xs font-medium text-red-300">
+                                    <?= e($maintenanceLabel !== '' ? $maintenanceLabel : 'In maintenance') ?>
+                                </p>
+                                <?php if ($maintenanceSinceLabel !== ''): ?>
+                                    <p class="text-[10px] text-red-300/80 mt-0.5">Since
+                                        <?= e($maintenanceSinceLabel) ?>
+                                    </p>
+                                <?php endif; ?>
+                                <?php if ($maintenanceWorkshopLabel !== ''): ?>
+                                    <p class="text-[10px] text-orange-300/90 mt-1 flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M21 7.5l-9 9L7.5 12m13.5-4.5l-4.5-4.5L3 16.5V21h4.5L21 7.5z" />
+                                        </svg>
+                                        Workshop: <?= e($maintenanceWorkshopLabel) ?>
+                                    </p>
+                                <?php endif; ?>
+                                <?php if (!empty($v['maintenance_expected_return'])): ?>
+                                    <p class="text-[10px] text-yellow-400/90 mt-1 flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        Expected back: <?= date('d M Y', strtotime($v['maintenance_expected_return'])) ?>
+                                    </p>
+                                <?php endif; ?>
+                            </div>
                         <?php endif; ?>
                         <div class="mt-3 flex items-end gap-3">
                             <div>
@@ -329,4 +488,9 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
+
+<?php
+$_vqp = array_filter(['search'=>$search,'status'=>$status,'rented_date'=>$rentedDate,'sort'=>($sort!=='desc'?$sort:null)], fn($v)=>$v!==null&&$v!=='');
+echo render_pagination($pgResult, $_vqp);
+?>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

@@ -110,7 +110,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $pdo->commit();
-            flash('success', "Staff member '$name' updated successfully.");
+            app_log('ACTION', "Updated staff: $name (ID: $id)");
+flash('success', "Staff member '$name' updated successfully.");
             redirect('show.php?id=' . $id);
         } catch (Throwable $e) {
             $pdo->rollBack();

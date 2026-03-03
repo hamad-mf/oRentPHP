@@ -44,6 +44,17 @@ require_once __DIR__ . '/../includes/header.php';
 
 $badge = ['available' => 'bg-green-500/10 text-green-400 border-green-500/30', 'rented' => 'bg-sky-500/10 text-sky-400 border-sky-500/30', 'maintenance' => 'bg-red-500/10 text-red-400 border-red-500/30'];
 $badgeCls = $badge[$v['status']] ?? 'bg-gray-500/10 text-gray-400';
+$maintenanceSinceLabel = '';
+if (($v['status'] ?? '') === 'maintenance') {
+    $maintenanceStartRaw = (string) ($v['maintenance_started_at'] ?? '');
+    if ($maintenanceStartRaw === '') {
+        $maintenanceStartRaw = (string) ($v['updated_at'] ?? $v['created_at'] ?? '');
+    }
+    $startTs = $maintenanceStartRaw !== '' ? strtotime($maintenanceStartRaw) : false;
+    if ($startTs !== false) {
+        $maintenanceSinceLabel = date('d M Y, h:i A', $startTs);
+    }
+}
 ?>
 
 <div class="space-y-6">
@@ -131,6 +142,25 @@ $badgeCls = $badge[$v['status']] ?? 'bg-gray-500/10 text-gray-400';
                         <?= ucfirst($v['status']) ?>
                     </span>
                 </div>
+                <?php if (($v['status'] ?? '') === 'maintenance'): ?>
+                    <div class="rounded-xl bg-red-500/10 border border-red-500/30 p-4 space-y-2">
+                        <?php if (!empty($v['maintenance_workshop_name'])): ?>
+                            <p class="text-sm text-red-200">Workshop:
+                                <span class="text-white"><?= e((string) $v['maintenance_workshop_name']) ?></span>
+                            </p>
+                        <?php endif; ?>
+                        <?php if (!empty($v['maintenance_expected_return'])): ?>
+                            <p class="text-sm text-yellow-300">Expected Return:
+                                <span class="text-white"><?= e(date('d M Y', strtotime((string) $v['maintenance_expected_return']))) ?></span>
+                            </p>
+                        <?php endif; ?>
+                        <?php if ($maintenanceSinceLabel !== ''): ?>
+                            <p class="text-xs text-red-200/80">In maintenance since
+                                <?= e($maintenanceSinceLabel) ?>
+                            </p>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
 
                 <!-- Stats -->
                 <div class="grid grid-cols-3 gap-4 text-center">

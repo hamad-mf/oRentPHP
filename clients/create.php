@@ -51,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = db()->prepare('INSERT INTO clients (name,email,phone,address,notes,proof_file) VALUES (?,?,?,?,?,?)');
             $stmt->execute([$name, $email ?: null, $phone, $address, $notes, $proofFile]);
             $id = db()->lastInsertId();
+            app_log('ACTION', "Created client: $name (ID: $id)");
             flash('success', "Client $name added successfully.");
             redirect("show.php?id=$id");
         }

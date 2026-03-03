@@ -1,7 +1,10 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/db.php';
 
 $pdo = db();
+require_once __DIR__ . '/../includes/settings_helpers.php';
+$perPage = get_per_page($pdo);
+$page    = max(1, (int) ($_GET['page'] ?? 1));
 $search = trim($_GET['search'] ?? '');
 $filter = $_GET['filter'] ?? '';
 
@@ -24,10 +27,11 @@ switch ($filter) {
         break;
 }
 
-$sql = 'SELECT c.*, (SELECT COUNT(*) FROM reservations r WHERE r.client_id = c.id) AS reservations_count FROM clients c WHERE ' . implode(' AND ', $where) . ' ORDER BY c.created_at DESC';
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$clients = $stmt->fetchAll();
+$baseFrom = 'FROM clients c WHERE ' . implode(' AND ', $where);
+$countSql = 'SELECT COUNT(*) ' . $baseFrom;
+$sql      = 'SELECT c.*, (SELECT COUNT(*) FROM reservations r WHERE r.client_id = c.id) AS reservations_count ' . $baseFrom . ' ORDER BY c.created_at DESC';
+$pgResult = paginate_query($pdo, $sql, $countSql, $params, $page, $perPage);
+$clients  = $pgResult['rows'];
 
 $totalCount = $pdo->query('SELECT COUNT(*) FROM clients')->fetchColumn();
 $blacklisted = $pdo->query('SELECT COUNT(*) FROM clients WHERE is_blacklisted = 1')->fetchColumn();
@@ -77,7 +81,7 @@ require_once __DIR__ . '/../includes/header.php';
             <p class="text-3xl font-light text-yellow-400">
                 <?= $topRated ?>
             </p>
-            <p class="text-mb-silver text-xs uppercase mt-1">Top Rated (4★+)</p>
+            <p class="text-mb-silver text-xs uppercase mt-1">Top Rated </p>
         </div>
     </div>
 
@@ -166,16 +170,16 @@ require_once __DIR__ . '/../includes/header.php';
                                 </p>
                             </td>
                             <td class="px-6 py-4 text-center text-yellow-400">
-                                <?= $c['rating'] ? starDisplay($c['rating']) : '<span class="text-mb-subtle text-xs">—</span>' ?>
+                                <?= $c['rating'] ? starDisplay($c['rating']) : '<span class="text-mb-subtle text-xs">â€”</span>' ?>
                             </td>
                             <td class="px-6 py-4 text-center text-mb-silver">
                                 <?= $c['reservations_count'] ?>
                             </td>
                             <td class="px-6 py-4">
                                 <?php if ($c['is_blacklisted']): ?>
-                                    <span class="text-xs text-red-400">⚠ Blacklisted</span>
+                                    <span class="text-xs text-red-400">âš  Blacklisted</span>
                                 <?php else: ?>
-                                    <span class="text-xs text-green-400">● Active</span>
+                                    <span class="text-xs text-green-400">Active</span>
                                 <?php endif; ?>
                             </td>
                             <td class="px-6 py-4 text-right">
@@ -219,4 +223,8 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
+
+<?php
+$_qp=array_filter(['search'=>$search,'filter'=>$filter],fn($v)=>$v!=='');echo render_pagination($pgResult,$_qp);
+?>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

@@ -1,6 +1,12 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
+require_once __DIR__ . '/../includes/activity_log.php';
+auth_check();
+if (!auth_has_perm('add_leads')) {
+    flash('error', 'You are not allowed to edit leads.');
+    redirect('index.php');
+}
 $pdo = db();
 
 function lead_status_ensure_pipeline(PDO $pdo): void
@@ -78,6 +84,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $activityNote .= " Lost reason: " . $lostReasonValue;
         }
         $pdo->prepare('INSERT INTO lead_activities (lead_id, note) VALUES (?,?)')->execute([$id, $activityNote]);
+
+        $oldStatusLabel = str_replace('_', ' ', (string) ($lead['status'] ?? ''));
+        $newStatusLabel = str_replace('_', ' ', (string) $newStatus);
+        $statusLogDescription = "Updated lead #$id status from $oldStatusLabel to $newStatusLabel.";
+        if ($newStatus === 'closed_lost' && $lostReasonValue) {
+            $statusLogDescription .= " Lost reason: $lostReasonValue.";
+        }
+        log_activity($pdo, 'updated_lead_status', 'lead', $id, $statusLogDescription);
+
         echo json_encode(['ok' => true]);
         exit;
     }
@@ -112,10 +127,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($status !== $lead['status']) {
             $pdo->prepare('INSERT INTO lead_activities (lead_id, note) VALUES (?,?)')->execute([$id, "Status changed to: " . str_replace('_', ' ', $status) . "."]);
+            $oldStatusLabel = str_replace('_', ' ', (string) ($lead['status'] ?? ''));
+            $newStatusLabel = str_replace('_', ' ', (string) $status);
+            log_activity($pdo, 'updated_lead_status', 'lead', $id, "Updated lead #$id status from $oldStatusLabel to $newStatusLabel.");
         } else {
             $pdo->prepare('INSERT INTO lead_activities (lead_id, note) VALUES (?,?)')->execute([$id, "Lead details updated."]);
+            log_activity($pdo, 'updated_lead', 'lead', $id, "Updated lead #$id details.");
         }
 
+        app_log('ACTION', "Updated lead (ID: $id)");
         flash('success', 'Lead updated.');
         redirect("show.php?id=$id");
     }

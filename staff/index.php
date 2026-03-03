@@ -1,9 +1,12 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/db.php';
 auth_check();
 if (!auth_has_perm('manage_staff'))
     redirect('../index.php');
 $pdo = db();
+require_once __DIR__ . '/../includes/settings_helpers.php';
+$perPage = get_per_page($pdo);
+$page    = max(1, (int) ($_GET['page'] ?? 1));
 
 $allPerms = [
     'add_vehicles' => 'Add / Edit Vehicles',
@@ -17,12 +20,14 @@ $allPerms = [
 ];
 
 // Load all staff with user link
-$staffList = $pdo->query(
-    "SELECT s.*, u.id as user_id, u.username, u.role as user_role, u.is_active
-     FROM staff s
-     LEFT JOIN users u ON u.staff_id = s.id
-     ORDER BY s.name ASC"
-)->fetchAll();
+// Pagination
+$search = trim($_GET['search'] ?? '');
+$searchWhere = $search !== '' ? "WHERE s.name LIKE ? OR s.role LIKE ?" : "";
+$searchParams = $search !== '' ? ["%$search%", "%$search%"] : [];
+$countSql = "SELECT COUNT(*) FROM staff s LEFT JOIN users u ON u.staff_id = s.id $searchWhere";
+$staffSql = "SELECT s.*, u.id as user_id, u.username, u.role as user_role, u.is_active FROM staff s LEFT JOIN users u ON u.staff_id = s.id $searchWhere ORDER BY s.name ASC";
+$pgResult  = paginate_query($pdo, $staffSql, $countSql, $searchParams, $page, $perPage);
+$staffList = $pgResult['rows'];
 
 // Load permissions per user
 $permsByUser = [];
@@ -47,7 +52,7 @@ $s = getFlash('success');
     <?php if ($s): ?>
         <div
             class="flex items-center gap-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-xl px-5 py-3 text-sm">
-            ✓ <?= e($s) ?>
+            âœ“ <?= e($s) ?>
         </div>
     <?php endif; ?>
 
@@ -108,16 +113,16 @@ $s = getFlash('success');
                             </div>
                         </td>
                         <td class="px-6 py-4 text-mb-silver font-mono text-xs">
-                            <?= $m['username'] ? e($m['username']) : '<span class="text-mb-subtle italic">—</span>' ?>
+                            <?= $m['username'] ? e($m['username']) : '<span class="text-mb-subtle italic">â€”</span>' ?>
                         </td>
                         <td class="px-6 py-4 text-mb-silver">
-                            <?= $m['role'] ? e($m['role']) : '<span class="text-mb-subtle">—</span>' ?>
+                            <?= $m['role'] ? e($m['role']) : '<span class="text-mb-subtle">â€”</span>' ?>
                         </td>
                         <td class="px-6 py-4">
                             <?php if ($m['user_role'] === 'admin'): ?>
                                 <span
                                     class="inline-flex items-center gap-1 text-xs bg-mb-accent/10 text-mb-accent px-2 py-0.5 rounded-full">
-                                    ★ Admin
+                                    â˜… Admin
                                 </span>
                             <?php elseif ($m['user_id']): ?>
                                 <span
@@ -125,7 +130,7 @@ $s = getFlash('success');
                                     Staff
                                 </span>
                             <?php else: ?>
-                                <span class="text-xs text-mb-subtle italic">—</span>
+                                <span class="text-xs text-mb-subtle italic">â€”</span>
                             <?php endif; ?>
                         </td>
                         <td class="px-6 py-4">
@@ -136,7 +141,7 @@ $s = getFlash('success');
                                     <span class="text-xs bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full">Disabled</span>
                                 <?php endif; ?>
                             <?php else: ?>
-                                <span class="text-xs text-mb-subtle">—</span>
+                                <span class="text-xs text-mb-subtle">â€”</span>
                             <?php endif; ?>
                         </td>
                         <td class="px-6 py-4 text-right">
@@ -168,4 +173,8 @@ $s = getFlash('success');
     </div>
 </div>
 
+
+<?php
+echo render_pagination($pgResult, array_filter(['search'=>$search], fn($v)=>$v!==''));
+?>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

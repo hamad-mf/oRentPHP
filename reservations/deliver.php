@@ -5,9 +5,11 @@ if (!auth_has_perm('do_delivery')) {
     redirect('index.php');
 }
 require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
+require_once __DIR__ . '/../includes/ledger_helpers.php';
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
 reservation_payment_ensure_schema($pdo);
+ledger_ensure_schema($pdo);
 
 $rStmt = $pdo->prepare('SELECT r.*, c.name AS client_name, v.brand, v.model, v.license_plate FROM reservations r JOIN clients c ON r.client_id=c.id JOIN vehicles v ON r.vehicle_id=v.id WHERE r.id=?');
 $rStmt->execute([$id]);
@@ -40,11 +42,13 @@ $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $baseCollectNow = max(0, (float) $r['total_price'] - $voucherApplied);
 $existingDeliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryCharge = max(0, (float) ($_POST['delivery_charge'] ?? ($existingDeliveryCharge > 0 ? $existingDeliveryCharge : $deliveryChargeDefault)));
+$existingDeliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
+$deliveryManualAmount = max(0, (float) ($_POST['delivery_manual_amount'] ?? $existingDeliveryManualAmount));
 $deliveryPaymentMethod = reservation_payment_method_normalize($_POST['delivery_payment_method'] ?? ($r['delivery_payment_method'] ?? 'cash')) ?? 'cash';
-// Delivery discount (applied to base+delivery before collecting)
+// Delivery discount (applied to base + delivery charges before collecting)
 $delivDiscType = in_array($_POST['delivery_discount_type'] ?? '', ['percent', 'amount']) ? $_POST['delivery_discount_type'] : ($r['delivery_discount_type'] ?? null);
 $delivDiscVal = max(0, (float) ($_POST['delivery_discount_value'] ?? ($r['delivery_discount_value'] ?? 0)));
-$baseWithCharge = $baseCollectNow + $deliveryCharge;
+$baseWithCharge = $baseCollectNow + $deliveryCharge + $deliveryManualAmount;
 $delivDiscountAmt = 0;
 if ($delivDiscType === 'percent') {
     $delivDiscountAmt = round($baseWithCharge * min($delivDiscVal, 100) / 100, 2);
@@ -53,6 +57,9 @@ if ($delivDiscType === 'percent') {
 }
 $collectNowAtDelivery = max(0, $baseWithCharge - $delivDiscountAmt);
 $suggestedDeposit = round($collectNowAtDelivery * ($depositPct / 100), 2);
+$deliveryBankAccountId = (int) ($_POST['delivery_bank_account_id'] ?? 0);
+$deliveryBankAccountId = $deliveryBankAccountId > 0 ? $deliveryBankAccountId : null;
+$activeBankAccounts = array_values(array_filter(ledger_get_accounts($pdo), fn($a) => (int) ($a['is_active'] ?? 0) === 1));
 
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -63,14 +70,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $extraKmPrice = $_POST['extra_km_price'] !== '' ? (float) $_POST['extra_km_price'] : null;
     $depositAmt = max(0, (float) ($_POST['deposit_amount'] ?? 0));
     $deliveryCharge = (float) ($_POST['delivery_charge'] ?? $deliveryCharge);
+    $deliveryManualAmountInput = (float) ($_POST['delivery_manual_amount'] ?? $deliveryManualAmount);
+    $deliveryManualAmount = max(0, $deliveryManualAmountInput);
     $deliveryPaymentMethod = reservation_payment_method_normalize($_POST['delivery_payment_method'] ?? null);
+    $deliveryBankAccountId = (int) ($_POST['delivery_bank_account_id'] ?? 0);
+    $deliveryBankAccountId = $deliveryBankAccountId > 0 ? $deliveryBankAccountId : null;
     $delivDiscType = in_array($_POST['delivery_discount_type'] ?? '', ['percent', 'amount']) ? $_POST['delivery_discount_type'] : null;
     $delivDiscVal = max(0, (float) ($_POST['delivery_discount_value'] ?? 0));
     if ($deliveryCharge < 0) {
         $errors['delivery_charge'] = 'Delivery charge cannot be negative.';
     }
+    if ($deliveryManualAmountInput < 0) {
+        $errors['delivery_manual_amount'] = 'Manual delivery amount cannot be negative.';
+    }
     $deliveryCharge = max(0, $deliveryCharge);
-    $baseWithCharge = $baseCollectNow + $deliveryCharge;
+    $baseWithCharge = $baseCollectNow + $deliveryCharge + $deliveryManualAmount;
     $delivDiscountAmt = 0;
     if ($delivDiscType === 'percent') {
         $delivDiscountAmt = round($baseWithCharge * min($delivDiscVal, 100) / 100, 2);
@@ -80,6 +94,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $collectNowAtDelivery = max(0, $baseWithCharge - $delivDiscountAmt);
     if ($collectNowAtDelivery > 0 && $deliveryPaymentMethod === null) {
         $errors['delivery_payment_method'] = 'Please select how this delivery payment was received.';
+    }
+    if ($collectNowAtDelivery > 0 && $deliveryPaymentMethod === 'account') {
+        if ($deliveryBankAccountId === null) {
+            $errors['delivery_bank_account_id'] = 'Please select the bank account that received this payment.';
+        } else {
+            $chk = $pdo->prepare("SELECT COUNT(*) FROM bank_accounts WHERE id = ? AND is_active = 1");
+            $chk->execute([$deliveryBankAccountId]);
+            if ((int) $chk->fetchColumn() === 0) {
+                $errors['delivery_bank_account_id'] = 'Selected bank account is invalid or inactive.';
+            }
+        }
+    } else {
+        $deliveryBankAccountId = null;
     }
 
     if ($fuel < 0 || $fuel > 100)
@@ -110,8 +137,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $deliveryPaymentMethodSave = $collectNowAtDelivery > 0 ? $deliveryPaymentMethod : null;
-        $pdo->prepare("UPDATE reservations SET status='active', km_limit=?, extra_km_price=?, deposit_amount=?, delivery_charge=?, delivery_payment_method=?, delivery_paid_amount=?, delivery_discount_type=?, delivery_discount_value=? WHERE id=?")
-            ->execute([$kmLimit, $extraKmPrice, $depositAmt, $deliveryCharge, $deliveryPaymentMethodSave, $collectNowAtDelivery, $delivDiscType ?: null, $delivDiscVal, $id]);
+        $pdo->prepare("UPDATE reservations SET status='active', km_limit=?, extra_km_price=?, deposit_amount=?, delivery_charge=?, delivery_manual_amount=?, delivery_payment_method=?, delivery_paid_amount=?, delivery_discount_type=?, delivery_discount_value=? WHERE id=?")
+            ->execute([$kmLimit, $extraKmPrice, $depositAmt, $deliveryCharge, $deliveryManualAmount, $deliveryPaymentMethodSave, $collectNowAtDelivery, $delivDiscType ?: null, $delivDiscVal, $id]);
         $pdo->prepare("UPDATE vehicles SET status='rented' WHERE id=?")->execute([$r['vehicle_id']]);
         $msg = 'Vehicle delivered. Amount collected at delivery: $' . number_format($collectNowAtDelivery, 2) . '.';
         if ($collectNowAtDelivery > 0) {
@@ -123,7 +150,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($deliveryCharge > 0) {
             $msg .= ' Delivery charge: $' . number_format($deliveryCharge, 2) . '.';
         }
+        if ($deliveryManualAmount > 0) {
+            $msg .= ' Manual additional amount: $' . number_format($deliveryManualAmount, 2) . '.';
+        }
         $msg .= ' Reservation is now active.';
+        app_log('ACTION', "Delivered reservation (ID: $id)");
+        // ── Auto-post income to ledger ──────────────────────────────────
+        ledger_post_reservation_event($pdo, $id, 'delivery', $collectNowAtDelivery, $deliveryPaymentMethodSave, $_SESSION['user']['id'] ?? 0, $deliveryBankAccountId);
         flash('success', $msg);
         // Log staff activity
         require_once __DIR__ . '/../includes/activity_log.php';
@@ -199,6 +232,22 @@ require_once __DIR__ . '/../includes/header.php';
                             value="<?= e($_POST['delivery_charge'] ?? number_format($deliveryCharge, 2, '.', '')) ?>">
                     </div>
                 </div>
+                <div class="flex items-center justify-between text-mb-silver gap-3">
+                    <span>Manual Additional Amount</span>
+                    <div class="relative w-44">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-mb-subtle text-xs">$</span>
+                        <input type="number" name="delivery_manual_amount" id="deliveryManualAmountInput" step="0.01" min="0"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-7 pr-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm"
+                            placeholder="0.00"
+                            value="<?= e($_POST['delivery_manual_amount'] ?? number_format($deliveryManualAmount, 2, '.', '')) ?>">
+                    </div>
+                </div>
+                <div id="deliveryManualRow"
+                    class="justify-between text-orange-300 <?= $deliveryManualAmount > 0 ? 'flex' : 'hidden' ?>">
+                    <span>Manual Additional Amount</span>
+                    <span
+                        id="deliveryManualAmt"><?= $deliveryManualAmount > 0 ? '+$' . number_format($deliveryManualAmount, 2) : '' ?></span>
+                </div>
                 <!-- Delivery Discount -->
                 <div class="flex items-center justify-between text-mb-silver gap-3">
                     <span>Discount</span>
@@ -211,11 +260,14 @@ require_once __DIR__ . '/../includes/header.php';
                             </option>
                             <option value="amount" <?= ($delivDiscType ?? '') === 'amount' ? 'selected' : '' ?>>$</option>
                         </select>
-                        <input type="number" name="delivery_discount_value" id="delivDiscountValue" step="0.01" min="0"
-                            placeholder="0"
-                            value="<?= e($_POST['delivery_discount_value'] ?? number_format($delivDiscVal, 2, '.', '')) ?>"
-                            oninput="updateDeliveryCollectNow()"
-                            class="flex-1 min-w-0 bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white focus:outline-none focus:border-mb-accent text-xs">
+                        <div id="delivDiscountValueWrap"
+                            class="flex-1 min-w-0 <?= in_array(($delivDiscType ?? ''), ['percent', 'amount'], true) ? '' : 'hidden' ?>">
+                            <input type="number" name="delivery_discount_value" id="delivDiscountValue" step="0.01" min="0"
+                                placeholder="0"
+                                value="<?= e($_POST['delivery_discount_value'] ?? number_format($delivDiscVal, 2, '.', '')) ?>"
+                                oninput="updateDeliveryCollectNow()"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white focus:outline-none focus:border-mb-accent text-xs">
+                        </div>
                     </div>
                 </div>
                 <div id="delivDiscountRow"
@@ -227,13 +279,28 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="flex items-center justify-between text-mb-silver gap-3">
                     <span>Payment Method</span>
                     <div class="w-44">
-                        <select name="delivery_payment_method" id="deliveryPaymentMethod"
+                        <select name="delivery_payment_method" id="deliveryPaymentMethod" onchange="toggleDeliveryBankField()"
                             class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
                             <option value="cash" <?= $deliveryPaymentMethod === 'cash' ? 'selected' : '' ?>>Cash</option>
                             <option value="account" <?= $deliveryPaymentMethod === 'account' ? 'selected' : '' ?>>Account
                             </option>
                             <option value="credit" <?= $deliveryPaymentMethod === 'credit' ? 'selected' : '' ?>>Credit
                             </option>
+                        </select>
+                    </div>
+                </div>
+                <div id="deliveryBankWrap"
+                    class="items-center justify-between text-mb-silver gap-3 <?= $deliveryPaymentMethod === 'account' ? 'flex' : 'hidden' ?>">
+                    <span>Bank Account</span>
+                    <div class="w-44">
+                        <select name="delivery_bank_account_id" id="deliveryBankAccount"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
+                            <option value="">Select account</option>
+                            <?php foreach ($activeBankAccounts as $acc): ?>
+                                <option value="<?= (int) $acc['id'] ?>" <?= (int) ($deliveryBankAccountId ?? 0) === (int) $acc['id'] ? 'selected' : '' ?>>
+                                    <?= e($acc['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                 </div>
@@ -245,8 +312,17 @@ require_once __DIR__ . '/../includes/header.php';
             <?php if (isset($errors['delivery_charge'])): ?>
                 <p class="text-red-400 text-xs mt-2"><?= e($errors['delivery_charge']) ?></p>
             <?php endif; ?>
+            <?php if (isset($errors['delivery_manual_amount'])): ?>
+                <p class="text-red-400 text-xs mt-2"><?= e($errors['delivery_manual_amount']) ?></p>
+            <?php endif; ?>
             <?php if (isset($errors['delivery_payment_method'])): ?>
                 <p class="text-red-400 text-xs mt-2"><?= e($errors['delivery_payment_method']) ?></p>
+            <?php endif; ?>
+            <?php if (isset($errors['delivery_bank_account_id'])): ?>
+                <p class="text-red-400 text-xs mt-2"><?= e($errors['delivery_bank_account_id']) ?></p>
+            <?php endif; ?>
+            <?php if (empty($activeBankAccounts)): ?>
+                <p class="text-red-400 text-xs mt-2">No active bank account found. Go to Accounts and add one for account mode.</p>
             <?php endif; ?>
             <p class="text-xs text-mb-subtle mt-1">At return, only extra charges (late, KM overage, damage, etc.) will
                 be calculated.</p>
@@ -381,10 +457,36 @@ const slider = document.getElementById("fuelSlider");
 const valEl = document.getElementById("fuel-val");
 const barEl = document.getElementById("fuelBar");
 const deliveryChargeInput = document.getElementById("deliveryChargeInput");
+const deliveryManualAmountInput = document.getElementById("deliveryManualAmountInput");
+const delivDiscountTypeEl = document.getElementById("delivDiscountType");
+const delivDiscountValueEl = document.getElementById("delivDiscountValue");
+const delivDiscountValueWrapEl = document.getElementById("delivDiscountValueWrap");
 const collectNowValue = document.getElementById("collectNowValue");
 const depositSuggestionText = document.getElementById("depositSuggestionText");
+const deliveryPaymentMethodEl = document.getElementById("deliveryPaymentMethod");
+const deliveryBankWrapEl = document.getElementById("deliveryBankWrap");
+const deliveryBankAccountEl = document.getElementById("deliveryBankAccount");
 const BASE_COLLECT_NOW = {$baseCollectNow};
 const DEPOSIT_PCT = {$depositPct};
+
+function getCollectNowAmount() {
+    if (!collectNowValue) return 0;
+    const raw = String(collectNowValue.textContent || "0").replace(/[^0-9.-]/g, "");
+    return parseFloat(raw) || 0;
+}
+
+function toggleDeliveryBankField() {
+    if (!deliveryPaymentMethodEl || !deliveryBankWrapEl || !deliveryBankAccountEl) return;
+    const needsBank = deliveryPaymentMethodEl.value === "account" && getCollectNowAmount() > 0;
+    deliveryBankWrapEl.classList.toggle("hidden", !needsBank);
+    deliveryBankWrapEl.classList.toggle("flex", needsBank);
+    if (needsBank) {
+        deliveryBankAccountEl.setAttribute("required", "required");
+    } else {
+        deliveryBankAccountEl.removeAttribute("required");
+        deliveryBankAccountEl.value = "";
+    }
+}
 
 function updateFuel(v) {
     valEl.textContent = v + "%";
@@ -392,15 +494,39 @@ function updateFuel(v) {
     barEl.className = "h-2 rounded-full " + (v >= 75 ? "bg-green-500" : v >= 50 ? "bg-yellow-400" : v >= 25 ? "bg-orange-400" : "bg-red-500");
 }
 
+function toggleDeliveryDiscountValueField() {
+    if (!delivDiscountTypeEl || !delivDiscountValueWrapEl) return;
+    const hasDiscount = delivDiscountTypeEl.value === "percent" || delivDiscountTypeEl.value === "amount";
+    delivDiscountValueWrapEl.classList.toggle("hidden", !hasDiscount);
+}
+
 function updateDeliveryCollectNow() {
-    if (!deliveryChargeInput || !collectNowValue) return;
+    if (!deliveryChargeInput || !deliveryManualAmountInput || !collectNowValue) return;
+    toggleDeliveryDiscountValueField();
     let deliveryCharge = parseFloat(deliveryChargeInput.value || "0");
     if (!isFinite(deliveryCharge) || deliveryCharge < 0) deliveryCharge = 0;
-    const baseWithCharge = BASE_COLLECT_NOW + deliveryCharge;
+    let deliveryManual = parseFloat(deliveryManualAmountInput.value || "0");
+    if (!isFinite(deliveryManual) || deliveryManual < 0) deliveryManual = 0;
+    const baseWithCharge = BASE_COLLECT_NOW + deliveryCharge + deliveryManual;
+
+    const manualRow = document.getElementById("deliveryManualRow");
+    const manualAmtEl = document.getElementById("deliveryManualAmt");
+    if (manualRow && manualAmtEl) {
+        if (deliveryManual > 0) {
+            manualRow.classList.remove("hidden");
+            manualRow.classList.add("flex");
+            manualAmtEl.textContent = "+$" + deliveryManual.toFixed(2);
+        } else {
+            manualRow.classList.add("hidden");
+            manualRow.classList.remove("flex");
+            manualAmtEl.textContent = "";
+        }
+    }
 
     // Discount
-    const discType = document.getElementById("delivDiscountType")?.value || "";
-    const discVal  = parseFloat(document.getElementById("delivDiscountValue")?.value || "0") || 0;
+    const discType = delivDiscountTypeEl ? delivDiscountTypeEl.value : "";
+    const discValRaw = parseFloat(delivDiscountValueEl ? delivDiscountValueEl.value : "0") || 0;
+    const discVal = (discType === "percent" || discType === "amount") ? discValRaw : 0;
     let discAmt = 0;
     if (discType === "percent" && discVal > 0) {
         discAmt = Math.round(baseWithCharge * Math.min(discVal, 100) / 100 * 100) / 100;
@@ -427,6 +553,7 @@ function updateDeliveryCollectNow() {
     if (depositSuggestionText && DEPOSIT_PCT > 0) {
         depositSuggestionText.textContent = "Suggested rate: " + DEPOSIT_PCT + "% of delivery collection ($" + collectNow.toFixed(2) + ")";
     }
+    toggleDeliveryBankField();
 }
 
 slider.addEventListener("input", () => updateFuel(slider.value));
@@ -434,8 +561,16 @@ if (deliveryChargeInput) {
     deliveryChargeInput.addEventListener("input", updateDeliveryCollectNow);
     deliveryChargeInput.addEventListener("change", updateDeliveryCollectNow);
 }
+if (deliveryManualAmountInput) {
+    deliveryManualAmountInput.addEventListener("input", updateDeliveryCollectNow);
+    deliveryManualAmountInput.addEventListener("change", updateDeliveryCollectNow);
+}
+if (deliveryPaymentMethodEl) {
+    deliveryPaymentMethodEl.addEventListener("change", toggleDeliveryBankField);
+}
 updateFuel(slider.value);
 updateDeliveryCollectNow();
+toggleDeliveryBankField();
 </script>
 JS;
 require_once __DIR__ . '/../includes/footer.php';

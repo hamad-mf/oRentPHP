@@ -32,7 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             settings_set($pdo, $k, $parsed->format('h:i') . ' ' . $ampm);
         }
     }
-    flash('success', 'Attendance settings saved.');
+    app_log('ACTION', 'Updated attendance settings');
+flash('success', 'Attendance settings saved.');
     redirect('attendance.php');
 }
 

@@ -1,8 +1,14 @@
 <?php
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/reservation_payment_helpers.php';
+require_once __DIR__ . '/includes/ledger_helpers.php';
+require_once __DIR__ . '/includes/settings_helpers.php';
+require_once __DIR__ . '/includes/gps_helpers.php';
 $pdo = db();
 reservation_payment_ensure_schema($pdo);
+ledger_ensure_schema($pdo);
+settings_ensure_table($pdo);
+gps_tracking_ensure_schema($pdo);
 
 // Fleet Status
 $totalCars = $pdo->query("SELECT COUNT(*) FROM vehicles")->fetchColumn();
@@ -13,17 +19,18 @@ $maintenanceCars = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='main
 // Daily Operations
 $todayReturns = $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='active' AND DATE(end_date) = CURDATE()")->fetchColumn();
 $notifications = $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='active' AND DATE(end_date) <= DATE_ADD(CURDATE(), INTERVAL 2 DAY)")->fetchColumn();
+$gpsWarnings = gps_active_warning_count($pdo);
 
-// Business Performance
-$settingsFile = __DIR__ . '/config/settings.json';
-$settings = file_exists($settingsFile) ? json_decode(file_get_contents($settingsFile), true) : [];
-$dailyTarget = (float) ($settings['daily_target'] ?? 0);
+// Business Performance — daily_target stored in DB (survives deploys, per-environment)
+$dailyTarget = (float) ($pdo->query("SELECT `value` FROM system_settings WHERE `key`='daily_target' LIMIT 1")->fetchColumn() ?: 0);
 
 // Handle daily target update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['daily_target'])) {
     $newTarget = max(0, (float) ($_POST['daily_target'] ?? 0));
-    $settings['daily_target'] = $newTarget;
-    file_put_contents($settingsFile, json_encode($settings, JSON_PRETTY_PRINT));
+    $pdo->prepare("INSERT INTO system_settings (`key`, `value`) VALUES ('daily_target', ?)
+                   ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)")
+        ->execute([$newTarget]);
+    app_log('ACTION', "Updated daily target to $newTarget");
     $dailyTarget = $newTarget;
 }
 
@@ -31,23 +38,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['daily_target'])) {
 $istNow = new DateTime('now', new DateTimeZone('Asia/Kolkata'));
 $istToday = $istNow->format('Y-m-d');
 
-// Revenue: 'completed today' = return inspection was processed today
-$revStmt = $pdo->prepare(
-    "SELECT COALESCE(
-        SUM(CASE
-            WHEN r.status='active'
-                THEN r.delivery_paid_amount
-            WHEN r.status='completed' AND DATE(vi.created_at) = ?
-                THEN r.delivery_paid_amount + r.return_paid_amount
-        END)
-    , 0)
-    FROM reservations r
-    LEFT JOIN vehicle_inspections vi ON vi.reservation_id = r.id AND vi.type = 'return'
-    WHERE r.status='active'
-       OR (r.status='completed' AND DATE(vi.created_at) = ?)"
-);
-$revStmt->execute([$istToday, $istToday]);
-$todayRevenue = (float) $revStmt->fetchColumn();
+// Revenue should reset daily: sum reservation payments posted today (delivery + return).
+$todayRevenue = 0.0;
+try {
+    $revStmt = $pdo->prepare(
+        "SELECT COALESCE(SUM(amount), 0)
+         FROM ledger_entries
+         WHERE txn_type = 'income'
+           AND source_type = 'reservation'
+           AND source_event IN ('delivery', 'return')
+           AND DATE(posted_at) = ?"
+    );
+    $revStmt->execute([$istToday]);
+    $todayRevenue = (float) $revStmt->fetchColumn();
+} catch (Throwable $e) {
+    $todayRevenue = 0.0;
+}
+
+// Backward-safe fallback for older data where reservation events may not exist in ledger.
+if ($todayRevenue == 0.0) {
+    $legacyRevStmt = $pdo->prepare(
+        "SELECT COALESCE(SUM(
+            CASE WHEN d.delivery_today = 1 THEN r.delivery_paid_amount ELSE 0 END +
+            CASE WHEN rt.return_today = 1 THEN r.return_paid_amount ELSE 0 END
+        ), 0)
+        FROM reservations r
+        LEFT JOIN (
+            SELECT reservation_id, 1 AS delivery_today
+            FROM vehicle_inspections
+            WHERE type = 'delivery' AND DATE(created_at) = ?
+            GROUP BY reservation_id
+        ) d ON d.reservation_id = r.id
+        LEFT JOIN (
+            SELECT reservation_id, 1 AS return_today
+            FROM vehicle_inspections
+            WHERE type = 'return' AND DATE(created_at) = ?
+            GROUP BY reservation_id
+        ) rt ON rt.reservation_id = r.id
+        WHERE d.delivery_today = 1 OR rt.return_today = 1"
+    );
+    $legacyRevStmt->execute([$istToday, $istToday]);
+    $todayRevenue = (float) $legacyRevStmt->fetchColumn();
+}
 
 $enquiries = (function () use ($pdo, $istToday) {
     $s = $pdo->prepare("SELECT COUNT(*) FROM reservations WHERE DATE(created_at) = ?");
@@ -78,26 +110,30 @@ try {
 }
 
 
-// Accounts
+
+// Accounts — rules:
+//   'account' payment  = goes into bank account balance + ledger
+//   'cash' payment     = ledger only (no bank balance change)
+//   'credit' payment   = ledger only (receivable, no money yet)
 $accounts = ['total' => 0.0, 'cash' => 0.0, 'ac' => 0.0, 'credit' => 0.0];
 try {
-    $accStmt = $pdo->query("SELECT
-        COALESCE(SUM(delivery_paid_amount), 0) + COALESCE(SUM(return_paid_amount), 0) AS total_amount,
-        COALESCE(SUM(CASE WHEN delivery_payment_method='cash' THEN delivery_paid_amount ELSE 0 END), 0)
-            + COALESCE(SUM(CASE WHEN return_payment_method='cash' THEN return_paid_amount ELSE 0 END), 0) AS cash_amount,
-        COALESCE(SUM(CASE WHEN delivery_payment_method='account' THEN delivery_paid_amount ELSE 0 END), 0)
-            + COALESCE(SUM(CASE WHEN return_payment_method='account' THEN return_paid_amount ELSE 0 END), 0) AS account_amount,
-        COALESCE(SUM(CASE WHEN delivery_payment_method='credit' THEN delivery_paid_amount ELSE 0 END), 0)
-            + COALESCE(SUM(CASE WHEN return_payment_method='credit' THEN return_paid_amount ELSE 0 END), 0) AS credit_amount
-        FROM reservations
-        WHERE status IN ('active','completed')");
-    $accRow = $accStmt->fetch();
-    if ($accRow) {
-        $accounts['total'] = (float) ($accRow['total_amount'] ?? 0);
-        $accounts['cash'] = (float) ($accRow['cash_amount'] ?? 0);
-        $accounts['ac'] = (float) ($accRow['account_amount'] ?? 0);
-        $accounts['credit'] = (float) ($accRow['credit_amount'] ?? 0);
-    }
+    require_once __DIR__ . '/includes/ledger_helpers.php';
+    ledger_ensure_schema($pdo);
+
+    // Bank account balance (only 'account' mode payments land here)
+    $bankBalance = (float) $pdo->query("SELECT COALESCE(SUM(balance),0) FROM bank_accounts WHERE is_active=1")->fetchColumn();
+    $accounts['ac'] = $bankBalance;
+
+    // Cash received — from ledger (payment_mode='cash'), does NOT touch bank balance
+    $cashIncome = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income'")->fetchColumn();
+    $cashExpense = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense'")->fetchColumn();
+    $accounts['cash'] = $cashIncome - $cashExpense;
+
+    // Credit outstanding — ledger only, no bank
+    $accounts['credit'] = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income'")->fetchColumn();
+
+    // Dashboard total = cash + bank + credit
+    $accounts['total'] = $accounts['cash'] + $accounts['ac'] + $accounts['credit'];
 } catch (Throwable $e) {
 }
 
@@ -176,7 +212,7 @@ require_once __DIR__ . '/includes/header.php';
     <section>
         <h3 class="text-white text-lg font-light mb-4 uppercase tracking-wider border-l-2 border-mb-accent pl-2">Daily
             Operations</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <a href="reservations/index.php?due_today=1"
                 class="bg-mb-surface border border-mb-subtle/20 p-6 rounded-lg flex items-center justify-between hover:bg-mb-black/30 transition-colors cursor-pointer">
                 <div>
@@ -206,6 +242,27 @@ require_once __DIR__ . '/includes/header.php';
                     </svg>
                 </div>
             </div>
+            <a href="gps/index.php?status=active&tracking=no"
+                class="bg-mb-surface border <?= $gpsWarnings > 0 ? 'border-red-500/40 bg-red-500/5' : 'border-mb-subtle/20' ?> p-6 rounded-lg flex items-center justify-between hover:bg-mb-black/30 transition-colors cursor-pointer">
+                <div>
+                    <p class="text-mb-silver text-sm uppercase mb-1">GPS Warnings</p>
+                    <span
+                        class="text-3xl font-light <?= $gpsWarnings > 0 ? 'text-red-400' : 'text-white' ?>"><?= $gpsWarnings ?>
+                        Issue<?= $gpsWarnings === 1 ? '' : 's' ?></span>
+                    <?php if ($gpsWarnings > 0): ?>
+                        <p class="text-xs text-red-400/70 mt-1 animate-pulse">Active vehicles with GPS inactive</p>
+                    <?php else: ?>
+                        <p class="text-xs text-mb-subtle mt-1">All active vehicles tracking</p>
+                    <?php endif; ?>
+                </div>
+                <div
+                    class="w-12 h-12 rounded-full <?= $gpsWarnings > 0 ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400' ?> flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M12 2a7 7 0 00-7 7c0 4.5 7 13 7 13s7-8.5 7-13a7 7 0 00-7-7zm0 10a3 3 0 110-6 3 3 0 010 6z" />
+                    </svg>
+                </div>
+            </a>
         </div>
     </section>
 

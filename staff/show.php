@@ -57,6 +57,14 @@ $actionMeta = [
     'return' => ['icon' => '🔄', 'color' => 'text-orange-400', 'label' => 'Vehicle Returned'],
     'created_reservation' => ['icon' => '📋', 'color' => 'text-green-400', 'label' => 'Reservation Created'],
     'created_lead' => ['icon' => '👤', 'color' => 'text-purple-400', 'label' => 'Lead Created'],
+    'converted_lead' => ['icon' => '🔄', 'color' => 'text-cyan-400', 'label' => 'Lead Converted To Client'],
+    'imported_leads_batch' => ['icon' => '📥', 'color' => 'text-cyan-300', 'label' => 'Leads Imported (Batch)'],
+    'updated_lead' => ['icon' => '✏️', 'color' => 'text-amber-400', 'label' => 'Lead Updated'],
+    'updated_lead_status' => ['icon' => '📌', 'color' => 'text-indigo-400', 'label' => 'Lead Status Updated'],
+    'deleted_lead' => ['icon' => '🗑️', 'color' => 'text-red-400', 'label' => 'Lead Deleted'],
+    'scheduled_followup' => ['icon' => '⏰', 'color' => 'text-sky-400', 'label' => 'Follow-up Scheduled'],
+    'completed_followup' => ['icon' => '✅', 'color' => 'text-emerald-400', 'label' => 'Follow-up Completed'],
+    'gps_update' => ['icon' => '📍', 'color' => 'text-blue-300', 'label' => 'GPS Updated'],
 ];
 
 $pageTitle = e($staff['name']);
