@@ -217,37 +217,40 @@ function paginate_query(PDO $pdo, string $sql, string $countSql, array $params, 
  * $queryParams = current $_GET array (page will be overwritten).
  */
 function render_pagination(array $pg, array $queryParams = []): string {
-    if ($pg['total_pages'] <= 1) return '';
-    $cur   = $pg['page'];
-    $total = $pg['total_pages'];
-    $from  = max(1, $cur - 2);
-    $to    = min($total, $cur + 2);
-    $html  = '<div class="flex items-center justify-between px-4 py-3 border-t border-mb-subtle/10">';
-    $html .= '<span class="text-xs text-mb-subtle">';
-    $start = ($cur - 1) * $pg['per_page'] + 1;
-    $end   = min($cur * $pg['per_page'], $pg['total']);
-    $html .= "Showing {$start}–{$end} of {$pg['total']}";
-    $html .= '</span>';
-    $html .= '<div class="flex items-center gap-1">';
-    // Prev
+    if (($pg['total_pages'] ?? 1) <= 1) {
+        return '';
+    }
+
+    $cur = (int)($pg['page'] ?? 1);
+    $total = (int)($pg['total_pages'] ?? 1);
+    $from = max(1, $cur - 2);
+    $to = min($total, $cur + 2);
+    $start = ($cur - 1) * (int)($pg['per_page'] ?? 0) + 1;
+    $end = min($cur * (int)($pg['per_page'] ?? 0), (int)($pg['total'] ?? 0));
+
+    $html = '<div class="pt-2 pb-6">';
+    $html .= '<p class="text-center text-xs text-mb-subtle mb-3">Showing ' . $start . '-' . $end . ' of ' . (int)($pg['total'] ?? 0) . '</p>';
+    $html .= '<div class="flex items-center justify-center gap-2">';
+
     if ($cur > 1) {
         $qp = array_merge($queryParams, ['page' => $cur - 1]);
-        $html .= '<a href="?' . http_build_query($qp) . '" class="px-2.5 py-1.5 rounded text-mb-subtle hover:text-white hover:bg-white/5 text-sm transition-colors">&#8592;</a>';
+        $html .= '<a href="?' . http_build_query($qp) . '" class="px-3.5 py-2 rounded-lg bg-mb-surface border border-mb-subtle/30 text-mb-silver hover:text-white hover:border-white/30 transition-colors text-sm font-medium">Prev</a>';
     }
-    // Page numbers
+
     for ($i = $from; $i <= $to; $i++) {
         $qp = array_merge($queryParams, ['page' => $i]);
         if ($i === $cur) {
-            $html .= '<span class="px-3 py-1.5 rounded bg-mb-accent text-white text-sm font-medium">' . $i . '</span>';
+            $html .= '<span class="min-w-[40px] text-center px-3.5 py-2 rounded-lg bg-mb-accent text-white text-sm font-semibold border border-mb-accent/80">' . $i . '</span>';
         } else {
-            $html .= '<a href="?' . http_build_query($qp) . '" class="px-2.5 py-1.5 rounded text-mb-subtle hover:text-white hover:bg-white/5 text-sm transition-colors">' . $i . '</a>';
+            $html .= '<a href="?' . http_build_query($qp) . '" class="min-w-[40px] text-center px-3.5 py-2 rounded-lg bg-mb-surface border border-mb-subtle/30 text-mb-silver hover:text-white hover:border-white/30 transition-colors text-sm font-medium">' . $i . '</a>';
         }
     }
-    // Next
+
     if ($cur < $total) {
         $qp = array_merge($queryParams, ['page' => $cur + 1]);
-        $html .= '<a href="?' . http_build_query($qp) . '" class="px-2.5 py-1.5 rounded text-mb-subtle hover:text-white hover:bg-white/5 text-sm transition-colors">&#8594;</a>';
+        $html .= '<a href="?' . http_build_query($qp) . '" class="px-3.5 py-2 rounded-lg bg-mb-surface border border-mb-subtle/30 text-mb-silver hover:text-white hover:border-white/30 transition-colors text-sm font-medium">Next</a>';
     }
+
     $html .= '</div></div>';
     return $html;
 }

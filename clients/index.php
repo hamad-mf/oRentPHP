@@ -170,14 +170,14 @@ require_once __DIR__ . '/../includes/header.php';
                                 </p>
                             </td>
                             <td class="px-6 py-4 text-center text-yellow-400">
-                                <?= $c['rating'] ? starDisplay($c['rating']) : '<span class="text-mb-subtle text-xs">â€”</span>' ?>
+                                <?= $c['rating'] ? starDisplay($c['rating']) : '<span class="text-mb-subtle text-xs"> ”</span>' ?>
                             </td>
                             <td class="px-6 py-4 text-center text-mb-silver">
                                 <?= $c['reservations_count'] ?>
                             </td>
                             <td class="px-6 py-4">
                                 <?php if ($c['is_blacklisted']): ?>
-                                    <span class="text-xs text-red-400">âš  Blacklisted</span>
+                                    <span class="text-xs text-red-400"> š  Blacklisted</span>
                                 <?php else: ?>
                                     <span class="text-xs text-green-400">Active</span>
                                 <?php endif; ?>

@@ -19,7 +19,13 @@ $documents = $docs->fetchAll();
 // Load uploaded photos
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS vehicle_images (id INT AUTO_INCREMENT PRIMARY KEY, vehicle_id INT NOT NULL, file_path VARCHAR(255) NOT NULL, sort_order INT DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-} catch (Exception $e) {}
+} catch (Exception $e) {
+      app_log('ERROR', 'Vehicle show: vehicle_images table ensure failed - ' . $e->getMessage(), [
+        'file' => $e->getFile() . ':' . $e->getLine(),
+        'screen' => 'vehicles/show.php',
+        'vehicle_id' => $id,
+    ]);
+}
 $imgStmt = $pdo->prepare('SELECT * FROM vehicle_images WHERE vehicle_id=? ORDER BY sort_order, id');
 $imgStmt->execute([$id]);
 $vehiclePhotos = $imgStmt->fetchAll();
@@ -38,6 +44,11 @@ $activeReservation = reset($activeReservation) ?: null;
 
 $success = getFlash('success');
 $error = getFlash('error');
+
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$basePath = trim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/vehicles/show.php')), '/');
+$vehicleCatalogUrl = $scheme . '://' . $host . ($basePath !== '' ? '/' . $basePath : '') . '/vehicles/catalog.php?vehicle_id=' . (int) $v['id'];
 
 $pageTitle = e($v['brand']) . ' ' . e($v['model']);
 require_once __DIR__ . '/../includes/header.php';
@@ -189,6 +200,9 @@ if (($v['status'] ?? '') === 'maintenance') {
                     <a href="edit.php?id=<?= $v['id'] ?>"
                         class="bg-mb-accent text-white px-5 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-sm font-medium">Edit
                         Vehicle</a>
+                    <button type="button" onclick="document.getElementById('vehicleShareModal').classList.remove('hidden')"
+                        class="border border-mb-subtle/30 text-mb-silver px-5 py-2 rounded-full hover:border-white/30 hover:text-white transition-all text-sm font-medium">Share
+                        Vehicle Catalog</button>
                     <?php if ($v['status'] !== 'rented'): ?>
                         <a href="delete.php?id=<?= $v['id'] ?>"
                             onclick="return confirm('Remove this vehicle from the fleet?')"
@@ -463,5 +477,95 @@ if (($v['status'] ?? '') === 'maintenance') {
         </div>
     </div>
 </div>
+
+<!-- Single Vehicle Share Modal -->
+<div id="vehicleShareModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+    onclick="if(event.target===this)this.classList.add('hidden')">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+    <div class="relative bg-mb-surface border border-mb-subtle/20 rounded-2xl p-6 w-full max-w-md shadow-2xl shadow-black/50">
+        <div class="flex items-start justify-between mb-5">
+            <div>
+                <h3 class="text-white font-semibold text-lg">Share This Vehicle</h3>
+                <p class="text-mb-subtle text-sm mt-0.5">This link opens a public catalog page for only this vehicle.</p>
+            </div>
+            <button type="button" onclick="document.getElementById('vehicleShareModal').classList.add('hidden')"
+                class="text-mb-subtle hover:text-white transition-colors ml-4 flex-shrink-0 p-1 rounded hover:bg-white/5">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="flex flex-wrap gap-2 mb-4">
+            <span class="text-xs px-2.5 py-1 rounded-full bg-mb-black/50 text-mb-silver border border-mb-subtle/20">
+                <?= e($v['brand']) ?> <?= e($v['model']) ?>
+            </span>
+            <span class="text-xs px-2.5 py-1 rounded-full bg-mb-black/50 text-mb-silver border border-mb-subtle/20">
+                <?= e($v['license_plate']) ?>
+            </span>
+        </div>
+
+        <div class="bg-mb-black border border-mb-subtle/20 rounded-xl p-3 flex items-center gap-3 mb-4">
+            <svg class="w-4 h-4 text-mb-subtle flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            <input type="text" id="vehicleCatalogLinkInput" value="<?= e($vehicleCatalogUrl) ?>" readonly
+                class="flex-1 bg-transparent text-mb-silver text-sm focus:outline-none font-mono truncate cursor-text select-all">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button type="button" id="copyVehicleCatalogBtn" onclick="copyVehicleCatalogLink()"
+                class="bg-mb-accent text-white py-2.5 rounded-full hover:bg-mb-accent/80 transition-colors text-sm font-medium">
+                Copy Link
+            </button>
+            <button type="button" onclick="nativeShareVehicleCatalog()"
+                class="border border-mb-subtle/20 text-mb-silver hover:text-white hover:border-white/20 py-2.5 rounded-full transition-colors text-sm font-medium">
+                Share
+            </button>
+            <a href="<?= e($vehicleCatalogUrl) ?>" target="_blank"
+                class="text-center border border-mb-subtle/20 text-mb-silver hover:text-white hover:border-white/20 py-2.5 rounded-full transition-colors text-sm font-medium">
+                Preview
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyVehicleCatalogLink() {
+    const input = document.getElementById('vehicleCatalogLinkInput');
+    const btn = document.getElementById('copyVehicleCatalogBtn');
+    const done = () => {
+        const old = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = old; }, 1400);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(input.value).then(done).catch(() => {
+            input.focus();
+            input.select();
+            document.execCommand('copy');
+            done();
+        });
+        return;
+    }
+
+    input.focus();
+    input.select();
+    document.execCommand('copy');
+    done();
+}
+
+function nativeShareVehicleCatalog() {
+    const url = document.getElementById('vehicleCatalogLinkInput').value;
+    const title = '<?= e($v['brand'] . ' ' . $v['model']) ?>';
+    if (navigator.share) {
+        navigator.share({ title: title + ' - Vehicle Catalog', url: url }).catch(() => {});
+    } else {
+        copyVehicleCatalogLink();
+    }
+}
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

@@ -8,34 +8,51 @@ require_once __DIR__ . '/../config/db.php';
 // Skip auth_check — this is a public page
 $pdo = db();
 
+$vehicleId = max(0, (int)($_GET['vehicle_id'] ?? 0));
+$singleVehicleMode = $vehicleId > 0;
 $filter = $_GET['type'] ?? 'available'; // available | all
 $search = trim($_GET['q'] ?? '');
 
 $where = ['1=1'];
 $params = [];
 
-if ($filter === 'available') {
-    $where[] = "v.status = 'available'";
-}
-if ($search !== '') {
-    $where[] = "(v.brand LIKE ? OR v.model LIKE ? OR v.license_plate LIKE ? OR v.color LIKE ?)";
-    $params[] = "%$search%";
-    $params[] = "%$search%";
-    $params[] = "%$search%";
-    $params[] = "%$search%";
+if ($singleVehicleMode) {
+    // Strictly lock this catalog page to a single vehicle when shared with vehicle_id.
+    $where[] = "v.id = ?";
+    $params[] = $vehicleId;
+    $filter = 'all';
+    $search = '';
+} else {
+    if ($filter === 'available') {
+        $where[] = "v.status = 'available'";
+    }
+    if ($search !== '') {
+        $where[] = "(v.brand LIKE ? OR v.model LIKE ? OR v.license_plate LIKE ? OR v.color LIKE ?)";
+        $params[] = "%$search%";
+        $params[] = "%$search%";
+        $params[] = "%$search%";
+        $params[] = "%$search%";
+    }
 }
 
 $sql = "SELECT v.* FROM vehicles v WHERE " . implode(' AND ', $where) . " ORDER BY v.brand, v.model";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $vehicles = $stmt->fetchAll();
+$selectedVehicle = $singleVehicleMode ? ($vehicles[0] ?? null) : null;
 
 $totalAvailable = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='available'")->fetchColumn();
 
 // Load all vehicle images for the modal
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS vehicle_images (id INT AUTO_INCREMENT PRIMARY KEY, vehicle_id INT NOT NULL, file_path VARCHAR(255) NOT NULL, sort_order INT DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-} catch (Exception $e) {}
+} catch (Exception $e) {
+     app_log('ERROR', 'Vehicle catalog: vehicle_images table ensure failed - ' . $e->getMessage(), [
+        'file' => $e->getFile() . ':' . $e->getLine(),
+        'screen' => 'vehicles/catalog.php',
+        'vehicle_id' => $vehicleId > 0 ? $vehicleId : null,
+    ]);
+}
 $allImgsRaw = $pdo->query("SELECT * FROM vehicle_images ORDER BY vehicle_id, sort_order, id")->fetchAll();
 $vehicleImgMap = [];
 foreach ($allImgsRaw as $img) { $vehicleImgMap[$img['vehicle_id']][] = $img['file_path']; }
@@ -44,7 +61,23 @@ $totalFleet = $pdo->query("SELECT COUNT(*) FROM vehicles")->fetchColumn();
 // Build canonical URL for sharing
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-$shareUrl = $scheme . '://' . $host . strtok($_SERVER['REQUEST_URI'] ?? '/vehicles/catalog.php', '?');
+$basePath = trim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/vehicles/catalog.php')), '/');
+$catalogBaseUrl = $scheme . '://' . $host . ($basePath !== '' ? '/' . $basePath : '') . '/vehicles/catalog.php';
+$shareUrl = $singleVehicleMode
+    ? ($catalogBaseUrl . '?vehicle_id=' . $vehicleId)
+    : $catalogBaseUrl;
+
+$pageTitle = 'Vehicle Catalog — Available Fleet';
+$metaDescription = "Browse our premium rental fleet. {$totalAvailable} vehicles available now.";
+$ogTitle = 'Vehicle Catalog — Available Fleet';
+$ogDescription = "Browse {$totalAvailable} available vehicles from our premium rental fleet.";
+if ($singleVehicleMode && $selectedVehicle) {
+    $name = trim((string)($selectedVehicle['brand'] ?? '') . ' ' . (string)($selectedVehicle['model'] ?? ''));
+    $pageTitle = $name . ' — Vehicle Catalog';
+    $metaDescription = "View catalog details for {$name}.";
+    $ogTitle = $name . ' — Vehicle Catalog';
+    $ogDescription = "View catalog details and pricing for {$name}.";
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -52,12 +85,12 @@ $shareUrl = $scheme . '://' . $host . strtok($_SERVER['REQUEST_URI'] ?? '/vehicl
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vehicle Catalog — Available Fleet</title>
-    <meta name="description" content="Browse our premium rental fleet. <?= $totalAvailable ?> vehicles available now.">
-    <meta property="og:title" content="Vehicle Catalog — Available Fleet">
-    <meta property="og:description"
-        content="Browse <?= $totalAvailable ?> available vehicles from our premium rental fleet.">
+    <title><?= e($pageTitle) ?></title>
+    <meta name="description" content="<?= e($metaDescription) ?>">
+    <meta property="og:title" content="<?= e($ogTitle) ?>">
+    <meta property="og:description" content="<?= e($ogDescription) ?>">
     <meta property="og:type" content="website">
+    <meta property="og:url" content="<?= e($shareUrl) ?>">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -689,31 +722,33 @@ $shareUrl = $scheme . '://' . $host . strtok($_SERVER['REQUEST_URI'] ?? '/vehicl
 
         <!-- ── Hero ── -->
         <div class="hero">
-            <div class="hero-eyebrow">Live Catalog</div>
-            <h1>Premium Vehicle Rentals</h1>
-            <p>Browse our carefully curated fleet. Transparent pricing, instant availability.</p>
+            <div class="hero-eyebrow"><?= $singleVehicleMode ? 'Vehicle Showcase' : 'Live Catalog' ?></div>
+            <h1><?= $singleVehicleMode && $selectedVehicle ? e(trim((string)$selectedVehicle['brand'] . ' ' . (string)$selectedVehicle['model'])) : 'Premium Vehicle Rentals' ?></h1>
+            <p><?= $singleVehicleMode ? 'Details and pricing for this selected vehicle.' : 'Browse our carefully curated fleet. Transparent pricing, instant availability.' ?></p>
         </div>
 
         <!-- ── Toolbar ── -->
         <div class="toolbar">
-            <div class="search-box">
-                <form method="GET">
-                    <input type="hidden" name="type" value="<?= e($filter) ?>">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <input type="text" name="q" value="<?= e($search) ?>" placeholder="Search brand, model or plate…"
-                        autocomplete="off">
-                </form>
-            </div>
+            <?php if (!$singleVehicleMode): ?>
+                <div class="search-box">
+                    <form method="GET">
+                        <input type="hidden" name="type" value="<?= e($filter) ?>">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input type="text" name="q" value="<?= e($search) ?>" placeholder="Search brand, model or plate…"
+                            autocomplete="off">
+                    </form>
+                </div>
 
-            <div class="filter-tabs">
-                <a href="?type=available<?= $search ? '&q=' . urlencode($search) : '' ?>"
-                    class="filter-tab <?= $filter !== 'all' ? 'active' : '' ?>">Available</a>
-                <a href="?type=all<?= $search ? '&q=' . urlencode($search) : '' ?>"
-                    class="filter-tab <?= $filter === 'all' ? 'active' : '' ?>">All Vehicles</a>
-            </div>
+                <div class="filter-tabs">
+                    <a href="?type=available<?= $search ? '&q=' . urlencode($search) : '' ?>"
+                        class="filter-tab <?= $filter !== 'all' ? 'active' : '' ?>">Available</a>
+                    <a href="?type=all<?= $search ? '&q=' . urlencode($search) : '' ?>"
+                        class="filter-tab <?= $filter === 'all' ? 'active' : '' ?>">All Vehicles</a>
+                </div>
+            <?php endif; ?>
 
             <span class="result-count">
                 <?= count($vehicles) ?> vehicle

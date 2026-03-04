@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/db.php';
 auth_check();
 $_currentUser = current_user();
@@ -303,7 +303,9 @@ $_notifs = notif_all($pdo);
             }
             if ($isAdmin || in_array('view_finances', $cuPerms, true)) {
                 $accountIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>';
-                echo navLink("{$root}accounts/index.php", 'Accounts', $accountIcon, $currentDir === 'accounts');
+                $targetIcon  = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>';
+                echo navLink("{$root}accounts/index.php", 'Accounts', $accountIcon, $currentDir === 'accounts' && $currentPage !== 'targets.php');
+                echo navLink("{$root}accounts/targets.php", 'Targets', $targetIcon, $currentDir === 'accounts' && $currentPage === 'targets.php');
             }
             if ($isAdmin || in_array('manage_clients', $cuPerms, true)) {
                 echo navLink("{$root}clients/index.php", 'Clients', $icons['clients'], $currentDir === 'clients');
@@ -313,10 +315,20 @@ $_notifs = notif_all($pdo);
             }
             if ($isAdmin || in_array('manage_staff', $cuPerms, true)) {
                 echo navLink("{$root}staff/index.php", 'Staff', $icons['staff'], $currentDir === 'staff');
+            if ($isAdmin) {
+                echo '<div class="ml-4 mt-0.5 space-y-0.5">';
+                echo '<a href="' . $root . 'staff/index.php" class="block text-xs px-3 py-1.5 rounded-lg text-white/75 hover:text-white hover:bg-mb-accent/10 transition-colors">Staff List</a>';
+                echo '<a href="' . $root . 'staff/tasks.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'tasks.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">&#9711; Staff Tasks</a>';
+                echo '</div>';
+            }
             }
             if ($isAdmin) {
                 $attendanceIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>';
                 echo navLink("{$root}attendance/index.php", 'Attendance', $attendanceIcon, $currentDir === 'attendance');
+                $payrollIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>';
+                echo navLink("{$root}payroll/index.php", 'Payroll', $payrollIcon, $currentDir === 'payroll');
+                $investIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+                echo navLink("{$root}investments/index.php", 'Investments', $investIcon, $currentDir === 'investments');
             }
             echo navLink("{$root}settings/general.php", 'Settings', $icons['settings'], $currentDir === 'settings');
             ?>
@@ -356,80 +368,88 @@ $_notifs = notif_all($pdo);
             </div>
             <div class="flex items-center gap-4">
                 <?php
-                // ── Punch In/Out Widget (non-admin staff only) ─────────────
+                // Punch In/Out Widget (non-admin staff only)
                 if (($_currentUser['role'] ?? '') !== 'admin'):
                     $ist = new DateTimeZone('Asia/Kolkata');
                     $todayIst2 = (new DateTime('now', $ist))->format('Y-m-d');
-                    $attRec2 = null;
+                    $attRec2   = null;
+                    $onBreak2  = false;
                     try {
-                        $punchStmt2 = $pdo->prepare('SELECT punch_in, punch_out FROM staff_attendance WHERE user_id = ? AND date = ? LIMIT 1');
+                        $punchStmt2 = $pdo->prepare('SELECT id, punch_in, punch_out FROM staff_attendance WHERE user_id = ? AND date = ? LIMIT 1');
                         $punchStmt2->execute([$_currentUser['id'], $todayIst2]);
                         $attRec2 = $punchStmt2->fetch();
+                        if ($attRec2 && $attRec2['punch_in'] && !$attRec2['punch_out']) {
+                            $brkStmt = $pdo->prepare('SELECT id FROM attendance_breaks WHERE attendance_id=? AND break_end IS NULL LIMIT 1');
+                            $brkStmt->execute([$attRec2['id']]);
+                            $onBreak2 = (bool)$brkStmt->fetch();
+                        }
                     } catch (Throwable $e2) {
+                        app_log('ERROR', 'Header punch widget: attendance lookup failed - ' . $e2->getMessage(), [
+                            'file' => $e2->getFile() . ':' . $e2->getLine(),
+                            'screen' => 'includes/header.php',
+                            'user_id' => (int) ($_currentUser['id'] ?? 0),
+                        ]);
                     }
-                    $hasPunchIn = $attRec2 && $attRec2['punch_in'];
+                    $hasPunchIn  = $attRec2 && $attRec2['punch_in'];
                     $hasPunchOut = $attRec2 && $attRec2['punch_out'];
                     ?>
-                    <div class="flex items-center gap-2 bg-mb-surface border border-mb-subtle/20 rounded-full px-3 py-1.5"
-                        id="punch-widget">
-                        <!-- Live IST Clock -->
+                    <div class="flex items-center gap-2 bg-mb-surface border border-mb-subtle/20 rounded-full px-3 py-1.5" id="punch-widget">
                         <span id="ist-clock" class="text-xs text-mb-silver font-mono tabular-nums"></span>
                         <?php if ($hasPunchIn && $hasPunchOut): ?>
-                            <span class="text-[10px] text-green-400 flex items-center gap-1">✓ Done</span>
+                            <span class="text-[10px] text-green-400">&#10003; Done</span>
+                        <?php elseif ($onBreak2): ?>
+                            <button onclick="doPunch('break_resume')" class="text-[11px] bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 px-3 py-0.5 rounded-full hover:bg-yellow-500/30 transition-colors font-medium">&#9654; Resume</button>
+                            <button onclick="doPunch('punch_out')" class="text-[11px] bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded-full hover:bg-red-500/30 transition-colors">Out</button>
                         <?php elseif ($hasPunchIn): ?>
-                            <button onclick="doPunch('punch_out')"
-                                class="text-[11px] bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-0.5 rounded-full hover:bg-red-500/30 transition-colors font-medium">
-                                Punch Out
-                            </button>
+                            <button onclick="openBreakModal()" class="text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full hover:bg-amber-500/30 transition-colors">&#9749; Break</button>
+                            <button onclick="doPunch('punch_out')" class="text-[11px] bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-0.5 rounded-full hover:bg-red-500/30 transition-colors font-medium">Punch Out</button>
                         <?php else: ?>
-                            <button onclick="doPunch('punch_in')"
-                                class="text-[11px] bg-green-500/20 text-green-400 border border-green-500/30 px-3 py-0.5 rounded-full hover:bg-green-500/30 transition-colors font-medium">
-                                Punch In
-                            </button>
+                            <button onclick="doPunch('punch_in')" class="text-[11px] bg-green-500/20 text-green-400 border border-green-500/30 px-3 py-0.5 rounded-full hover:bg-green-500/30 transition-colors font-medium">Punch In</button>
                         <?php endif; ?>
                     </div>
+                    <div id="late-reason-modal" class="hidden fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div class="w-full max-w-sm bg-mb-surface border border-amber-500/30 rounded-xl shadow-2xl p-6 space-y-4">
+                            <h3 class="text-white font-medium border-l-2 border-amber-400 pl-3">Late Punch-In</h3>
+                            <p class="text-mb-subtle text-sm">You are outside the allowed punch-in window. Please provide a reason.</p>
+                            <textarea id="late-reason-input" rows="3" placeholder="e.g. Traffic, emergency..." class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-mb-accent resize-none"></textarea>
+                            <div class="flex justify-end gap-3">
+                                <button onclick="closeLateModal()" class="text-mb-silver text-sm px-4 py-2 hover:text-white">Cancel</button>
+                                <button onclick="submitLateReason()" class="bg-mb-accent text-white px-5 py-2 rounded-full text-sm hover:bg-mb-accent/80">Submit</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="break-reason-modal" class="hidden fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div class="w-full max-w-sm bg-mb-surface border border-amber-500/30 rounded-xl shadow-2xl p-6 space-y-4">
+                            <h3 class="text-white font-medium border-l-2 border-amber-400 pl-3">Start Break</h3>
+                            <p class="text-mb-subtle text-sm">Enter a reason for your break.</p>
+                            <textarea id="break-reason-input" rows="2" placeholder="e.g. Lunch, prayer..." class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-mb-accent resize-none"></textarea>
+                            <div class="flex justify-end gap-3">
+                                <button onclick="closeBreakModal()" class="text-mb-silver text-sm px-4 py-2 hover:text-white">Cancel</button>
+                                <button onclick="submitBreak()" class="bg-amber-500 text-white px-5 py-2 rounded-full text-sm hover:bg-amber-400">Start Break</button>
+                            </div>
+                        </div>
+                    </div>
                     <script>
-                        // Live IST clock
-                        function updateIstClock() {
-                            const now = new Date();
-                            const ist = new Intl.DateTimeFormat('en-IN', {
-                                timeZone: 'Asia/Kolkata',
-                                hour: '2-digit', minute: '2-digit', second: '2-digit',
-                                hour12: true
-                            }).format(now);
-                            const el = document.getElementById('ist-clock');
-                            if (el) el.textContent = ist;
-                        }
-                        updateIstClock();
-                        setInterval(updateIstClock, 1000);
-
-                        async function doPunch(action) {
-                            const btn = event.currentTarget;
-                            btn.disabled = true;
-                            btn.style.opacity = '0.6';
-                            try {
-                                const root = '<?= $root ?>';
-                                const fd = new FormData();
-                                fd.append('action', action);
-                                const res = await fetch(root + 'attendance/punch.php', { method: 'POST', body: fd });
-                                const data = await res.json();
-                                if (data.warning) {
-                                    alert('⚠️ ' + data.message);
-                                } else if (!data.ok) {
-                                    alert('❌ ' + data.message);
-                                    btn.disabled = false;
-                                    btn.style.opacity = '';
-                                    return;
-                                }
-                                location.reload();
-                            } catch (e) {
-                                alert('Network error. Please try again.');
-                                btn.disabled = false;
-                                btn.style.opacity = '';
-                            }
-                        }
+                    (function tick(){var el=document.getElementById('ist-clock');if(el)el.textContent=new Intl.DateTimeFormat('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true}).format(new Date());setTimeout(tick,1000);})();
+                    var PUNCH_ROOT='<?= $root ?>';
+                    var _cachedLoc=null;
+                    function getGPS(){return new Promise(function(res,rej){if(!navigator.geolocation){rej('Geolocation not supported.');return;}navigator.geolocation.getCurrentPosition(function(p){res({lat:p.coords.latitude,lng:p.coords.longitude});},function(e){var m={1:'Location denied. Please allow location access and try again.',2:'Location unavailable. Please retry.',3:'Location timed out. Please retry.'};rej(m[e.code]||'Location error.');},{enableHighAccuracy:true,timeout:12000,maximumAge:0});});}
+                    async function reverseGeocode(lat,lng){try{var r=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lng+'&addressdetails=1&accept-language=en',{headers:{'User-Agent':'OrentincarsCRM/1.0'},signal:AbortSignal.timeout(5000)});var d=await r.json();if(d&&d.address){var a=d.address;return[a.road,a.suburb||a.neighbourhood,a.village||a.town||a.city,a.state_district,a.state,a.country].filter(Boolean).join(', ');}}catch(x){}return lat.toFixed(5)+', '+lng.toFixed(5);}
+                    function toast(msg,type){var c={error:'#ef4444',warn:'#f59e0b',ok:'#22c55e',info:'#00adef'};var t=document.createElement('div');t.textContent=msg;Object.assign(t.style,{position:'fixed',bottom:'24px',left:'50%',transform:'translateX(-50%)',background:c[type]||c.info,color:'#fff',padding:'10px 22px',borderRadius:'999px',fontSize:'13px',zIndex:99999,boxShadow:'0 4px 20px rgba(0,0,0,.4)',maxWidth:'90vw',textAlign:'center'});document.body.appendChild(t);setTimeout(function(){t.remove();},4000);}
+                    async function doPunch(action,extra){extra=extra||{};var btn=(typeof event!=='undefined'&&event&&event.currentTarget)?event.currentTarget:null;if(btn){btn.disabled=true;btn.style.opacity='0.5';}var lat,lng,address;if(_cachedLoc){lat=_cachedLoc.lat;lng=_cachedLoc.lng;address=_cachedLoc.address;_cachedLoc=null;}else{toast('Getting your location...','info');try{var pos=await getGPS();lat=pos.lat;lng=pos.lng;}catch(err){toast(err,'error');if(btn){btn.disabled=false;btn.style.opacity='';}return;}address=await reverseGeocode(lat,lng);}var fd=new FormData();fd.append('action',action);fd.append('lat',lat);fd.append('lng',lng);fd.append('address',address);for(var k in extra){if(extra.hasOwnProperty(k))fd.append(k,extra[k]);}try{var res=await fetch(PUNCH_ROOT+'attendance/punch.php',{method:'POST',body:fd});var data=await res.json();if(!data.ok&&data.needs_late_reason){_cachedLoc={lat:lat,lng:lng,address:address};openLateModal();if(btn){btn.disabled=false;btn.style.opacity='';}return;}if(!data.ok&&data.needs_early_reason){_cachedLoc={lat:lat,lng:lng,address:address};openEarlyModal();if(btn){btn.disabled=false;btn.style.opacity='';}return;}if(!data.ok){toast(data.message,'error');if(btn){btn.disabled=false;btn.style.opacity='';}return;}toast((data.warning?'Warning: ':'')+data.message,data.warning?'warn':'ok');setTimeout(function(){location.reload();},1300);}catch(e){toast('Network error. Please try again.','error');if(btn){btn.disabled=false;btn.style.opacity='';}}}
+                    function openLateModal(){document.getElementById('late-reason-modal').classList.remove('hidden');setTimeout(function(){document.getElementById('late-reason-input').focus();},100);}
+                    function closeLateModal(){document.getElementById('late-reason-modal').classList.add('hidden');_cachedLoc=null;}
+                    function submitLateReason(){var r=document.getElementById('late-reason-input').value.trim();if(!r){toast('Please enter a reason.','warn');return;}closeLateModal();doPunch('punch_in',{late_reason:r});}
+                    function openBreakModal(){document.getElementById('break-reason-modal').classList.remove('hidden');setTimeout(function(){document.getElementById('break-reason-input').focus();},100);}
+                    function closeBreakModal(){document.getElementById('break-reason-modal').classList.add('hidden');}
+                    function submitBreak(){var r=document.getElementById('break-reason-input').value.trim();if(!r){toast('Please enter a break reason.','warn');return;}closeBreakModal();doPunch('break_start',{break_reason:r});}
+                    
+                    function openEarlyModal(){document.getElementById('early-punchout-modal').classList.remove('hidden');setTimeout(function(){document.getElementById('early-punchout-input').focus();},100);}
+                    function closeEarlyModal(){document.getElementById('early-punchout-modal').classList.add('hidden');_cachedLoc=null;}
+                    function submitEarlyReason(){var r=document.getElementById('early-punchout-input').value.trim();if(!r){toast('Please enter a reason.','warn');return;}closeEarlyModal();doPunch('punch_out',{early_punchout_reason:r});}
                     </script>
                 <?php endif; ?>
+                
                 <!-- Theme Toggle -->
                 <button id="theme-toggle" onclick="toggleTheme()" title="Switch theme"
                     class="relative w-9 h-9 rounded-full flex items-center justify-center border border-mb-subtle/20 hover:border-mb-accent/50 transition-all hover:bg-mb-accent/5 group">
@@ -514,20 +534,42 @@ $_notifs = notif_all($pdo);
                                         'due_soon' => 'bg-yellow-500',
                                         default => 'bg-blue-500'
                                     };
+                                    $notifTarget = !empty($n['reservation_id'])
+                                        ? '../reservations/show.php?id=' . (int) $n['reservation_id']
+                                        : '';
+                                    $notifClickHref = $notifTarget !== ''
+                                        ? $root . 'notifications/clear.php?action=mark_read&id=' . (int) $n['id'] . '&go=' . rawurlencode($notifTarget)
+                                        : '';
                                     ?>
                                     <div
                                         class="flex items-start gap-3 px-4 py-3 <?= $bg ?> border-b border-mb-subtle/10 hover:bg-mb-black/20 transition-colors group">
-                                        <span
-                                            class="w-2 h-2 mt-1.5 rounded-full <?= $dot ?> flex-shrink-0 <?= $n['is_read'] ? 'opacity-30' : '' ?>"></span>
-                                        <div class="flex-1 min-w-0">
-                                            <p
-                                                class="text-sm <?= $n['is_read'] ? 'text-mb-subtle' : 'text-white' ?> leading-snug">
-                                                <?= htmlspecialchars($n['message']) ?>
-                                            </p>
-                                            <p class="text-xs text-mb-subtle mt-0.5">
-                                                <?= date('d M, h:i A', strtotime($n['created_at'])) ?>
-                                            </p>
-                                        </div>
+                                        <?php if ($notifClickHref !== ''): ?>
+                                            <a href="<?= e($notifClickHref) ?>" class="flex items-start gap-3 flex-1 min-w-0">
+                                                <span
+                                                    class="w-2 h-2 mt-1.5 rounded-full <?= $dot ?> flex-shrink-0 <?= $n['is_read'] ? 'opacity-30' : '' ?>"></span>
+                                                <div class="flex-1 min-w-0">
+                                                    <p
+                                                        class="text-sm <?= $n['is_read'] ? 'text-mb-subtle' : 'text-white' ?> leading-snug hover:text-mb-accent transition-colors">
+                                                        <?= htmlspecialchars($n['message']) ?>
+                                                    </p>
+                                                    <p class="text-xs text-mb-subtle mt-0.5">
+                                                        <?= date('d M, h:i A', strtotime($n['created_at'])) ?>
+                                                    </p>
+                                                </div>
+                                            </a>
+                                        <?php else: ?>
+                                            <span
+                                                class="w-2 h-2 mt-1.5 rounded-full <?= $dot ?> flex-shrink-0 <?= $n['is_read'] ? 'opacity-30' : '' ?>"></span>
+                                            <div class="flex-1 min-w-0">
+                                                <p
+                                                    class="text-sm <?= $n['is_read'] ? 'text-mb-subtle' : 'text-white' ?> leading-snug">
+                                                    <?= htmlspecialchars($n['message']) ?>
+                                                </p>
+                                                <p class="text-xs text-mb-subtle mt-0.5">
+                                                    <?= date('d M, h:i A', strtotime($n['created_at'])) ?>
+                                                </p>
+                                            </div>
+                                        <?php endif; ?>
                                         <?php if (!$n['is_read']): ?>
                                             <form method="POST" action="<?= $root ?>notifications/clear.php"
                                                 class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">

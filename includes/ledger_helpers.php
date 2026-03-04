@@ -12,7 +12,7 @@
  *   ledger_delete_manual_entry($pdo, $entryId, $userId)
  */
 
-// â”€â”€ Schema â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//  ”  ”  Schema  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 function ledger_ensure_schema(PDO $pdo): void
 {
@@ -62,7 +62,7 @@ function ledger_ensure_schema(PDO $pdo): void
     }
 }
 
-// â”€â”€ Payment Method â†’ Bank Account Mapping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//  ”  ”  Payment Method   ’ Bank Account Mapping  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 function ledger_bank_account_for_method(PDO $pdo, ?string $method): ?int
 {
@@ -71,8 +71,8 @@ function ledger_bank_account_for_method(PDO $pdo, ?string $method): ?int
     $method = strtolower(trim($method));
 
     // Only 'account' (bank transfer/cheque) actually moves money in the bank account.
-    // 'cash' = physical cash received â€” tracked in ledger but NOT in the bank balance.
-    // 'credit' = receivable â€” no money received yet, ledger note only.
+    // 'cash' = physical cash received  ” tracked in ledger but NOT in the bank balance.
+    // 'credit' = receivable  ” no money received yet, ledger note only.
     if ($method !== 'account')
         return null;
 
@@ -105,12 +105,12 @@ function ledger_resolve_bank_account_id(PDO $pdo, ?string $paymentMode, ?int $se
     return ledger_bank_account_for_method($pdo, 'account');
 }
 
-// â”€â”€ Core Post â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//  ”  ”  Core Post  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 /**
  * Post a ledger entry and atomically update bank account balance.
  *
- * @param  string|null $idempotencyKey  Unique key â€” duplicate calls silently skip.
+ * @param  string|null $idempotencyKey  Unique key  ” duplicate calls silently skip.
  * @return int|null  Ledger entry ID, or null if skipped (duplicate).
  */
 function ledger_post(
@@ -186,11 +186,11 @@ function ledger_post(
     }
 }
 
-// â”€â”€ Reservation Auto-Posting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//  ”  ”  Reservation Auto-Posting  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 /**
  * Auto-post income from a reservation delivery or return payment.
- * Idempotent â€” safe to call twice for the same event.
+ * Idempotent  ” safe to call twice for the same event.
  */
 function ledger_post_reservation_event(
     PDO $pdo,
@@ -207,7 +207,7 @@ function ledger_post_reservation_event(
     ledger_ensure_schema($pdo);
 
     $category = $event === 'delivery' ? 'Reservation Delivery' : 'Reservation Return';
-    $description = "Reservation #$reservationId â€” " . ucfirst($event) . " payment";
+    $description = "Reservation #$reservationId  ” " . ucfirst($event) . " payment";
     $idKey = "reservation:{$event}:{$reservationId}";
     $bankId = ledger_resolve_bank_account_id($pdo, $paymentMethod, $bankAccountId);
 
@@ -227,7 +227,7 @@ function ledger_post_reservation_event(
     );
 }
 
-// â”€â”€ Manual Entry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//  ”  ”  Manual Entry  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 function ledger_post_manual(
     PDO $pdo,
@@ -261,7 +261,7 @@ function ledger_post_manual(
     );
 }
 
-// â”€â”€ Delete Manual Entry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//  ”  ”  Delete Manual Entry  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 /**
  * Delete a manual ledger entry and reverse the bank balance.
@@ -301,7 +301,7 @@ function ledger_delete_manual_entry(PDO $pdo, int $entryId, int $userId): bool
     }
 }
 
-// â”€â”€ Fund Transfer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//  ”  ”  Fund Transfer  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 /**
  * Transfer funds between two bank accounts atomically.
@@ -353,7 +353,7 @@ function ledger_transfer(
     }
 
     $postedAt = $postedAt ?? (new DateTime('now', new DateTimeZone('Asia/Kolkata')))->format('Y-m-d H:i:s');
-    $desc = $description ?: ('Transfer: ' . $accts[$fromId]['name'] . ' â†’ ' . $accts[$toId]['name']);
+    $desc = $description ?: ('Transfer: ' . $accts[$fromId]['name'] . '   ’ ' . $accts[$toId]['name']);
 
     try {
         $pdo->beginTransaction();
@@ -386,7 +386,7 @@ function ledger_transfer(
     }
 }
 
-// â”€â”€ Query Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//  ”  ”  Query Helpers  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 function ledger_get_accounts(PDO $pdo): array
 {

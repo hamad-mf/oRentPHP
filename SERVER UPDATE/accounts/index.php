@@ -1,7 +1,7 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/db.php';
 auth_check();
-// current_user() reads from $_SESSION — must be called before header.php
+// current_user() reads from $_SESSION  ” must be called before header.php
 // so that POST handlers have the correct user during form submissions
 $_currentUser = current_user();
 if (!auth_has_perm('view_finances') && ($_currentUser['role'] ?? '') !== 'admin') {
@@ -10,16 +10,19 @@ if (!auth_has_perm('view_finances') && ($_currentUser['role'] ?? '') !== 'admin'
 }
 require_once __DIR__ . '/../includes/ledger_helpers.php';
 $pdo = db();
+require_once __DIR__ . '/../includes/settings_helpers.php';
+$perPage = get_per_page($pdo);
+$page    = max(1, (int) ($_GET['page'] ?? 1));
 ledger_ensure_schema($pdo);
 
 $isAdmin = ($_currentUser['role'] ?? '') === 'admin';
 $userId = (int) ($_currentUser['id'] ?? 0);
 
-// ── Handle POST actions ────────────────────────────────────────────────────
+//  ”  ”  Handle POST actions  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
-    // ── Add manual income / expense ──
+    //  ”  ”  Add manual income / expense  ”  ” 
     if (in_array($action, ['add_income', 'add_expense'], true)) {
         $txnType = $action === 'add_income' ? 'income' : 'expense';
         $category = trim($_POST['category'] ?? '');
@@ -55,18 +58,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('index.php');
     }
 
-    // ── Delete manual entry ──
+    //  ”  ”  Delete manual entry  ”  ” 
     if ($action === 'delete_entry' && $isAdmin) {
         $entryId = (int) ($_POST['entry_id'] ?? 0);
         if (ledger_delete_manual_entry($pdo, $entryId, $userId)) {
             flash('success', 'Entry deleted.');
         } else {
-            flash('error', 'Could not delete — may be a system entry.');
+            flash('error', 'Could not delete  ” may be a system entry.');
         }
         redirect('index.php');
     }
 
-    // ── Save bank account (create or edit) ──
+    //  ”  ”  Save bank account (create or edit)  ”  ” 
     if ($action === 'save_account' && $isAdmin) {
         $accId = (int) ($_POST['account_id'] ?? 0);
         $name = trim($_POST['name'] ?? '');
@@ -89,9 +92,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         redirect('index.php');
     }
+
+    //  ”  ”  Transfer funds between accounts  ”  ” 
+    if ($action === 'transfer_funds' && $isAdmin) {
+        $fromId = (int) ($_POST['from_account_id'] ?? 0);
+        $toId = (int) ($_POST['to_account_id'] ?? 0);
+        $amount = (float) ($_POST['amount'] ?? 0);
+        $desc = trim($_POST['description'] ?? '');
+        $date = trim($_POST['posted_at'] ?? date('Y-m-d'));
+        $postedAt = date('Y-m-d H:i:s', strtotime($date . ' ' . date('H:i:s')));
+        $transferError = '';
+        if (ledger_transfer($pdo, $fromId, $toId, $amount, $desc ?: null, $userId, $postedAt, $transferError)) {
+            flash('success', 'Transfer completed successfully.');
+        } else {
+            flash('error', $transferError ?: 'Transfer failed.');
+        }
+        redirect('index.php');
+    }
 }
 
-// ── Filters ───────────────────────────────────────────────────────────────
+//  ”  ”  Filters  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 $fType = $_GET['type'] ?? '';
 $fAccount = (int) ($_GET['account'] ?? 0);
 $fDateFrom = $_GET['date_from'] ?? date('Y-m-01');
@@ -108,7 +128,9 @@ $filters = [
 
 $accounts = ledger_get_accounts($pdo);
 $activeAccounts = array_values(array_filter($accounts, fn($a) => (int) ($a['is_active'] ?? 0) === 1));
-$entries = ledger_get_entries($pdo, $filters);
+$_lq = ledger_build_query($filters);
+$_pgLedger = paginate_query($pdo, $_lq['select'] . $_lq['base'] . $_lq['order'], $_lq['count'] . $_lq['base'], $_lq['params'], $page, $perPage);
+$entries  = $_pgLedger['rows'];
 $totals = ledger_get_totals($pdo, $fDateFrom, $fDateTo);
 
 $totalIncome = (float) $totals['total_income'];
@@ -124,15 +146,18 @@ foreach ($accounts as $acc) {
         $totalBank += (float) $acc['balance'];
 }
 
+$success = getFlash('success');
+$error   = getFlash('error');
 $pageTitle = 'Accounts & Ledger';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <div class="space-y-6 max-w-7xl mx-auto">
 
-    <!-- Flash messages rendered by header.php -->
+    <?php if ($success): ?><div class="flex items-center gap-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg px-5 py-3 text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg><?= e($success) ?></div><?php endif; ?>
+    <?php if ($error): ?><div class="flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-5 py-3 text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg><?= e($error) ?></div><?php endif; ?>
 
-    <!-- ── Summary Cards ─────────────────────────────────── -->
+    <!--  ”  ”  Summary Cards  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <?php
         $cards = [
@@ -153,15 +178,22 @@ require_once __DIR__ . '/../includes/header.php';
         <?php endforeach; ?>
     </div>
 
-    <!-- ── Bank Accounts Row ─────────────────────────────── -->
+    <!--  ”  ”  Bank Accounts Row  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
         <div class="flex items-center justify-between px-6 py-4 border-b border-mb-subtle/10">
-            <h2 class="text-white font-light">Bank Account</h2>
+            <h2 class="text-white font-light">Bank Accounts</h2>
             <?php if ($isAdmin): ?>
+            <div class="flex items-center gap-2">
+                <button onclick="openTransferModal()"
+                    class="text-xs bg-blue-500/15 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-full hover:bg-blue-500/25 transition-colors flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                    Transfer
+                </button>
                 <button onclick="openAccountModal(null)"
                     class="text-xs bg-mb-accent/15 text-mb-accent border border-mb-accent/30 px-3 py-1.5 rounded-full hover:bg-mb-accent/25 transition-colors">
                     + Add Account
                 </button>
+            </div>
             <?php endif; ?>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-6">
@@ -175,7 +207,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php if ($acc['bank_name']): ?>
                             <p class="text-xs text-mb-subtle mt-0.5">
                                 <?= e($acc['bank_name']) ?>
-                                <?= $acc['account_number'] ? ' — ' . e($acc['account_number']) : '' ?>
+                                <?= $acc['account_number'] ? '  ” ' . e($acc['account_number']) : '' ?>
                             </p>
                         <?php endif; ?>
                         <p
@@ -198,7 +230,7 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </div>
 
-    <!-- ── Ledger Table ──────────────────────────────────── -->
+    <!--  ”  ”  Ledger Table  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
         <div
             class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between px-6 py-4 border-b border-mb-subtle/10">
@@ -292,10 +324,10 @@ require_once __DIR__ . '/../includes/header.php';
                                     <?= e($row['description'] ?? '') ?>
                                 </td>
                                 <td class="px-6 py-3 text-mb-subtle capitalize">
-                                    <?= e($row['payment_mode'] ?? '—') ?>
+                                    <?= e($row['payment_mode'] ?? ' ”') ?>
                                 </td>
                                 <td class="px-6 py-3 text-mb-subtle">
-                                    <?= e($row['account_name'] ?? '—') ?>
+                                    <?= e($row['account_name'] ?? ' ”') ?>
                                 </td>
                                 <td class="px-6 py-3">
                                     <?php if ($isManual): ?>
@@ -330,7 +362,7 @@ require_once __DIR__ . '/../includes/header.php';
                                             </button>
                                         </form>
                                     <?php else: ?>
-                                        <span class="text-mb-subtle/30 text-xs" title="System entry — cannot delete">🔒</span>
+                                        <span class="text-mb-subtle/30 text-xs" title="System entry  ” cannot delete">ðŸ”’</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -353,7 +385,7 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<!-- ── Add Income/Expense Modal ──────────────────────────────────────── -->
+<!--  ”  ”  Add Income/Expense Modal  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
 <div id="entryModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
     <div class="w-full max-w-md bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-5">
         <h3 id="entryModalTitle" class="text-white text-lg font-light border-l-2 border-mb-accent pl-3">Add Entry</h3>
@@ -361,7 +393,7 @@ require_once __DIR__ . '/../includes/header.php';
             <input type="hidden" name="action" id="entryAction" value="add_income">
             <div>
                 <label class="block text-sm text-mb-silver mb-1.5">Category <span class="text-red-400">*</span></label>
-                <input type="text" name="category" required placeholder="e.g. Fuel, Rent, Salary…"
+                <input type="text" name="category" required placeholder="e.g. Fuel, Rent, Salary ¦"
                     class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-mb-accent text-sm">
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -387,7 +419,8 @@ require_once __DIR__ . '/../includes/header.php';
                 </select>
             </div>
             <div id="entryBankWrap" class="hidden">
-                <label class="block text-sm text-mb-silver mb-1.5">Bank Account <span class="text-red-400">*</span></label>
+                <label class="block text-sm text-mb-silver mb-1.5">Bank Account <span
+                        class="text-red-400">*</span></label>
                 <select name="bank_account_id" id="entryBankAccount"
                     class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-mb-accent text-sm">
                     <option value="">Select bank account</option>
@@ -399,13 +432,14 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endforeach; ?>
                 </select>
                 <?php if (empty($activeAccounts)): ?>
-                    <p class="text-xs text-red-400 mt-1">No active bank account exists. Create one before using account mode.
+                    <p class="text-xs text-red-400 mt-1">No active bank account exists. Create one before using account
+                        mode.
                     </p>
                 <?php endif; ?>
             </div>
             <div>
                 <label class="block text-sm text-mb-silver mb-1.5">Description</label>
-                <textarea name="description" rows="2" placeholder="Optional notes…"
+                <textarea name="description" rows="2" placeholder="Optional notes ¦"
                     class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-mb-accent text-sm resize-none"></textarea>
             </div>
             <div class="flex justify-end gap-3 pt-2">
@@ -418,7 +452,7 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<!-- ── Bank Account Modal ───────────────────────────────────────────── -->
+<!--  ”  ”  Bank Account Modal  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
 <div id="accountModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
     <div class="w-full max-w-sm bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-4">
         <h3 id="accountModalTitle" class="text-white text-lg font-light border-l-2 border-mb-accent pl-3">Account</h3>
@@ -503,12 +537,120 @@ require_once __DIR__ . '/../includes/header.php';
     }
 
     // Close modals on backdrop click
-    ['entryModal', 'accountModal'].forEach(id => {
-        document.getElementById(id).addEventListener('click', function (e) {
+    ['entryModal', 'accountModal', 'transferModal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('click', function (e) {
             if (e.target === this) this.classList.add('hidden');
         });
     });
     toggleEntryBankField();
+
+    // -- Transfer Modal JS --
+    var _transferListenerAdded = false;
+    function openTransferModal() {
+        var modal = document.getElementById('transferModal');
+        modal.classList.remove('hidden');
+        updateTransferTo();
+        if (!_transferListenerAdded) {
+            _transferListenerAdded = true;
+            document.getElementById('transferFrom').addEventListener('change', function () {
+                var fromAcc = transferAccountsData.find(function(a){ return a.id === parseInt(this.value)||0; }.bind(this));
+                var balEl = document.getElementById('transferFromBalance');
+                balEl.textContent = fromAcc ? 'Available: $' + parseFloat(fromAcc.balance).toFixed(2) : '';
+                updateTransferTo();
+            });
+        }
+    }
+    function updateTransferTo() {
+        var fromId = parseInt(document.getElementById('transferFrom').value) || 0;
+        var fromAcc = transferAccountsData.find(function(a){ return a.id === fromId; });
+        var balEl = document.getElementById('transferFromBalance');
+        balEl.textContent = fromAcc ? 'Available: $' + parseFloat(fromAcc.balance).toFixed(2) : '';
+        var toSel = document.getElementById('transferTo');
+        var toVal = toSel.value;
+        toSel.innerHTML = '';
+        var blank = document.createElement('option'); blank.value=''; blank.textContent='-- Select destination --'; toSel.appendChild(blank);
+        transferAccountsData.forEach(function(a) {
+            if (a.id === fromId) return;
+            var opt = document.createElement('option');
+            opt.value = a.id;
+            opt.textContent = a.name + ' ($' + parseFloat(a.balance).toFixed(2) + ')';
+            toSel.appendChild(opt);
+        });
+        if (toVal) toSel.value = toVal;
+    }
+</script>
+<!-- Transfer Modal -->
+<div id="transferModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl shadow-2xl w-full max-w-md">
+        <div class="flex items-center justify-between p-5 border-b border-mb-subtle/10">
+            <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                <h2 class="text-white font-medium">Transfer Funds</h2>
+            </div>
+            <button onclick="document.getElementById('transferModal').classList.add('hidden')" class="text-mb-subtle hover:text-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <form method="POST" class="p-5 space-y-4">
+            <input type="hidden" name="action" value="transfer_funds">
+            <div>
+                <label class="block text-sm text-mb-silver mb-1.5">From Account <span class="text-red-400">*</span></label>
+                <select id="transferFrom" name="from_account_id" required onchange="updateTransferTo()"
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+                    <option value="">-- Select source account --</option>
+                    <?php foreach ($accounts as $acc): ?>
+                    <option value="<?= $acc['id'] ?>"><?= htmlspecialchars($acc['name']) ?> ($<?= number_format($acc['balance'],2) ?>)</option>
+                    <?php endforeach; ?>
+                </select>
+                <p id="transferFromBalance" class="text-xs text-blue-400 mt-1 font-medium"></p>
+            </div>
+            <div>
+                <label class="block text-sm text-mb-silver mb-1.5">To Account <span class="text-red-400">*</span></label>
+                <select id="transferTo" name="to_account_id" required
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+                    <option value="">-- Select destination account --</option>
+                    <?php foreach ($accounts as $acc): ?>
+                    <option value="<?= $acc['id'] ?>"><?= htmlspecialchars($acc['name']) ?> ($<?= number_format($acc['balance'],2) ?>)</option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm text-mb-silver mb-1.5">Amount <span class="text-red-400">*</span></label>
+                <input type="number" name="amount" min="0.01" step="0.01" placeholder="0.00" required
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-mb-subtle">
+            </div>
+            <div>
+                <label class="block text-sm text-mb-silver mb-1.5">Description <span class="text-mb-subtle text-xs">(optional)</span></label>
+                <input type="text" name="description" placeholder="e.g. Monthly allocation"
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-mb-subtle">
+            </div>
+            <div>
+                <label class="block text-sm text-mb-silver mb-1.5">Date</label>
+                <input type="date" name="posted_at" value="<?= date('Y-m-d') ?>"
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
+            </div>
+            <div class="flex items-center justify-end gap-3 pt-1">
+                <button type="button" onclick="document.getElementById('transferModal').classList.add('hidden')"
+                    class="text-mb-subtle hover:text-white text-sm transition-colors px-3 py-2">Cancel</button>
+                <button type="submit"
+                    class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                    Transfer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+var transferAccountsData = <?php
+    $tData = array_values(array_map(function($a){ return ['id'=>(int)$a['id'],'name'=>$a['name'],'balance'=>(float)$a['balance']]; }, $accounts));
+    echo json_encode($tData);
+?>;
 </script>
 
+<?php
+$_aqp = array_filter(['type'=>$fType,'account'=>($fAccount?:null),'date_from'=>$fDateFrom,'date_to'=>$fDateTo,'source'=>$fSource], fn($v)=>$v!==null&&$v!=='');
+echo render_pagination($_pgLedger, $_aqp);
+?>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

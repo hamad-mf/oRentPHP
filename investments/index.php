@@ -1,57 +1,29 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/db.php';
 auth_require_admin();
 require_once __DIR__ . '/../includes/ledger_helpers.php';
-$pdo = db();
+require_once __DIR__ . '/../includes/investment_helpers.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
-$perPage = get_per_page($pdo);
-$page    = max(1, (int) ($_GET['page'] ?? 1));
+
+$pdo = db();
+$perPage = max(12, get_per_page($pdo));
+$page = max(1, (int) ($_GET['page'] ?? 1));
 ledger_ensure_schema($pdo);
-
-// Ensure tables exist
-try {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS emi_investments (
-        id INT(11) NOT NULL AUTO_INCREMENT,
-        title VARCHAR(255) NOT NULL,
-        lender VARCHAR(255) DEFAULT NULL,
-        total_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-        down_payment DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-        loan_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-        emi_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-        tenure_months INT(11) NOT NULL DEFAULT 1,
-        start_date DATE NOT NULL,
-        notes TEXT DEFAULT NULL,
-        down_payment_account_id INT(11) DEFAULT NULL,
-        down_payment_ledger_id INT(11) DEFAULT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-
-    $pdo->exec("CREATE TABLE IF NOT EXISTS emi_schedules (
-        id INT(11) NOT NULL AUTO_INCREMENT,
-        investment_id INT(11) NOT NULL,
-        installment_no INT(11) NOT NULL,
-        due_date DATE NOT NULL,
-        amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-        status ENUM('pending','paid') NOT NULL DEFAULT 'pending',
-        paid_date DATE DEFAULT NULL,
-        bank_account_id INT(11) DEFAULT NULL,
-        ledger_entry_id INT(11) DEFAULT NULL,
-        notes TEXT DEFAULT NULL,
-        PRIMARY KEY (id),
-        KEY idx_investment_id (investment_id),
-        CONSTRAINT emi_schedules_ibfk_1 FOREIGN KEY (investment_id) REFERENCES emi_investments(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-} catch (Throwable $e) {
-}
+investment_ensure_schema($pdo);
 
 // Fetch all investments with paid count
-$_invSql  = "SELECT i.*, COUNT(s.id) AS total_emis, SUM(s.status = 'paid') AS paid_emis, SUM(CASE WHEN s.status = 'paid' THEN s.amount ELSE 0 END) AS amount_paid FROM emi_investments i LEFT JOIN emi_schedules s ON s.investment_id = i.id GROUP BY i.id ORDER BY i.created_at DESC";
-$_invCnt  = "SELECT COUNT(*) FROM emi_investments i";
-$pgInvest    = paginate_query($pdo, $_invSql, $_invCnt, [], $page, $perPage);
-$investments = $pgInvest[
-'rows'
-];
+$listSql = "SELECT
+                i.*,
+                COUNT(s.id) AS total_emis,
+                SUM(s.status = 'paid') AS paid_emis,
+                SUM(CASE WHEN s.status = 'paid' THEN s.amount ELSE 0 END) AS amount_paid
+            FROM emi_investments i
+            LEFT JOIN emi_schedules s ON s.investment_id = i.id
+            GROUP BY i.id
+            ORDER BY i.created_at DESC";
+$countSql = "SELECT COUNT(*) FROM emi_investments";
+$pgInvest = paginate_query($pdo, $listSql, $countSql, [], $page, $perPage);
+$investments = $pgInvest['rows'];
 
 $pageTitle = 'Investments';
 require_once __DIR__ . '/../includes/header.php';
@@ -175,8 +147,6 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <?php
-echo render_pagination(
-$pgInvest
-, []);
+echo render_pagination($pgInvest, []);
 ?>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

@@ -1,6 +1,19 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/db.php';
 $pdo = db();
+require_once __DIR__ . '/../includes/settings_helpers.php';
+// Self-healing: extend ENUM + repair any reservations incorrectly saved with status="" due to old ENUM constraint
+try {
+    $pdo->exec("ALTER TABLE reservations MODIFY COLUMN status ENUM('pending','confirmed','active','completed','cancelled') NOT NULL DEFAULT 'confirmed'");
+    $pdo->exec("UPDATE reservations SET status='cancelled' WHERE status='' AND cancellation_reason IS NOT NULL");
+} catch(Throwable $_e) {
+     app_log('ERROR', 'Reservations index: status enum/self-heal bootstrap failed - ' . $e->getMessage(), [
+        'file' => $e->getFile() . ':' . $e->getLine(),
+        'screen' => 'reservations/index.php',
+    ]);
+}
+$perPage = get_per_page($pdo);
+$page    = max(1, (int) ($_GET['page'] ?? 1));
 $search = trim($_GET['search'] ?? '');
 $status = $_GET['status'] ?? '';
 $dueToday = isset($_GET['due_today']);
@@ -48,15 +61,14 @@ if ($dueToday) {
     $where[] = "r.status = 'active' AND DATE(r.end_date) = CURDATE()";
 }
 
-$sql = 'SELECT r.*, c.name AS client_name, v.brand, v.model, v.license_plate, v.daily_rate
-        FROM reservations r
+$baseFrom  = 'FROM reservations r
         JOIN clients c ON r.client_id = c.id
         JOIN vehicles v ON r.vehicle_id = v.id
-        WHERE ' . implode(' AND ', $where) . '
-        ORDER BY r.created_at DESC';
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$reservations = $stmt->fetchAll();
+        WHERE ' . implode(' AND ', $where);
+$countSql  = 'SELECT COUNT(*) ' . $baseFrom;
+$sql       = 'SELECT r.*, c.name AS client_name, v.brand, v.model, v.license_plate, v.daily_rate ' . $baseFrom . ' ORDER BY r.created_at DESC';
+$pgResult     = paginate_query($pdo, $sql, $countSql, $params, $page, $perPage);
+$reservations = $pgResult['rows'];
 
 $counts = [
     'all' => $pdo->query("SELECT COUNT(*) FROM reservations")->fetchColumn(),
@@ -64,6 +76,7 @@ $counts = [
     'confirmed' => $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='confirmed'")->fetchColumn(),
     'active' => $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='active'")->fetchColumn(),
     'completed' => $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='completed'")->fetchColumn(),
+    'cancelled' => $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='cancelled'")->fetchColumn(),
 ];
 
 $success = getFlash('success');
@@ -97,8 +110,8 @@ require_once __DIR__ . '/../includes/header.php';
         <div
             class="flex items-center justify-between bg-orange-500/10 border border-orange-500/30 text-orange-300 rounded-lg px-5 py-3 text-sm">
             <div class="flex items-center gap-2">
-                <span>⏰</span>
-                <span>Showing <strong>active rentals due today</strong> — these vehicles should be returned today.</span>
+                <span> °</span>
+                <span>Showing <strong>active rentals due today</strong>  ” these vehicles should be returned today.</span>
             </div>
             <a href="index.php" class="text-orange-400 hover:text-white text-xs underline ml-4">Clear filter</a>
         </div>
@@ -108,7 +121,7 @@ require_once __DIR__ . '/../includes/header.php';
     <?php if (!$dueToday): ?>
         <div class="flex items-center gap-1 bg-mb-surface border border-mb-subtle/20 rounded-xl p-1 w-fit flex-wrap">
             <?php
-            $tabs = ['' => 'All', 'pending' => 'Pending', 'confirmed' => 'Confirmed', 'active' => 'Active', 'completed' => 'Completed'];
+            $tabs = ['' => 'All', 'pending' => 'Pending', 'confirmed' => 'Confirmed', 'active' => 'Active', 'completed' => 'Completed', 'cancelled' => 'Cancelled'];
             foreach ($tabs as $val => $lbl):
                 $active = $status === $val;
                 $cnt = $counts[$val === '' ? 'all' : $val];
@@ -196,6 +209,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 'confirmed' => 'bg-sky-500/10 text-sky-400 border-sky-500/30',
                                 'active' => 'bg-green-500/10 text-green-400 border-green-500/30',
                                 'completed' => 'bg-mb-subtle/10 text-mb-subtle border-mb-subtle/30',
+                                'cancelled' => 'bg-red-500/10 text-red-400 border-red-500/30',
                             ];
                             $sc = $statusColors[$r['status']] ?? '';
                             ?>
@@ -216,7 +230,7 @@ require_once __DIR__ . '/../includes/header.php';
                                     </p>
                                 </td>
                                 <td class="px-6 py-4 text-mb-silver text-xs">
-                                    <?= e($r['start_date']) ?> →
+                                    <?= e($r['start_date']) ?>   ’
                                     <?= e($r['end_date']) ?>
                                     <?php if ($overdue): ?>
                                         <span
@@ -259,7 +273,12 @@ require_once __DIR__ . '/../includes/header.php';
                                     $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
                                     $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
                                     $totalCollected = $baseCollectedAtDelivery + $cashDueAtReturn;
-                                    echo '$' . number_format($totalCollected, 2);
+                                    $netCollected = $totalCollected;
+                                    if (($r['status'] ?? '') === 'cancelled') {
+                                        $refundAmt = max(0, (float) ($r['refund_amount'] ?? 0));
+                                        $netCollected = max(0, $totalCollected - $refundAmt);
+                                    }
+                                    echo '$' . number_format($netCollected, 2);
                                     ?>
                                 </td>
                                 <td class="px-6 py-4">
@@ -292,12 +311,12 @@ require_once __DIR__ . '/../includes/header.php';
                                         <?php if (auth_has_perm('do_delivery') && $r['status'] === 'confirmed'): ?>
                                             <a href="deliver.php?id=<?= $r['id'] ?>"
                                                 class="text-green-400 hover:text-white transition-colors p-1.5 rounded hover:bg-green-500/10 text-xs font-medium"
-                                                title="Deliver">▶ Deliver</a>
+                                                title="Deliver">Deliver</a>
                                         <?php endif; ?>
                                         <?php if (auth_has_perm('do_return') && $r['status'] === 'active'): ?>
                                             <a href="return.php?id=<?= $r['id'] ?>"
                                                 class="text-mb-accent hover:text-white transition-colors p-1.5 rounded hover:bg-mb-accent/10 text-xs font-medium"
-                                                title="Return">⏎ Return</a>
+                                                title="Return">Return</a>
                                         <?php endif; ?>
                                         <?php if (auth_has_perm('add_reservations') && !in_array($r['status'], ['active', 'completed'])): ?>
                                             <a href="delete.php?id=<?= $r['id'] ?>"
@@ -321,4 +340,9 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
+
+<?php
+$_qp = array_filter(['search'=>$search,'status'=>$status,'from_date'=>$fromDate,'to_date'=>$toDate,'due_today'=>($dueToday?1:null)], fn($v)=>$v!==null&&$v!=='');
+echo render_pagination($pgResult, $_qp);
+?>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

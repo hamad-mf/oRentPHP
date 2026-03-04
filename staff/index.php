@@ -52,7 +52,7 @@ $s = getFlash('success');
     <?php if ($s): ?>
         <div
             class="flex items-center gap-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-xl px-5 py-3 text-sm">
-            âœ“ <?= e($s) ?>
+                <?= e($s) ?>
         </div>
     <?php endif; ?>
 
@@ -113,16 +113,16 @@ $s = getFlash('success');
                             </div>
                         </td>
                         <td class="px-6 py-4 text-mb-silver font-mono text-xs">
-                            <?= $m['username'] ? e($m['username']) : '<span class="text-mb-subtle italic">â€”</span>' ?>
+                            <?= $m['username'] ? e($m['username']) : '<span class="text-mb-subtle italic"> ”</span>' ?>
                         </td>
                         <td class="px-6 py-4 text-mb-silver">
-                            <?= $m['role'] ? e($m['role']) : '<span class="text-mb-subtle">â€”</span>' ?>
+                            <?= $m['role'] ? e($m['role']) : '<span class="text-mb-subtle"> ”</span>' ?>
                         </td>
                         <td class="px-6 py-4">
                             <?php if ($m['user_role'] === 'admin'): ?>
                                 <span
                                     class="inline-flex items-center gap-1 text-xs bg-mb-accent/10 text-mb-accent px-2 py-0.5 rounded-full">
-                                    â˜… Admin
+                                     ˜… Admin
                                 </span>
                             <?php elseif ($m['user_id']): ?>
                                 <span
@@ -130,7 +130,7 @@ $s = getFlash('success');
                                     Staff
                                 </span>
                             <?php else: ?>
-                                <span class="text-xs text-mb-subtle italic">â€”</span>
+                                <span class="text-xs text-mb-subtle italic"> ”</span>
                             <?php endif; ?>
                         </td>
                         <td class="px-6 py-4">
@@ -141,7 +141,7 @@ $s = getFlash('success');
                                     <span class="text-xs bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full">Disabled</span>
                                 <?php endif; ?>
                             <?php else: ?>
-                                <span class="text-xs text-mb-subtle">â€”</span>
+                                <span class="text-xs text-mb-subtle"> ”</span>
                             <?php endif; ?>
                         </td>
                         <td class="px-6 py-4 text-right">

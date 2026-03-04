@@ -21,6 +21,9 @@ if (settings_get($pdo, 'delivery_incentive_per_delivery', '') === '') {     sett
 if (settings_get($pdo, 'per_page', '') === '') {
     settings_set($pdo, 'per_page', '25');
 }
+if (settings_get($pdo, 'pipeline_pagination_enabled', '') === '') {
+    settings_set($pdo, 'pipeline_pagination_enabled', '1');
+}
 
 $leadSources = lead_sources_get_map($pdo);
 
@@ -35,6 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     settings_set($pdo, 'lead_incentive_per_lead', (string) $leadIncentivePerLead);
     $perPage = max(5, min(200, (int) ($_POST['per_page'] ?? 25)));
     settings_set($pdo, 'per_page', (string) $perPage);
+    $pipelinePaginationEnabled = ((int) ($_POST['pipeline_pagination_enabled'] ?? 0)) === 1 ? '1' : '0';
+    settings_set($pdo, 'pipeline_pagination_enabled', $pipelinePaginationEnabled);
     $deliveryIncentivePer = max(0, (float) ($_POST['delivery_incentive_per_delivery'] ?? 0));     settings_set($pdo, 'delivery_incentive_per_delivery', (string)$deliveryIncentivePer);
     app_log('ACTION', 'Updated general settings');
     flash('success', 'Settings saved successfully.');
@@ -46,6 +51,7 @@ $depositPct = (float) settings_get($pdo, 'deposit_percentage', '0');
 $deliveryChargeDefault = (float) settings_get($pdo, 'delivery_charge_default', '0');
 $leadIncentivePerLead = (float) settings_get($pdo, 'lead_incentive_per_lead', '0');
 $perPageSetting = (int) settings_get($pdo, 'per_page', '25');
+$pipelinePaginationEnabledSetting = settings_get($pdo, 'pipeline_pagination_enabled', '1') !== '0';
 $deliveryIncentiveSetting = (float) settings_get($pdo, 'delivery_incentive_per_delivery', '0');
 
 $pageTitle = 'Settings';
@@ -134,6 +140,22 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         </div>
 
+        <!-- Delivery Incentive -->
+        <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-5">
+            <div>
+                <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Payroll &ndash; Delivery Incentive</h3>
+                <p class="text-xs text-mb-subtle mt-2 ml-5">Auto-incentive amount added per <strong class="text-mb-silver">vehicle delivery</strong> when generating payroll. Set to 0 to disable.</p>
+            </div>
+            <div>
+                <label class="block text-sm text-mb-silver mb-2">Incentive Per Delivery ($)</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
+                    <input type="number" name="delivery_incentive_per_delivery" value="<?= $deliveryIncentiveSetting ?>" min="0" step="0.01"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm" placeholder="0.00">
+                </div>
+            </div>
+        </div>
+
         <!-- Lead Sources link -->
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6">
             <div class="flex items-center justify-between flex-wrap gap-3">
@@ -159,6 +181,21 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endforeach; ?>
                 </select>
                 <p class="text-xs text-mb-subtle mt-1">Default: 25. Applies to all list screens.</p>
+            </div>
+            <div class="pt-4 border-t border-mb-subtle/10">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <label for="pipelinePaginationToggle" class="block text-sm text-mb-silver mb-1">Pipeline Pagination</label>
+                        <p class="text-xs text-mb-subtle">Enable or disable pagination only for the Pipeline board.</p>
+                    </div>
+                    <label for="pipelinePaginationToggle" class="relative inline-flex items-center cursor-pointer select-none">
+                        <input type="hidden" name="pipeline_pagination_enabled" value="0">
+                        <input id="pipelinePaginationToggle" type="checkbox" name="pipeline_pagination_enabled" value="1"
+                            class="sr-only peer" <?= $pipelinePaginationEnabledSetting ? 'checked' : '' ?>>
+                        <span class="w-12 h-6 rounded-full bg-mb-black border border-mb-subtle/30 transition-colors peer-checked:bg-mb-accent peer-checked:border-mb-accent/60"></span>
+                        <span class="absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-white transition-transform peer-checked:translate-x-6"></span>
+                    </label>
+                </div>
             </div>
         </div>
 

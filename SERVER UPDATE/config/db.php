@@ -35,6 +35,9 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+require_once __DIR__ . '/../includes/logger.php';
+_logger_log_page_load();
+
 function flash(string $key, string $message): void
 {
     $_SESSION['flash'][$key] = $message;

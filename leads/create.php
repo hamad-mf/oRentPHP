@@ -104,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = 'Add New Lead';
+$defaultAssignedId = (int) (current_user()['id'] ?? 0);
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
@@ -237,7 +238,7 @@ require_once __DIR__ . '/../includes/header.php';
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
                         <option value="">— Not assigned —</option>
                         <?php foreach ($staffUsers as $su): ?>
-                            <option value="<?= $su['id'] ?>" <?= ($_POST['assigned_staff_id'] ?? '') == $su['id'] ? 'selected' : '' ?>>
+                            <option value="<?= $su['id'] ?>" <?= ((int)($_POST['assigned_staff_id'] ?? $defaultAssignedId)) === (int)$su['id'] ? 'selected' : '' ?>>
                                 <?= e($su['name']) ?>
                             </option>
                         <?php endforeach; ?>

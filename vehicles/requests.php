@@ -44,7 +44,7 @@ $clients = $pdo->query("SELECT id, name FROM clients ORDER BY name")->fetchAll()
 $errors = [];
 $success = '';
 
-// Handle POST â€” add new request
+// Handle POST  ” add new request
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add') {
     $brand = trim($_POST['vehicle_brand'] ?? '');
     $model = trim($_POST['vehicle_model'] ?? '');
@@ -67,52 +67,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add')
     }
 }
 
-// Handle POST â€” update people count
+// Handle POST  ” update people count
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'people_count') {
     $reqId = (int) ($_POST['req_id'] ?? 0);
     $peopleCount = max(1, (int) ($_POST['people_count'] ?? 1));
     if ($reqId) {
         $pdo->prepare("UPDATE vehicle_requests SET people_count=? WHERE id=?")->execute([$peopleCount, $reqId]);
     }
-    header('Location: requests.php?' . http_build_query(['filter' => $_POST['filter'] ?? '']));
+    $redirectParams = array_filter([
+        'filter' => trim((string)($_POST['filter'] ?? '')),
+        'page' => max(1, (int)($_POST['page'] ?? 1)),
+    ], static fn($v) => $v !== '' && $v !== null && $v !== 1);
+    header('Location: requests.php' . ($redirectParams ? '?' . http_build_query($redirectParams) : ''));
     exit;
 }
 
-// Handle POST â€” update status
+// Handle POST  ” update status
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'status') {
     $reqId = (int) ($_POST['req_id'] ?? 0);
     $status = $_POST['status'] ?? '';
     if ($reqId && in_array($status, ['pending', 'contacted', 'acquired', 'cancelled'])) {
         $pdo->prepare("UPDATE vehicle_requests SET status=? WHERE id=?")->execute([$status, $reqId]);
     }
-    header('Location: requests.php?' . http_build_query(['filter' => $_POST['filter'] ?? '']));
+    $redirectParams = array_filter([
+        'filter' => trim((string)($_POST['filter'] ?? '')),
+        'page' => max(1, (int)($_POST['page'] ?? 1)),
+    ], static fn($v) => $v !== '' && $v !== null && $v !== 1);
+    header('Location: requests.php' . ($redirectParams ? '?' . http_build_query($redirectParams) : ''));
     exit;
 }
 
-// Handle POST â€” delete
+// Handle POST  ” delete
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
     $reqId = (int) ($_POST['req_id'] ?? 0);
     if ($reqId)
         $pdo->prepare("DELETE FROM vehicle_requests WHERE id=?")->execute([$reqId]);
-    header('Location: requests.php?' . http_build_query(['filter' => $_POST['filter'] ?? '']));
+    $redirectParams = array_filter([
+        'filter' => trim((string)($_POST['filter'] ?? '')),
+        'page' => max(1, (int)($_POST['page'] ?? 1)),
+    ], static fn($v) => $v !== '' && $v !== null && $v !== 1);
+    header('Location: requests.php' . ($redirectParams ? '?' . http_build_query($redirectParams) : ''));
     exit;
 }
 
 // Fetch requests
 $filter = $_GET['filter'] ?? '';
 $validStatuses = ['pending', 'contacted', 'acquired', 'cancelled'];
-$sql = "SELECT vr.*, c.name AS client_db_name
-        FROM vehicle_requests vr
-        LEFT JOIN clients c ON c.id = vr.client_id";
-if ($filter && in_array($filter, $validStatuses)) {
-    $sql .= " WHERE vr.status = " . $pdo->quote($filter);
+if (!in_array($filter, $validStatuses, true)) {
+    $filter = '';
 }
-$sql .= " ORDER BY vr.requested_at DESC";
-$_reqCountSql = preg_replace("/^SELECT .+? FROM\s/si", "SELECT COUNT(*) FROM ", explode("ORDER BY", $sql)[0]);
-$pgRequests = paginate_query($pdo, $sql, $_reqCountSql, [], $page, $perPage);
-$requests   = $pgRequests[
-'rows'
-];
+
+$where = ['1=1'];
+$queryParams = [];
+if ($filter !== '') {
+    $where[] = 'vr.status = ?';
+    $queryParams[] = $filter;
+}
+
+$baseFrom = "FROM vehicle_requests vr
+        LEFT JOIN clients c ON c.id = vr.client_id
+        WHERE " . implode(' AND ', $where);
+
+$sql = "SELECT vr.*, c.name AS client_db_name
+        $baseFrom
+        ORDER BY vr.requested_at DESC";
+$_reqCountSql = "SELECT COUNT(*) $baseFrom";
+$pgRequests = paginate_query($pdo, $sql, $_reqCountSql, $queryParams, $page, $perPage);
+$requests = $pgRequests['rows'];
+$currentPage = (int) ($pgRequests['page'] ?? 1);
 
 // Counts per status
 $counts = ['all' => 0, 'pending' => 0, 'contacted' => 0, 'acquired' => 0, 'cancelled' => 0];
@@ -164,7 +186,7 @@ $statusLabel = [
 
     <?php if ($success): ?>
         <div class="bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg px-4 py-3 mb-5 text-sm">
-            âœ…
+               …
             <?= e($success) ?>
         </div>
     <?php endif; ?>
@@ -230,7 +252,7 @@ $statusLabel = [
                                     <?= e($req['client_name_free']) ?>
                                     <span class="text-mb-subtle text-xs">(walk-in)</span>
                                 <?php else: ?>
-                                    <span class="text-mb-subtle">â€”</span>
+                                    <span class="text-mb-subtle"> ”</span>
                                 <?php endif; ?>
                             </td>
                             <td class="px-5 py-4">
@@ -246,6 +268,7 @@ $statusLabel = [
                                     <input type="hidden" name="action" value="people_count">
                                     <input type="hidden" name="req_id" value="<?= $req['id'] ?>">
                                     <input type="hidden" name="filter" value="<?= e($filter) ?>">
+                                    <input type="hidden" name="page" value="<?= $currentPage ?>">
                                     <input type="number" name="people_count" min="1" step="1"
                                         value="<?= (int) ($req['people_count'] ?? 1) ?>"
                                         class="w-20 bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-1.5 text-white text-sm focus:outline-none focus:border-mb-accent">
@@ -256,15 +279,16 @@ $statusLabel = [
                                 </form>
                             </td>
                             <td class="px-5 py-4 text-mb-silver text-sm max-w-xs">
-                                <?= $req['notes'] ? e(mb_substr($req['notes'], 0, 80)) . (mb_strlen($req['notes']) > 80 ? 'â€¦' : '') : '<span class="text-mb-subtle">â€”</span>' ?>
+                                <?= $req['notes'] ? e(mb_substr($req['notes'], 0, 80)) . (mb_strlen($req['notes']) > 80 ? ' ¦' : '') : '<span class="text-mb-subtle"> ”</span>' ?>
                             </td>
                             <td class="px-5 py-4">
-                                <!-- Clickable status badge â€” cycles to next status -->
+                                <!-- Clickable status badge  ” cycles to next status -->
                                 <form method="POST" class="inline">
                                     <input type="hidden" name="action" value="status">
                                     <input type="hidden" name="req_id" value="<?= $req['id'] ?>">
                                     <input type="hidden" name="status" value="<?= $statusNext[$req['status']] ?>">
                                     <input type="hidden" name="filter" value="<?= e($filter) ?>">
+                                    <input type="hidden" name="page" value="<?= $currentPage ?>">
                                     <button type="submit" title="Click to advance status"
                                         class="px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-opacity hover:opacity-75 <?= $statusColors[$req['status']] ?>">
                                         <?= $statusLabel[$req['status']] ?>
@@ -277,6 +301,7 @@ $statusLabel = [
                                     <input type="hidden" name="action" value="delete">
                                     <input type="hidden" name="req_id" value="<?= $req['id'] ?>">
                                     <input type="hidden" name="filter" value="<?= e($filter) ?>">
+                                    <input type="hidden" name="page" value="<?= $currentPage ?>">
                                     <button type="submit" title="Delete"
                                         class="text-mb-subtle hover:text-red-400 transition-colors p-1 rounded">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -292,6 +317,11 @@ $statusLabel = [
             </table>
         <?php endif; ?>
     </div>
+
+    <?php
+    $_rqp = array_filter(['filter' => $filter], static fn($v) => $v !== null && $v !== '');
+    echo render_pagination($pgRequests, $_rqp);
+    ?>
 </div>
 
 <!-- Add Request Modal -->
@@ -337,7 +367,7 @@ $statusLabel = [
                 <div class="space-y-2">
                     <select name="client_id" id="reqClientSelect"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent">
-                        <option value="">â€” Select existing client â€”</option>
+                        <option value=""> ” Select existing client  ”</option>
                         <?php foreach ($clients as $c): ?>
                             <option value="<?= $c['id'] ?>">
                                 <?= e($c['name']) ?>
@@ -347,7 +377,7 @@ $statusLabel = [
                     <input type="text" name="client_name_free" id="reqClientFree"
                         placeholder="Or type client / walk-in name"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent placeholder-mb-subtle">
-                    <p class="text-mb-subtle text-xs">Select from dropdown OR type a name below it â€” not both needed.
+                    <p class="text-mb-subtle text-xs">Select from dropdown OR type a name below it  ” not both needed.
                     </p>
                 </div>
             </div>

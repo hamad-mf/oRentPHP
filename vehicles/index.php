@@ -4,7 +4,7 @@ require_once __DIR__ . '/../includes/vehicle_helpers.php';
 
 $pdo = db();
 require_once __DIR__ . '/../includes/settings_helpers.php';
-$perPage = get_per_page($pdo);
+$perPage = max(12, get_per_page($pdo));
 $page    = max(1, (int) ($_GET['page'] ?? 1));
 vehicle_ensure_schema($pdo);
 $search = trim($_GET['search'] ?? '');
@@ -20,11 +20,11 @@ $where = ['1=1'];
 $params = [];
 
 if ($search !== '') {
-    $where[] = '(brand LIKE ? OR model LIKE ? OR license_plate LIKE ?)';
+    $where[] = '(v.brand LIKE ? OR v.model LIKE ? OR v.license_plate LIKE ?)';
     $params = array_merge($params, ["%$search%", "%$search%", "%$search%"]);
 }
 if ($status !== '') {
-    $where[] = 'status = ?';
+    $where[] = 'v.status = ?';
     $params[] = $status;
 }
 if ($rentedDate !== '') {
@@ -37,12 +37,7 @@ if ($rentedDate !== '') {
     }
 }
 
-$sql = 'SELECT v.*,
-               ar.start_date AS rented_start_date,
-               ar.end_date AS rented_end_date,
-               rc.name AS rented_client_name,
-               (SELECT COUNT(*) FROM documents d WHERE d.vehicle_id = v.id) AS doc_count
-        FROM vehicles v
+$baseFrom = 'FROM vehicles v
         LEFT JOIN (
             SELECT r1.vehicle_id, r1.client_id, r1.start_date, r1.end_date
             FROM reservations r1
@@ -54,11 +49,18 @@ $sql = 'SELECT v.*,
             ) latest ON latest.max_id = r1.id
         ) ar ON ar.vehicle_id = v.id
         LEFT JOIN clients rc ON rc.id = ar.client_id
-        WHERE ' . implode(' AND ', $where) . '
+        WHERE ' . implode(' AND ', $where);
+
+$sql = 'SELECT v.*,
+               ar.start_date AS rented_start_date,
+               ar.end_date AS rented_end_date,
+               rc.name AS rented_client_name,
+               (SELECT COUNT(*) FROM documents d WHERE d.vehicle_id = v.id) AS doc_count
+        ' . $baseFrom . '
         ORDER BY CASE WHEN v.status = "rented" THEN 0 ELSE 1 END,
                  v.created_at ' . $orderDirection;
-// Count query (same WHERE, no ORDER BY)
-$countSql2 = preg_replace("/SELECT .+ FROM vehicles/s", "SELECT COUNT(*) FROM vehicles", explode("ORDER BY", $sql)[0]);
+
+$countSql2 = 'SELECT COUNT(*) ' . $baseFrom;
 $pgResult  = paginate_query($pdo, $sql, $countSql2, $params, $page, $perPage);
 $vehicles  = $pgResult['rows'];
 
@@ -81,7 +83,7 @@ try {
     $vehicleImgMap = [];
 }
 
-// Build catalog share URL â€” handles both root-level and subdirectory installs cleanly
+// Build catalog share URL - handles both root-level and subdirectory installs cleanly
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $basePath = trim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/vehicles/index.php')), '/');
@@ -190,7 +192,7 @@ require_once __DIR__ . '/../includes/header.php';
         </button>
     </div>
 
-    <!-- â”€â”€ Catalog Share Modal â”€â”€ -->
+    <!-- Catalog Share Modal -->
     <div id="catalogModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
         onclick="if(event.target===this)this.classList.add('hidden')">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
@@ -200,7 +202,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="flex items-start justify-between mb-5">
                 <div>
                     <h3 class="text-white font-semibold text-lg">Share Vehicle Catalog</h3>
-                    <p class="text-mb-subtle text-sm mt-0.5">Anyone with this link can browse your available fleet â€” no
+                    <p class="text-mb-subtle text-sm mt-0.5">Anyone with this link can browse your available fleet - no
                         login required.</p>
                 </div>
                 <button onclick="document.getElementById('catalogModal').classList.add('hidden')"
@@ -246,7 +248,7 @@ require_once __DIR__ . '/../includes/header.php';
                 </button>
                 <a href="<?= e($catalogUrl) ?>" target="_blank"
                     class="flex-1 text-center border border-mb-subtle/20 text-mb-silver hover:text-white hover:border-white/20 py-2.5 rounded-full transition-colors text-sm font-medium">
-                    Preview â†—
+                    Preview ->
                 </a>
             </div>
         </div>
@@ -398,7 +400,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php endif; ?>
                                 <?php if (!empty($v['rented_start_date']) && !empty($v['rented_end_date'])): ?>
                                     <p class="text-[10px] text-mb-subtle mt-0.5">
-                                        <?= e(date('d M Y, h:i A', strtotime((string) $v['rented_start_date']))) ?> â†’
+                                        <?= e(date('d M Y, h:i A', strtotime((string) $v['rented_start_date']))) ?> ->
                                         <?= e(date('d M Y, h:i A', strtotime((string) $v['rented_end_date']))) ?>
                                     </p>
                                 <?php endif; ?>
@@ -490,7 +492,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 
 <?php
-$_vqp = array_filter(['search'=>$search,'status'=>$status,'rented_date'=>$rentedDate,'sort'=>($sort!=='desc'?$sort:null)], fn($v)=>$v!==null&&$v!=='');
+$_vqp = array_filter(['search' => $search, 'status' => $status, 'rented_date' => $rentedDate, 'sort' => ($sort !== 'desc' ? $sort : null)], fn($v) => $v !== null && $v !== '');
 echo render_pagination($pgResult, $_vqp);
 ?>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

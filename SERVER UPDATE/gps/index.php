@@ -1,9 +1,12 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/gps_helpers.php';
 require_once __DIR__ . '/../includes/activity_log.php';
 
 $pdo = db();
+require_once __DIR__ . '/../includes/settings_helpers.php';
+$perPage = get_per_page($pdo);
+$page    = max(1, (int) ($_GET['page'] ?? 1));
 gps_tracking_ensure_schema($pdo);
 
 $search = trim($_GET['search'] ?? '');
@@ -50,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fTracking = (string) ($_POST['f_tracking'] ?? '');
     $fFromDate = trim((string) ($_POST['f_from_date'] ?? ''));
     $fToDate = trim((string) ($_POST['f_to_date'] ?? ''));
+    $fPage = max(1, (int) ($_POST['f_page'] ?? 1));
 
     if (!in_array($fStatus, $allowedStatuses, true)) {
         $fStatus = '';
@@ -74,6 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'tracking' => $fTracking,
             'from_date' => $fFromDate,
             'to_date' => $fToDate,
+            'page' => $fPage > 1 ? $fPage : null,
         ],
         static fn($value) => $value !== '' && $value !== null
     );
@@ -261,6 +266,14 @@ $updatedBySelect = $hasUsersTable
 $updatedByJoin = $hasUsersTable ? "LEFT JOIN users u ON u.id = g.updated_by" : "";
 
 $latestGpsSql = gps_latest_tracking_join_sql();
+$baseFrom = "
+    FROM reservations r
+    JOIN clients c ON c.id = r.client_id
+    JOIN vehicles v ON v.id = r.vehicle_id
+    LEFT JOIN ($latestGpsSql) g ON g.reservation_id = r.id
+";
+$whereSql = " WHERE " . implode(' AND ', $where);
+
 $sql = "
     SELECT
         r.id,
@@ -281,18 +294,15 @@ $sql = "
         g.last_seen,
         g.updated_at
         $updatedBySelect
-    FROM reservations r
-    JOIN clients c ON c.id = r.client_id
-    JOIN vehicles v ON v.id = r.vehicle_id
-    LEFT JOIN ($latestGpsSql) g ON g.reservation_id = r.id
+    $baseFrom
     $updatedByJoin
-    WHERE " . implode(' AND ', $where) . "
+    $whereSql
     ORDER BY r.created_at DESC
 ";
 
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$rows = $stmt->fetchAll();
+$gpsCountSql = "SELECT COUNT(*) $baseFrom $whereSql";
+$pgGps = paginate_query($pdo, $sql, $gpsCountSql, $params, $page, $perPage);
+$rows = $pgGps['rows'];
 
 $pageTitle = 'GPS Tracking';
 require_once __DIR__ . '/../includes/header.php';
@@ -442,7 +452,7 @@ require_once __DIR__ . '/../includes/header.php';
                             $noBtnId = 'gps-no-' . (int) $row['id'];
                             $reasonId = 'gps-reason-' . (int) $row['id'];
                             $inactiveReason = trim((string) ($row['notes'] ?? ''));
-                            $updatedByLabel = '—';
+                            $updatedByLabel = '-';
                             if (!empty($row['updated_by_name'])) {
                                 $updatedByLabel = (string) $row['updated_by_name'];
                             } elseif (!empty($row['updated_by_username'])) {
@@ -475,7 +485,7 @@ require_once __DIR__ . '/../includes/header.php';
                                     </p>
                                 </td>
                                 <td class="px-6 py-4 text-mb-silver text-xs">
-                                    <?= e($row['start_date']) ?> → <?= e($row['end_date']) ?>
+                                    <?= e($row['start_date']) ?> -> <?= e($row['end_date']) ?>
                                     <?php if ($row['status'] === 'completed' && !empty($row['actual_end_date'])): ?>
                                         <p class="text-mb-subtle mt-1">Returned: <?= e($row['actual_end_date']) ?></p>
                                     <?php endif; ?>
@@ -534,6 +544,7 @@ require_once __DIR__ . '/../includes/header.php';
                                         <input type="hidden" name="f_tracking" value="<?= e($tracking) ?>">
                                         <input type="hidden" name="f_from_date" value="<?= e($fromDate) ?>">
                                         <input type="hidden" name="f_to_date" value="<?= e($toDate) ?>">
+                                        <input type="hidden" name="f_page" value="<?= (int) $page ?>">
                                         <button type="submit"
                                             class="bg-mb-accent text-white px-4 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-xs font-medium">
                                             Save
@@ -549,6 +560,18 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 <?php
+$_qp = array_filter(
+    [
+        'search' => $search,
+        'status' => $status,
+        'tracking' => $tracking,
+        'from_date' => $fromDate,
+        'to_date' => $toDate,
+    ],
+    static fn($value) => $value !== null && $value !== ''
+);
+echo render_pagination($pgGps, $_qp);
+
 $extraScripts = <<<JS
 <script>
 document.addEventListener('DOMContentLoaded', function () {

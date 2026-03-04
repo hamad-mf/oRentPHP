@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * includes/ledger_helpers.php
  * Bank accounts + ledger core service.
@@ -12,7 +12,7 @@
  *   ledger_delete_manual_entry($pdo, $entryId, $userId)
  */
 
-// ── Schema ─────────────────────────────────────────────────────────────────
+//  ”  ”  Schema  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 function ledger_ensure_schema(PDO $pdo): void
 {
@@ -62,7 +62,7 @@ function ledger_ensure_schema(PDO $pdo): void
     }
 }
 
-// ── Payment Method → Bank Account Mapping ──────────────────────────────────
+//  ”  ”  Payment Method   ’ Bank Account Mapping  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 function ledger_bank_account_for_method(PDO $pdo, ?string $method): ?int
 {
@@ -71,8 +71,8 @@ function ledger_bank_account_for_method(PDO $pdo, ?string $method): ?int
     $method = strtolower(trim($method));
 
     // Only 'account' (bank transfer/cheque) actually moves money in the bank account.
-    // 'cash' = physical cash received — tracked in ledger but NOT in the bank balance.
-    // 'credit' = receivable — no money received yet, ledger note only.
+    // 'cash' = physical cash received  ” tracked in ledger but NOT in the bank balance.
+    // 'credit' = receivable  ” no money received yet, ledger note only.
     if ($method !== 'account')
         return null;
 
@@ -105,12 +105,12 @@ function ledger_resolve_bank_account_id(PDO $pdo, ?string $paymentMode, ?int $se
     return ledger_bank_account_for_method($pdo, 'account');
 }
 
-// ── Core Post ──────────────────────────────────────────────────────────────
+//  ”  ”  Core Post  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 /**
  * Post a ledger entry and atomically update bank account balance.
  *
- * @param  string|null $idempotencyKey  Unique key — duplicate calls silently skip.
+ * @param  string|null $idempotencyKey  Unique key  ” duplicate calls silently skip.
  * @return int|null  Ledger entry ID, or null if skipped (duplicate).
  */
 function ledger_post(
@@ -186,11 +186,11 @@ function ledger_post(
     }
 }
 
-// ── Reservation Auto-Posting ───────────────────────────────────────────────
+//  ”  ”  Reservation Auto-Posting  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 /**
  * Auto-post income from a reservation delivery or return payment.
- * Idempotent — safe to call twice for the same event.
+ * Idempotent  ” safe to call twice for the same event.
  */
 function ledger_post_reservation_event(
     PDO $pdo,
@@ -207,7 +207,7 @@ function ledger_post_reservation_event(
     ledger_ensure_schema($pdo);
 
     $category = $event === 'delivery' ? 'Reservation Delivery' : 'Reservation Return';
-    $description = "Reservation #$reservationId — " . ucfirst($event) . " payment";
+    $description = "Reservation #$reservationId  ” " . ucfirst($event) . " payment";
     $idKey = "reservation:{$event}:{$reservationId}";
     $bankId = ledger_resolve_bank_account_id($pdo, $paymentMethod, $bankAccountId);
 
@@ -227,7 +227,7 @@ function ledger_post_reservation_event(
     );
 }
 
-// ── Manual Entry ───────────────────────────────────────────────────────────
+//  ”  ”  Manual Entry  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 function ledger_post_manual(
     PDO $pdo,
@@ -261,7 +261,7 @@ function ledger_post_manual(
     );
 }
 
-// ── Delete Manual Entry ────────────────────────────────────────────────────
+//  ”  ”  Delete Manual Entry  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 /**
  * Delete a manual ledger entry and reverse the bank balance.
@@ -301,7 +301,92 @@ function ledger_delete_manual_entry(PDO $pdo, int $entryId, int $userId): bool
     }
 }
 
-// ── Query Helpers ──────────────────────────────────────────────────────────
+//  ”  ”  Fund Transfer  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
+
+/**
+ * Transfer funds between two bank accounts atomically.
+ * - Creates an expense ledger entry on the from-account ("Transfer Out")
+ * - Creates an income  ledger entry on the to-account   ("Transfer In")
+ * - Updates both balances in a single DB transaction.
+ *
+ * @param  string $error  Populated with a reason on failure.
+ * @return bool
+ */
+function ledger_transfer(
+    PDO $pdo,
+    int $fromId,
+    int $toId,
+    float $amount,
+    ?string $description,
+    int $userId,
+    ?string $postedAt = null,
+    string &$error = ''
+): bool {
+    ledger_ensure_schema($pdo);
+
+    if ($fromId === $toId) {
+        $error = 'Cannot transfer to the same account.';
+        return false;
+    }
+    if ($amount <= 0) {
+        $error = 'Transfer amount must be greater than zero.';
+        return false;
+    }
+
+    $stmt = $pdo->prepare("SELECT id, name, balance, is_active FROM bank_accounts WHERE id IN (?, ?)");
+    $stmt->execute([$fromId, $toId]);
+    $accts = [];
+    foreach ($stmt->fetchAll() as $row)
+        $accts[(int) $row['id']] = $row;
+
+    if (!isset($accts[$fromId]) || !$accts[$fromId]['is_active']) {
+        $error = 'Source account not found or inactive.';
+        return false;
+    }
+    if (!isset($accts[$toId]) || !$accts[$toId]['is_active']) {
+        $error = 'Destination account not found or inactive.';
+        return false;
+    }
+    if ((float) $accts[$fromId]['balance'] < $amount) {
+        $error = 'Insufficient balance in source account (Balance: $' . number_format($accts[$fromId]['balance'], 2) . ').';
+        return false;
+    }
+
+    $postedAt = $postedAt ?? (new DateTime('now', new DateTimeZone('Asia/Kolkata')))->format('Y-m-d H:i:s');
+    $desc = $description ?: ('Transfer: ' . $accts[$fromId]['name'] . '   ’ ' . $accts[$toId]['name']);
+
+    try {
+        $pdo->beginTransaction();
+
+        $pdo->prepare("INSERT INTO ledger_entries
+            (txn_type, category, description, amount, payment_mode, bank_account_id,
+             source_type, source_event, posted_at, created_by)
+            VALUES ('expense', 'Transfer Out', ?, ?, 'account', ?, 'transfer', 'transfer_out', ?, ?)")
+            ->execute([$desc, $amount, $fromId, $postedAt, $userId]);
+
+        $pdo->prepare("INSERT INTO ledger_entries
+            (txn_type, category, description, amount, payment_mode, bank_account_id,
+             source_type, source_event, posted_at, created_by)
+            VALUES ('income', 'Transfer In', ?, ?, 'account', ?, 'transfer', 'transfer_in', ?, ?)")
+            ->execute([$desc, $amount, $toId, $postedAt, $userId]);
+
+        $pdo->prepare("UPDATE bank_accounts SET balance = balance - ? WHERE id = ?")->execute([$amount, $fromId]);
+        $pdo->prepare("UPDATE bank_accounts SET balance = balance + ? WHERE id = ?")->execute([$amount, $toId]);
+
+        $pdo->commit();
+        app_log('ACTION', "Ledger: transfer $$amount from account#$fromId to account#$toId by user#$userId");
+        return true;
+
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction())
+            $pdo->rollBack();
+        app_log('ERROR', "Ledger transfer failed: " . $e->getMessage());
+        $error = 'Database error. Please try again.';
+        return false;
+    }
+}
+
+//  ”  ”  Query Helpers  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 function ledger_get_accounts(PDO $pdo): array
 {
@@ -350,11 +435,28 @@ function ledger_get_entries(PDO $pdo, array $f = []): array
     return $stmt->fetchAll();
 }
 
+function ledger_build_query(array $f = []): array {
+    $where = ['1=1'];
+    $params = [];
+    if (!empty($f['type']))       { $where[] = "le.txn_type = ?";         $params[] = $f['type']; }
+    if (!empty($f['account_id'])) { $where[] = "le.bank_account_id = ?";  $params[] = (int)$f['account_id']; }
+    if (!empty($f['date_from']))  { $where[] = "DATE(le.posted_at) >= ?"; $params[] = $f['date_from']; }
+    if (!empty($f['date_to']))    { $where[] = "DATE(le.posted_at) <= ?"; $params[] = $f['date_to']; }
+    if (!empty($f['source']))     { $where[] = "le.source_type = ?";      $params[] = $f['source']; }
+    $base = "FROM ledger_entries le LEFT JOIN bank_accounts ba ON ba.id=le.bank_account_id LEFT JOIN users u ON u.id=le.created_by WHERE " . implode(' AND ', $where);
+    return [
+        'select' => "SELECT le.*, ba.name AS account_name, u.name AS posted_by_name ",
+        'count'  => "SELECT COUNT(*) ",
+        'base'   => $base,
+        'order'  => " ORDER BY le.posted_at DESC, le.id DESC",
+        'params' => $params,
+    ];
+}
 function ledger_get_totals(PDO $pdo, string $dateFrom = '', string $dateTo = ''): array
 {
     ledger_ensure_schema($pdo);
 
-    $where = ["source_type != 'manual' OR source_type = 'manual'"]; // all
+    $where = ["source_type != 'manual' OR source_type = 'manual'"];
     $params = [];
     if ($dateFrom) {
         $where[] = "DATE(posted_at) >= ?";

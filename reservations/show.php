@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/db.php';
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
@@ -69,12 +69,14 @@ if ($discType === 'percent') {
 $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
 $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
 $totalCollected = $baseCollectedAtDelivery + $cashDueAtReturn;
+$refundAmount = max(0, (float) ($r['refund_amount'] ?? 0));
+$netCollected = max(0, $totalCollected - $refundAmount);
 
 $success = getFlash('success');
 $pageTitle = 'Reservation #' . $id;
 require_once __DIR__ . '/../includes/header.php';
 
-$statusColors = ['pending' => 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30', 'confirmed' => 'bg-sky-500/10 text-sky-400 border-sky-500/30', 'active' => 'bg-green-500/10 text-green-400 border-green-500/30', 'completed' => 'bg-mb-subtle/10 text-mb-subtle border-mb-subtle/30'];
+$statusColors = ['pending' => 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30', 'confirmed' => 'bg-sky-500/10 text-sky-400 border-sky-500/30', 'active' => 'bg-green-500/10 text-green-400 border-green-500/30', 'completed' => 'bg-mb-subtle/10 text-mb-subtle border-mb-subtle/30', 'cancelled' => 'bg-red-500/10 text-red-400 border-red-500/30'];
 $sc = $statusColors[$r['status']] ?? '';
 
 function fuelBar(int $pct): string
@@ -120,6 +122,9 @@ function fuelBar(int $pct): string
                 <a href="return.php?id=<?= $id ?>"
                     class="bg-mb-accent text-white px-5 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-sm font-medium">⏎
                     Process Return</a>
+            <?php endif; ?>
+            <?php if ($r['status'] === 'active'): ?>
+                <a href="cancel.php?id=<?= $id ?>" onclick="return confirm('Cancel this active reservation?')" class="border border-red-500/30 text-red-400 px-4 py-2 rounded-full hover:bg-red-500/10 transition-colors text-sm"> Cancel Reservation</a>
             <?php endif; ?>
             <?php if (in_array($r['status'], ['pending', 'confirmed'])): ?>
                 <a href="bill.php?id=<?= $id ?>" target="_blank"
@@ -306,10 +311,22 @@ function fuelBar(int $pct): string
                     <span class="text-mb-silver">Amount Due at Return</span>
                     <span class="text-mb-accent font-semibold">$<?= number_format($cashDueAtReturn, 2) ?></span>
                 </div>
+                <?php if ($r['status'] === 'cancelled'): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-mb-subtle">Gross Collected Before Refund</span>
+                        <span class="text-white">$<?= number_format($totalCollected, 2) ?></span>
+                    </div>
+                    <?php if ($refundAmount > 0): ?>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-red-400">Cancellation Refund</span>
+                            <span class="text-red-400">-$<?= number_format($refundAmount, 2) ?></span>
+                        </div>
+                    <?php endif; ?>
+                <?php endif; ?>
                 <div
                     class="flex justify-between items-center mt-2 bg-mb-accent/10 border border-mb-accent/30 rounded-lg px-4 py-3">
-                    <span class="text-white font-semibold text-sm">💰 Total Collected for This Rental</span>
-                    <span class="text-mb-accent font-bold text-lg">$<?= number_format($totalCollected, 2) ?></span>
+                    <span class="text-white font-semibold text-sm">💰 <?= $r['status'] === 'cancelled' ? 'Net Retained After Refund' : 'Total Collected for This Rental' ?></span>
+                    <span class="text-mb-accent font-bold text-lg">$<?= number_format($r['status'] === 'cancelled' ? $netCollected : $totalCollected, 2) ?></span>
                 </div>
             </div>
         </div>
@@ -449,6 +466,19 @@ function fuelBar(int $pct): string
             <?php endif; ?>
         </div>
     </div>
+
+    <?php if ($r['status'] === 'cancelled'): ?>
+    <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-6 space-y-3">
+        <h3 class="text-red-400 font-light text-base border-l-2 border-red-400 pl-3">&#x2715; Reservation Cancelled</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div><p class="text-mb-subtle text-xs uppercase mb-1">Cancelled At</p><p class="text-white"><?= $r['cancelled_at'] ? date('d M Y, h:i A', strtotime($r['cancelled_at'])) : '—' ?></p></div>
+            <div><p class="text-mb-subtle text-xs uppercase mb-1">Refund Amount</p><p class="text-<?= ($r['refund_amount']??0)>0?'red-400':'mb-subtle' ?> font-medium">$<?= number_format((float)($r['refund_amount']??0),2) ?></p></div>
+            <div><p class="text-mb-subtle text-xs uppercase mb-1">Net Retained</p><p class="text-<?= $netCollected>0?'mb-accent':'mb-subtle' ?> font-medium">$<?= number_format($netCollected,2) ?></p></div>
+            <div class="col-span-2"><p class="text-mb-subtle text-xs uppercase mb-1">Reason</p><p class="text-white"><?= e($r['cancellation_reason']??'—') ?></p></div>
+        </div>
+    </div>
+    <?php endif; ?>
+
 </div>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

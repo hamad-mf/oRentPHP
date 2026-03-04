@@ -1,7 +1,7 @@
 ﻿<?php
 require_once __DIR__ . '/../config/db.php';
 auth_check();
-// current_user() reads from $_SESSION â€” must be called before header.php
+// current_user() reads from $_SESSION  ” must be called before header.php
 // so that POST handlers have the correct user during form submissions
 $_currentUser = current_user();
 if (!auth_has_perm('view_finances') && ($_currentUser['role'] ?? '') !== 'admin') {
@@ -18,11 +18,11 @@ ledger_ensure_schema($pdo);
 $isAdmin = ($_currentUser['role'] ?? '') === 'admin';
 $userId = (int) ($_currentUser['id'] ?? 0);
 
-// â”€â”€ Handle POST actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//  ”  ”  Handle POST actions  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
-    // â”€â”€ Add manual income / expense â”€â”€
+    //  ”  ”  Add manual income / expense  ”  ” 
     if (in_array($action, ['add_income', 'add_expense'], true)) {
         $txnType = $action === 'add_income' ? 'income' : 'expense';
         $category = trim($_POST['category'] ?? '');
@@ -58,18 +58,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('index.php');
     }
 
-    // â”€â”€ Delete manual entry â”€â”€
+    //  ”  ”  Delete manual entry  ”  ” 
     if ($action === 'delete_entry' && $isAdmin) {
         $entryId = (int) ($_POST['entry_id'] ?? 0);
         if (ledger_delete_manual_entry($pdo, $entryId, $userId)) {
             flash('success', 'Entry deleted.');
         } else {
-            flash('error', 'Could not delete â€” may be a system entry.');
+            flash('error', 'Could not delete  ” may be a system entry.');
         }
         redirect('index.php');
     }
 
-    // â”€â”€ Save bank account (create or edit) â”€â”€
+    //  ”  ”  Save bank account (create or edit)  ”  ” 
     if ($action === 'save_account' && $isAdmin) {
         $accId = (int) ($_POST['account_id'] ?? 0);
         $name = trim($_POST['name'] ?? '');
@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('index.php');
     }
 
-    // â”€â”€ Transfer funds between accounts â”€â”€
+    //  ”  ”  Transfer funds between accounts  ”  ” 
     if ($action === 'transfer_funds' && $isAdmin) {
         $fromId = (int) ($_POST['from_account_id'] ?? 0);
         $toId = (int) ($_POST['to_account_id'] ?? 0);
@@ -111,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// â”€â”€ Filters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//  ”  ”  Filters  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 $fType = $_GET['type'] ?? '';
 $fAccount = (int) ($_GET['account'] ?? 0);
 $fDateFrom = $_GET['date_from'] ?? date('Y-m-01');
@@ -157,7 +157,7 @@ require_once __DIR__ . '/../includes/header.php';
     <?php if ($success): ?><div class="flex items-center gap-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg px-5 py-3 text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg><?= e($success) ?></div><?php endif; ?>
     <?php if ($error): ?><div class="flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-5 py-3 text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg><?= e($error) ?></div><?php endif; ?>
 
-    <!-- â”€â”€ Summary Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <!--  ”  ”  Summary Cards  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <?php
         $cards = [
@@ -178,7 +178,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php endforeach; ?>
     </div>
 
-    <!-- â”€â”€ Bank Accounts Row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <!--  ”  ”  Bank Accounts Row  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
         <div class="flex items-center justify-between px-6 py-4 border-b border-mb-subtle/10">
             <h2 class="text-white font-light">Bank Accounts</h2>
@@ -207,7 +207,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php if ($acc['bank_name']): ?>
                             <p class="text-xs text-mb-subtle mt-0.5">
                                 <?= e($acc['bank_name']) ?>
-                                <?= $acc['account_number'] ? ' â€” ' . e($acc['account_number']) : '' ?>
+                                <?= $acc['account_number'] ? '  ” ' . e($acc['account_number']) : '' ?>
                             </p>
                         <?php endif; ?>
                         <p
@@ -230,7 +230,7 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </div>
 
-    <!-- â”€â”€ Ledger Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <!--  ”  ”  Ledger Table  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
         <div
             class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between px-6 py-4 border-b border-mb-subtle/10">
@@ -324,10 +324,10 @@ require_once __DIR__ . '/../includes/header.php';
                                     <?= e($row['description'] ?? '') ?>
                                 </td>
                                 <td class="px-6 py-3 text-mb-subtle capitalize">
-                                    <?= e($row['payment_mode'] ?? 'â€”') ?>
+                                    <?= e($row['payment_mode'] ?? ' ”') ?>
                                 </td>
                                 <td class="px-6 py-3 text-mb-subtle">
-                                    <?= e($row['account_name'] ?? 'â€”') ?>
+                                    <?= e($row['account_name'] ?? ' ”') ?>
                                 </td>
                                 <td class="px-6 py-3">
                                     <?php if ($isManual): ?>
@@ -362,7 +362,7 @@ require_once __DIR__ . '/../includes/header.php';
                                             </button>
                                         </form>
                                     <?php else: ?>
-                                        <span class="text-mb-subtle/30 text-xs" title="System entry â€” cannot delete">ðŸ”’</span>
+                                        <span class="text-mb-subtle/30 text-xs" title="System entry  ” cannot delete">ðŸ”’</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -385,7 +385,7 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<!-- â”€â”€ Add Income/Expense Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<!--  ”  ”  Add Income/Expense Modal  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
 <div id="entryModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
     <div class="w-full max-w-md bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-5">
         <h3 id="entryModalTitle" class="text-white text-lg font-light border-l-2 border-mb-accent pl-3">Add Entry</h3>
@@ -393,7 +393,7 @@ require_once __DIR__ . '/../includes/header.php';
             <input type="hidden" name="action" id="entryAction" value="add_income">
             <div>
                 <label class="block text-sm text-mb-silver mb-1.5">Category <span class="text-red-400">*</span></label>
-                <input type="text" name="category" required placeholder="e.g. Fuel, Rent, Salaryâ€¦"
+                <input type="text" name="category" required placeholder="e.g. Fuel, Rent, Salary ¦"
                     class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-mb-accent text-sm">
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -439,7 +439,7 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
             <div>
                 <label class="block text-sm text-mb-silver mb-1.5">Description</label>
-                <textarea name="description" rows="2" placeholder="Optional notesâ€¦"
+                <textarea name="description" rows="2" placeholder="Optional notes ¦"
                     class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-mb-accent text-sm resize-none"></textarea>
             </div>
             <div class="flex justify-end gap-3 pt-2">
@@ -452,7 +452,7 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<!-- â”€â”€ Bank Account Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<!--  ”  ”  Bank Account Modal  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
 <div id="accountModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
     <div class="w-full max-w-sm bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-4">
         <h3 id="accountModalTitle" class="text-white text-lg font-light border-l-2 border-mb-accent pl-3">Account</h3>

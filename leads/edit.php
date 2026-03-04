@@ -39,6 +39,13 @@ function lead_status_ensure_pipeline(PDO $pdo): void
 
 lead_status_ensure_pipeline($pdo);
 
+// Ensure closed_at column exists (added in later migration)
+try {
+    $pdo->query("SELECT closed_at FROM leads LIMIT 0");
+} catch (Throwable $_) {
+    $pdo->exec("ALTER TABLE leads ADD COLUMN closed_at DATETIME NULL DEFAULT NULL AFTER updated_at");
+}
+
 $id = (int) ($_REQUEST['id'] ?? 0);
 $stmt = $pdo->prepare('SELECT * FROM leads WHERE id=?');
 $stmt->execute([$id]);

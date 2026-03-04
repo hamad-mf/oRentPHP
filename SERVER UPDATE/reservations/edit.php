@@ -15,8 +15,8 @@ if (!$r) {
     redirect('index.php');
 }
 
-if (!in_array($r['status'], ['pending', 'confirmed'])) {
-    flash('error', 'Only pending or confirmed reservations can be edited.');
+if (!in_array($r['status'], ['pending', 'confirmed', 'active'])) {
+    flash('error', 'Only pending, confirmed, or active reservations can be edited.');
     redirect("show.php?id=$id");
 }
 

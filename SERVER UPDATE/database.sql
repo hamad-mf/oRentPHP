@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS reservations (
     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- â”€â”€ Client Voucher Transactions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  ”  ”  Client Voucher Transactions  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 CREATE TABLE IF NOT EXISTS client_voucher_transactions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     client_id INT NOT NULL,

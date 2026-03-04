@@ -67,6 +67,9 @@ $filterStaff = $isStaffScopeLocked ? $currentUserId : $requestedStaffFilter;
 $filterDateFrom = trim($_GET['date_from'] ?? '');
 $filterDateTo = trim($_GET['date_to'] ?? '');
 $filterSource = trim($_GET['source_filter'] ?? '');
+$perPage = get_per_page($pdo);
+$page = max(1, (int) ($_GET['page'] ?? 1));
+$pipelinePaginationEnabled = settings_get($pdo, 'pipeline_pagination_enabled', '1') !== '0';
 
 // Fetch all users for the staff filter dropdown
 $allStaffUsers = [];
@@ -99,14 +102,21 @@ if ($filterSource !== '') {
     $params[] = $filterSource;
 }
 
-$sql = 'SELECT l.*, u.name AS assigned_user_name
-        FROM leads l
+$whereSql = implode(' AND ', $where);
+$baseFrom = 'FROM leads l
         LEFT JOIN users u ON l.assigned_staff_id = u.id
-        WHERE ' . implode(' AND ', $where) . '
-        ORDER BY l.created_at DESC';
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$allLeads = $stmt->fetchAll();
+        WHERE ' . $whereSql;
+$sql = 'SELECT l.*, u.name AS assigned_user_name ' . $baseFrom . ' ORDER BY l.created_at DESC';
+$countSql = 'SELECT COUNT(*) FROM leads l WHERE ' . $whereSql;
+$pgLeads = null;
+if ($pipelinePaginationEnabled) {
+    $pgLeads = paginate_query($pdo, $sql, $countSql, $params, $page, $perPage);
+    $allLeads = $pgLeads['rows'];
+} else {
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $allLeads = $stmt->fetchAll();
+}
 
 $grouped = [];
 foreach ($stages as $s) {
@@ -137,12 +147,10 @@ $stageTransitions = [
     'closed_lost' => [],
 ];
 
-$activeLeadCount = 0;
-foreach ($allLeads as $leadRow) {
-    if (!in_array($leadRow['status'], ['closed_won', 'closed_lost'], true)) {
-        $activeLeadCount++;
-    }
-}
+$activeCountSql = "SELECT COUNT(*) FROM leads l WHERE $whereSql AND l.status NOT IN ('closed_won','closed_lost')";
+$activeCountStmt = $pdo->prepare($activeCountSql);
+$activeCountStmt->execute($params);
+$activeLeadCount = (int) $activeCountStmt->fetchColumn();
 
 $pageTitle = 'Pipeline';
 require_once __DIR__ . '/../includes/header.php';
@@ -490,6 +498,20 @@ require_once __DIR__ . '/../includes/header.php';
         <?php endforeach; ?>
     </div>
 </div>
+<?php if ($pipelinePaginationEnabled && is_array($pgLeads)): ?>
+    <?php
+    $_pqp = array_filter(
+        [
+            'staff_filter' => (!$isStaffScopeLocked && $filterStaff > 0) ? $filterStaff : null,
+            'date_from' => $filterDateFrom,
+            'date_to' => $filterDateTo,
+            'source_filter' => $filterSource,
+        ],
+        static fn($v) => $v !== null && $v !== ''
+    );
+    echo render_pagination($pgLeads, $_pqp);
+    ?>
+<?php endif; ?>
 
 <div id="contactChoiceModal" class="hidden fixed inset-0 z-50 bg-black/60 items-center justify-center p-4">
     <div class="w-full max-w-sm bg-mb-surface border border-mb-subtle/20 rounded-xl p-5 space-y-4">
