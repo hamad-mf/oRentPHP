@@ -29,11 +29,13 @@ function vehicle_ensure_schema(PDO $pdo): void
             }
         }
 
-        $pdo->exec("
+        $nowSql = app_now_sql();
+        $stmt = $pdo->prepare("
             UPDATE vehicles
-            SET maintenance_started_at = COALESCE(maintenance_started_at, updated_at, created_at, NOW())
+            SET maintenance_started_at = COALESCE(maintenance_started_at, updated_at, created_at, ?)
             WHERE status = 'maintenance' AND maintenance_started_at IS NULL
         ");
+        $stmt->execute([$nowSql]);
     } catch (Throwable $e) {
         // Ignore if migration is handled manually.
     }

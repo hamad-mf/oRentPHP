@@ -80,6 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
+        $isMaintenance = ($status === 'maintenance') ? 1 : 0;
+        $isEnteringMaintenance = ($status === 'maintenance' && (($v['status'] ?? '') !== 'maintenance')) ? 1 : 0;
         $upd = $pdo->prepare('UPDATE vehicles
                               SET brand=?,
                                   model=?,
@@ -89,8 +91,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                   vin=?,
                                   status=?,
                                   maintenance_started_at = CASE
-                                      WHEN ? = "maintenance" AND status <> "maintenance" THEN NOW()
-                                      WHEN ? = "maintenance" THEN COALESCE(maintenance_started_at, NOW())
+                                      WHEN ? = 1 THEN NOW()
+                                      WHEN ? = 1 THEN COALESCE(maintenance_started_at, NOW())
                                       ELSE NULL
                                   END,
                                   maintenance_expected_return=?,
@@ -103,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                   rate_30day=?,
                                   image_url=?
                               WHERE id=?');
-        $upd->execute([$brand, $model, $year, $plate, $color, $vin, $status, $status, $status, $maintenanceExpectedReturn, $maintenanceWorkshopName, $daily, $monthly, $rate1, $rate7, $rate15, $rate30, $image, $id]);
+        $upd->execute([$brand, $model, $year, $plate, $color, $vin, $status, $isEnteringMaintenance, $isMaintenance, $maintenanceExpectedReturn, $maintenanceWorkshopName, $daily, $monthly, $rate1, $rate7, $rate15, $rate30, $image, $id]);
 
         // Additional docs (images only)
         if (!empty($_FILES['documents']['name'][0])) {

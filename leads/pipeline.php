@@ -132,7 +132,8 @@ foreach ($allLeads as $lead) {
 
 // Overdue follow-up counts
 $overdueMap = [];
-$oStmt = $pdo->query('SELECT lead_id, COUNT(*) as cnt FROM lead_followups WHERE scheduled_at < NOW() AND is_done=0 GROUP BY lead_id');
+$oStmt = $pdo->prepare('SELECT lead_id, COUNT(*) as cnt FROM lead_followups WHERE scheduled_at < ? AND is_done=0 GROUP BY lead_id');
+$oStmt->execute([app_now_sql()]);
 foreach ($oStmt->fetchAll() as $row) {
     $overdueMap[$row['lead_id']] = $row['cnt'];
 }

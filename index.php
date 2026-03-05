@@ -22,7 +22,9 @@ $totalCars       = $pdo->query("SELECT COUNT(*) FROM vehicles")->fetchColumn();
 $availableCars   = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='available'")->fetchColumn();
 $rentedCars      = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='rented'")->fetchColumn();
 $maintenanceCars = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='maintenance'")->fetchColumn();
-$todayReturns    = $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='active' AND DATE(end_date)=CURDATE()")->fetchColumn();
+$tr = $pdo->prepare("SELECT COUNT(*) FROM reservations WHERE status='active' AND DATE(end_date)=?");
+$tr->execute([$istToday]);
+$todayReturns = (int) $tr->fetchColumn();
 $gpsWarnings     = gps_active_warning_count($pdo);
 
 $eq = $pdo->prepare("SELECT COUNT(*) FROM reservations WHERE DATE(created_at)=?"); $eq->execute([$istToday]); $enquiries = (int)$eq->fetchColumn();
@@ -31,7 +33,9 @@ $nc = $pdo->prepare("SELECT COUNT(*) FROM clients WHERE DATE(created_at)=?"); $n
 
 $overdueFollowups = 0; $activeLeads = 0;
 try {
-    $overdueFollowups = (int)$pdo->query("SELECT COUNT(*) FROM lead_followups WHERE scheduled_at<NOW() AND is_done=0")->fetchColumn();
+    $of = $pdo->prepare("SELECT COUNT(*) FROM lead_followups WHERE scheduled_at < ? AND is_done=0");
+    $of->execute([app_now_sql()]);
+    $overdueFollowups = (int) $of->fetchColumn();
     $activeLeads = (int)$pdo->query("SELECT COUNT(*) FROM leads WHERE status NOT IN('closed_won','closed_lost')")->fetchColumn();
 } catch(Throwable $e) {
      app_log('ERROR', 'Dashboard: lead metrics query failed - ' . $e->getMessage(), [
@@ -178,7 +182,7 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
             </div>
             <?= statCard('Enquiries',$enquiries) ?>
             <?= statCard('Closed Deals',$closedDeals) ?>
-            <?= statCard('New Clients',$newClients) ?>
+            <?= statCard('Clients',$newClients) ?>
         </div>
     </section>
 
@@ -304,7 +308,7 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <?php if($showV):?><a href="vehicles/index.php" class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg hover:border-mb-accent/30 transition-all"><p class="text-mb-subtle text-xs uppercase mb-2">Vehicles</p><p class="text-3xl font-light text-white"><?= $availableCars ?></p><p class="text-xs text-mb-subtle mt-1">available now</p></a><?php endif;?>
             <?php if($showR):?><a href="reservations/index.php?due_today=1" class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg hover:border-mb-accent/30 transition-all"><p class="text-mb-subtle text-xs uppercase mb-2">Returns Today</p><p class="text-3xl font-light text-white"><?= $todayReturns ?></p><p class="text-xs text-mb-subtle mt-1">vehicles due back</p></a><a href="reservations/index.php" class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg hover:border-mb-accent/30 transition-all"><p class="text-mb-subtle text-xs uppercase mb-2">Enquiries</p><p class="text-3xl font-light text-white"><?= $enquiries ?></p><p class="text-xs text-mb-subtle mt-1">today</p></a><?php endif;?>
-            <?php if($showC):?><a href="clients/index.php" class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg hover:border-mb-accent/30 transition-all"><p class="text-mb-subtle text-xs uppercase mb-2">New Clients</p><p class="text-3xl font-light text-white"><?= $newClients ?></p><p class="text-xs text-mb-subtle mt-1">today</p></a><?php endif;?>
+            <?php if($showC):?><a href="clients/index.php" class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg hover:border-mb-accent/30 transition-all"><p class="text-mb-subtle text-xs uppercase mb-2">Clients</p><p class="text-3xl font-light text-white"><?= $newClients ?></p><p class="text-xs text-mb-subtle mt-1">today</p></a><?php endif;?>
             <?php if($showL):?><a href="leads/pipeline.php" class="bg-mb-surface border <?= $overdueFollowups>0?'border-red-500/30 bg-red-500/5':'border-mb-subtle/20' ?> p-5 rounded-lg hover:border-mb-accent/30 transition-all"><p class="text-mb-subtle text-xs uppercase mb-2">Overdue Follow-ups</p><p class="text-3xl font-light <?= $overdueFollowups>0?'text-red-400':'text-white' ?>"><?= $overdueFollowups ?></p><p class="text-xs text-mb-subtle mt-1"><?= $overdueFollowups>0?'Action needed':'All clear' ?></p></a><?php endif;?>
         </div>
     </section>

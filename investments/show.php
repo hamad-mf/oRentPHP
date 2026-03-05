@@ -117,6 +117,7 @@ $schedules = $schedules->fetchAll();
 $totalEmis = count($schedules);
 $paidEmis = count(array_filter($schedules, fn($s) => $s['status'] === 'paid'));
 $amtPaid = array_sum(array_map(fn($s) => $s['status'] === 'paid' ? (float) $s['amount'] : 0, $schedules));
+$remainingAmount = max(0, (float) $inv['loan_amount'] - $amtPaid);
 $progress = $totalEmis > 0 ? round($paidEmis / $totalEmis * 100) : 0;
 $completed = $paidEmis >= $totalEmis && $totalEmis > 0;
 
@@ -182,11 +183,12 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
 
         <!-- Stats -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mt-5">
             <?php foreach ([
                 ['Total Cost', '$' . number_format($inv['total_cost'], 2), 'text-mb-silver'],
                 ['Down Payment', '$' . number_format($inv['down_payment'], 2), 'text-mb-silver'],
                 ['Loan Amount', '$' . number_format($inv['loan_amount'], 2), 'text-mb-accent'],
+                ['Remaining Amount', '$' . number_format($remainingAmount, 2), $remainingAmount > 0 ? 'text-red-400' : 'text-green-400'],
                 ['EMI / Month', '$' . number_format($inv['emi_amount'], 2), 'text-white'],
             ] as [$lbl, $val, $clr]): ?>
                 <div class="bg-mb-black/40 rounded-lg p-3">
@@ -217,6 +219,9 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="<?= $completed ? 'bg-green-500' : 'bg-mb-accent' ?> h-2 rounded-full transition-all"
                     style="width:<?= $progress ?>%"></div>
             </div>
+            <p class="text-xs mt-2 <?= $remainingAmount > 0 ? 'text-red-400/90' : 'text-green-400/90' ?>">
+                Remaining total amount: $<?= number_format($remainingAmount, 2) ?>
+            </p>
         </div>
     </div>
 

@@ -131,6 +131,16 @@ $activeAccounts = array_values(array_filter($accounts, fn($a) => (int) ($a['is_a
 $_lq = ledger_build_query($filters);
 $_pgLedger = paginate_query($pdo, $_lq['select'] . $_lq['base'] . $_lq['order'], $_lq['count'] . $_lq['base'], $_lq['params'], $page, $perPage);
 $entries  = $_pgLedger['rows'];
+usort($entries, static function (array $a, array $b): int {
+    $aId = (int) ($a['id'] ?? 0);
+    $bId = (int) ($b['id'] ?? 0);
+    if ($aId !== $bId) {
+        return $bId <=> $aId;
+    }
+    $aTs = strtotime((string) ($a['posted_at'] ?? '')) ?: 0;
+    $bTs = strtotime((string) ($b['posted_at'] ?? '')) ?: 0;
+    return $bTs <=> $aTs;
+});
 $totals = ledger_get_totals($pdo, $fDateFrom, $fDateTo);
 
 $totalIncome = (float) $totals['total_income'];
@@ -232,31 +242,31 @@ require_once __DIR__ . '/../includes/header.php';
 
     <!--  ”  ”  Ledger Table  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
-        <div
-            class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between px-6 py-4 border-b border-mb-subtle/10">
-            <h2 class="text-white font-light">Ledger</h2>
-            <div class="flex flex-wrap gap-2 items-center">
+        <div class="px-6 py-4 border-b border-mb-subtle/10">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <h2 class="text-white font-light leading-none m-0 shrink-0">Ledger</h2>
+                <div class="flex flex-wrap gap-2 items-center lg:justify-end">
                 <!-- Filters -->
                 <form method="GET" class="flex flex-wrap gap-2 items-center">
                     <select name="type" onchange="this.form.submit()"
-                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-mb-accent">
+                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
                         <option value="">All Types</option>
                         <option value="income" <?= $fType === 'income' ? 'selected' : '' ?>>Income</option>
                         <option value="expense" <?= $fType === 'expense' ? 'selected' : '' ?>>Expense</option>
                     </select>
                     <select name="source" onchange="this.form.submit()"
-                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-mb-accent">
+                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
                         <option value="">All Sources</option>
                         <option value="reservation" <?= $fSource === 'reservation' ? 'selected' : '' ?>>Reservations
                         </option>
                         <option value="manual" <?= $fSource === 'manual' ? 'selected' : '' ?>>Manual</option>
                     </select>
                     <input type="date" name="date_from" value="<?= e($fDateFrom) ?>"
-                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-mb-accent">
+                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
                     <input type="date" name="date_to" value="<?= e($fDateTo) ?>"
-                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-mb-accent">
+                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
                     <select name="account" onchange="this.form.submit()"
-                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-mb-accent">
+                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
                         <option value="">All Accounts</option>
                         <?php foreach ($accounts as $acc): ?>
                             <option value="<?= $acc['id'] ?>" <?= $fAccount == $acc['id'] ? 'selected' : '' ?>>
@@ -265,17 +275,18 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php endforeach; ?>
                     </select>
                     <button type="submit"
-                        class="bg-mb-accent/15 text-mb-accent border border-mb-accent/30 px-3 py-1.5 rounded-lg text-xs hover:bg-mb-accent/25 transition-colors">
+                        class="bg-mb-accent/15 text-mb-accent border border-mb-accent/30 px-3 h-10 rounded-lg text-xs hover:bg-mb-accent/25 transition-colors">
                         Apply
                     </button>
                 </form>
                 <!-- Add buttons -->
                 <button onclick="openEntryModal('income')"
-                    class="text-xs bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1.5 rounded-full hover:bg-green-500/20 transition-colors whitespace-nowrap">+
+                    class="text-xs bg-green-500/10 text-green-400 border border-green-500/20 px-4 h-10 rounded-full hover:bg-green-500/20 transition-colors whitespace-nowrap">+
                     Income</button>
                 <button onclick="openEntryModal('expense')"
-                    class="text-xs bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-full hover:bg-red-500/20 transition-colors whitespace-nowrap">+
+                    class="text-xs bg-red-500/10 text-red-400 border border-red-500/20 px-4 h-10 rounded-full hover:bg-red-500/20 transition-colors whitespace-nowrap">+
                     Expense</button>
+                </div>
             </div>
         </div>
 

@@ -141,14 +141,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'pay') {
 
             $monthName = date('F', mktime(0, 0, 0, $pay['month'], 1));
             $desc = "Salary  “ {$pay['staff_name']} ($monthName {$pay['year']})";
+            $nowSql = app_now_sql();
 
             // Post to ledger as expense
             $ledgerId = null;
             $pdo->prepare("INSERT INTO ledger_entries
                 (txn_type, category, description, amount, payment_mode, bank_account_id,
                  source_type, source_id, source_event, posted_at, created_by)
-                VALUES ('expense', 'Salary', ?, ?, 'account', ?, 'payroll', ?, 'salary_payment', NOW(), ?)")
-                ->execute([$desc, $pay['net_salary'], $bankAcctId, $payrollId, current_user()['id']]);
+                VALUES ('expense', 'Salary', ?, ?, 'account', ?, 'payroll', ?, 'salary_payment', ?, ?)")
+                ->execute([$desc, $pay['net_salary'], $bankAcctId, $payrollId, $nowSql, current_user()['id']]);
             $ledgerId = (int) $pdo->lastInsertId();
 
             // Deduct bank balance
@@ -156,8 +157,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'pay') {
                 ->execute([$pay['net_salary'], $bankAcctId]);
 
             // Mark payroll as Paid
-            $pdo->prepare("UPDATE payroll SET status='Paid', payment_date=NOW(), paid_from_account_id=?, ledger_entry_id=? WHERE id=?")
-                ->execute([$bankAcctId, $ledgerId, $payrollId]);
+            $pdo->prepare("UPDATE payroll SET status='Paid', payment_date=?, paid_from_account_id=?, ledger_entry_id=? WHERE id=?")
+                ->execute([$nowSql, $bankAcctId, $ledgerId, $payrollId]);
 
             $pdo->commit();
             flash('success', "Salary paid to {$pay['staff_name']} and ledger entry created.");

@@ -14,18 +14,26 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS notifications (
 ) ENGINE=InnoDB");
 
 // Auto-generate notifications for due-soon reservations (idempotent – won't duplicate today)
-$dueSoon = $pdo->query("
-    SELECT r.id, c.name AS client, v.brand, v.model, r.end_date,
-           DATEDIFF(DATE(r.end_date), CURDATE()) AS days_left
+$todayDate = app_today_sql();
+$cutoffDate = date('Y-m-d', strtotime($todayDate . ' +2 days'));
+$dueSoonStmt = $pdo->prepare("
+    SELECT r.id, c.name AS client, v.brand, v.model, r.end_date
     FROM reservations r
     JOIN clients c ON r.client_id = c.id
-    JOIN vehicles v ON r.vehicle_id = v.id
+    JOIN vehicles v ON v.id = r.vehicle_id
     WHERE r.status = 'active'
-      AND DATE(r.end_date) <= DATE_ADD(CURDATE(), INTERVAL 2 DAY)
-")->fetchAll();
+      AND DATE(r.end_date) <= ?
+");
+$dueSoonStmt->execute([$cutoffDate]);
+$dueSoon = $dueSoonStmt->fetchAll();
 
 foreach ($dueSoon as $row) {
-    $daysLeft = (int) $row['days_left'];
+    $endDateTs = strtotime((string) ($row['end_date'] ?? ''));
+    $todayTs = strtotime($todayDate . ' 00:00:00');
+    if ($endDateTs === false || $todayTs === false) {
+        continue;
+    }
+    $daysLeft = (int) floor((strtotime(date('Y-m-d', $endDateTs) . ' 00:00:00') - $todayTs) / 86400);
     $type = $daysLeft <= 0 ? 'overdue' : ($daysLeft === 0 ? 'due_today' : 'due_soon');
     if ($daysLeft < 0) {
         $type = 'overdue';
@@ -38,8 +46,8 @@ foreach ($dueSoon as $row) {
         $msg = "🟡 Due Soon: {$row['client']}'s {$row['brand']} {$row['model']} is due in {$daysLeft} day(s).";
     }
     // Only insert if no notification exists for this reservation created today
-    $exists = $pdo->prepare("SELECT id FROM notifications WHERE reservation_id = ? AND DATE(created_at) = CURDATE()");
-    $exists->execute([$row['id']]);
+    $exists = $pdo->prepare("SELECT id FROM notifications WHERE reservation_id = ? AND DATE(created_at) = ?");
+    $exists->execute([$row['id'], $todayDate]);
     if (!$exists->fetch()) {
         $pdo->prepare("INSERT INTO notifications (type, message, reservation_id) VALUES (?, ?, ?)")
             ->execute([$type, $msg, $row['id']]);

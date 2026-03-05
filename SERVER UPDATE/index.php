@@ -178,7 +178,7 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
             </div>
             <?= statCard('Enquiries',$enquiries) ?>
             <?= statCard('Closed Deals',$closedDeals) ?>
-            <?= statCard('New Clients',$newClients) ?>
+            <?= statCard('Clients',$newClients) ?>
         </div>
     </section>
 
@@ -304,7 +304,7 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <?php if($showV):?><a href="vehicles/index.php" class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg hover:border-mb-accent/30 transition-all"><p class="text-mb-subtle text-xs uppercase mb-2">Vehicles</p><p class="text-3xl font-light text-white"><?= $availableCars ?></p><p class="text-xs text-mb-subtle mt-1">available now</p></a><?php endif;?>
             <?php if($showR):?><a href="reservations/index.php?due_today=1" class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg hover:border-mb-accent/30 transition-all"><p class="text-mb-subtle text-xs uppercase mb-2">Returns Today</p><p class="text-3xl font-light text-white"><?= $todayReturns ?></p><p class="text-xs text-mb-subtle mt-1">vehicles due back</p></a><a href="reservations/index.php" class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg hover:border-mb-accent/30 transition-all"><p class="text-mb-subtle text-xs uppercase mb-2">Enquiries</p><p class="text-3xl font-light text-white"><?= $enquiries ?></p><p class="text-xs text-mb-subtle mt-1">today</p></a><?php endif;?>
-            <?php if($showC):?><a href="clients/index.php" class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg hover:border-mb-accent/30 transition-all"><p class="text-mb-subtle text-xs uppercase mb-2">New Clients</p><p class="text-3xl font-light text-white"><?= $newClients ?></p><p class="text-xs text-mb-subtle mt-1">today</p></a><?php endif;?>
+            <?php if($showC):?><a href="clients/index.php" class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg hover:border-mb-accent/30 transition-all"><p class="text-mb-subtle text-xs uppercase mb-2">Clients</p><p class="text-3xl font-light text-white"><?= $newClients ?></p><p class="text-xs text-mb-subtle mt-1">today</p></a><?php endif;?>
             <?php if($showL):?><a href="leads/pipeline.php" class="bg-mb-surface border <?= $overdueFollowups>0?'border-red-500/30 bg-red-500/5':'border-mb-subtle/20' ?> p-5 rounded-lg hover:border-mb-accent/30 transition-all"><p class="text-mb-subtle text-xs uppercase mb-2">Overdue Follow-ups</p><p class="text-3xl font-light <?= $overdueFollowups>0?'text-red-400':'text-white' ?>"><?= $overdueFollowups ?></p><p class="text-xs text-mb-subtle mt-1"><?= $overdueFollowups>0?'Action needed':'All clear' ?></p></a><?php endif;?>
         </div>
     </section>

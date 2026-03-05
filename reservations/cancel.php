@@ -56,8 +56,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->beginTransaction();
 
             // 1. Mark reservation cancelled
-            $pdo->prepare("UPDATE reservations SET status='cancelled', cancellation_reason=?, cancelled_at=NOW(), cancellation_by=?, refund_amount=? WHERE id=?")
-                ->execute([$reason, $admin['id'], $refund, $id]);
+            $nowSql = app_now_sql();
+            $pdo->prepare("UPDATE reservations SET status='cancelled', cancellation_reason=?, cancelled_at=?, cancellation_by=?, refund_amount=? WHERE id=?")
+                ->execute([$reason, $nowSql, $admin['id'], $refund, $id]);
 
             // 2. Free up the vehicle
             $pdo->prepare("UPDATE vehicles SET status='available' WHERE id=?")->execute([$r['vid']]);
@@ -70,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $bankId = (int)$deliveryBankId;
                 }
                 // If cash, no bank account to adjust; for account payments reduce bank balance
-                $now = (new DateTime('now', new DateTimeZone('Asia/Kolkata')))->format('Y-m-d H:i:s');
+                $now = app_now_sql();
                 $pdo->prepare("INSERT INTO ledger_entries (txn_type,category,description,amount,payment_mode,bank_account_id,source_type,source_id,source_event,posted_at,created_by) VALUES ('expense','Reservation Cancellation Refund',?,?,?,?,'reservation',?,'cancellation',?,?)")
                     ->execute(["Refund — Reservation #$id cancelled. Reason: $reason", $refund, $deliveryMethod, $bankId, $id, $now, $admin['id']]);
                 // Adjust bank balance if payment was account-based

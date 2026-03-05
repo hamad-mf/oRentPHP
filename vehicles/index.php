@@ -10,9 +10,9 @@ vehicle_ensure_schema($pdo);
 $search = trim($_GET['search'] ?? '');
 $status = $_GET['status'] ?? '';
 $rentedDate = trim($_GET['rented_date'] ?? '');
-$sort = strtolower(trim($_GET['sort'] ?? 'desc'));
+$sort = strtolower(trim($_GET['sort'] ?? 'asc'));
 if (!in_array($sort, ['asc', 'desc'], true)) {
-    $sort = 'desc';
+    $sort = 'asc';
 }
 $orderDirection = strtoupper($sort);
 
@@ -129,7 +129,7 @@ require_once __DIR__ . '/../includes/header.php';
                 'status' => $card['filter'],
                 'search' => $search,
                 'rented_date' => $rentedDate,
-                'sort' => $sort !== 'desc' ? $sort : null,
+                'sort' => $sort !== 'asc' ? $sort : null,
             ], static fn($v) => $v !== null && $v !== ''));
             $activeBorder = $card['active'] ? ($borderActive[$card['filter']] ?? 'border-white/20') : '';
             ?>
@@ -168,7 +168,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <option value="asc" <?= $sort === 'asc' ? 'selected' : '' ?>>Oldest first</option>
             </select>
             <button type="submit" class="text-mb-silver hover:text-white text-sm transition-colors">Search</button>
-            <?php if ($search || $status || $rentedDate || $sort !== 'desc'): ?><a href="index.php"
+            <?php if ($search || $status || $rentedDate || $sort !== 'asc'): ?><a href="index.php"
                     class="text-mb-subtle hover:text-white text-sm transition-colors">Clear</a>
             <?php endif; ?>
         </form>
@@ -492,7 +492,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 
 <?php
-$_vqp = array_filter(['search' => $search, 'status' => $status, 'rented_date' => $rentedDate, 'sort' => ($sort !== 'desc' ? $sort : null)], fn($v) => $v !== null && $v !== '');
+$_vqp = array_filter(['search' => $search, 'status' => $status, 'rented_date' => $rentedDate, 'sort' => ($sort !== 'asc' ? $sort : null)], fn($v) => $v !== null && $v !== '');
 echo render_pagination($pgResult, $_vqp);
 ?>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

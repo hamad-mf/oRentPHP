@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/activity_log.php';
+require_once __DIR__ . '/../includes/client_helpers.php';
 auth_check();
 if (!auth_has_perm('add_leads')) {
     flash('error', 'You are not allowed to convert leads.');
@@ -10,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     redirect('../leads/index.php');
 }
 $pdo = db();
+clients_ensure_schema($pdo);
 $id = (int) ($_POST['id'] ?? 0);
 if (!$id) {
     flash('error', 'Invalid lead selected.');
@@ -60,7 +62,12 @@ try {
 
     if (!$clientId) {
         $pdo->prepare('INSERT INTO clients (name, phone, email, notes) VALUES (?,?,?,?)')
-            ->execute([$lead['name'], $lead['phone'], $lead['email'], 'Converted from lead #' . $id]);
+            ->execute([
+                $lead['name'],
+                $lead['phone'],
+                ($leadEmail !== '' ? $leadEmail : null),
+                'Converted from lead #' . $id
+            ]);
         $clientId = (int) $pdo->lastInsertId();
     }
 

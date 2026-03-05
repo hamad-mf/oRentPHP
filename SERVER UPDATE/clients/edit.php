@@ -1,11 +1,13 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/client_helpers.php';
 if (!auth_has_perm('manage_clients')) {
     flash('error', 'You do not have permission to edit clients.');
     redirect('index.php');
 }
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
+clients_ensure_schema($pdo);
 $cStmt = $pdo->prepare('SELECT * FROM clients WHERE id=?');
 $cStmt->execute([$id]);
 $c = $cStmt->fetch();

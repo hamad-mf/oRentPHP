@@ -1,9 +1,13 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/client_helpers.php';
 if (!auth_has_perm('manage_clients')) {
     flash('error', 'You do not have permission to add clients.');
     redirect('index.php');
 }
+
+$pdo = db();
+clients_ensure_schema($pdo);
 
 $errors = [];
 
@@ -22,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['phone'] = 'Phone is required.';
 
     if ($email && !isset($errors['email'])) {
-        $chk = db()->prepare('SELECT id FROM clients WHERE email = ?');
+        $chk = $pdo->prepare('SELECT id FROM clients WHERE email = ?');
         $chk->execute([$email]);
         if ($chk->fetch())
             $errors['email'] = 'Email already in use.';
@@ -48,9 +52,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (empty($errors)) {
-            $stmt = db()->prepare('INSERT INTO clients (name,email,phone,address,notes,proof_file) VALUES (?,?,?,?,?,?)');
+            $stmt = $pdo->prepare('INSERT INTO clients (name,email,phone,address,notes,proof_file) VALUES (?,?,?,?,?,?)');
             $stmt->execute([$name, $email ?: null, $phone, $address, $notes, $proofFile]);
-            $id = db()->lastInsertId();
+            $id = $pdo->lastInsertId();
             app_log('ACTION', "Created client: $name (ID: $id)");
             flash('success', "Client $name added successfully.");
             redirect("show.php?id=$id");

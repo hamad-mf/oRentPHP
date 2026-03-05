@@ -11,6 +11,29 @@
  * Automatically included via config/db.php — no manual includes needed.
  */
 
+// Global app timezone baseline for all date()/time()/strtotime() usage.
+if (!defined('APP_TIMEZONE')) {
+    define('APP_TIMEZONE', 'Asia/Kolkata');
+}
+if (date_default_timezone_get() !== APP_TIMEZONE) {
+    date_default_timezone_set(APP_TIMEZONE);
+}
+
+function app_now(): DateTimeImmutable
+{
+    return new DateTimeImmutable('now', new DateTimeZone(APP_TIMEZONE));
+}
+
+function app_now_sql(): string
+{
+    return app_now()->format('Y-m-d H:i:s');
+}
+
+function app_today_sql(): string
+{
+    return app_now()->format('Y-m-d');
+}
+
 /**
  * Write a log entry to the daily log file.
  *
@@ -21,8 +44,7 @@
 function app_log(string $level, string $message, array $context = []): void
 {
     try {
-        // Use IST timezone
-        $now = new DateTime('now', new DateTimeZone('Asia/Kolkata'));
+        $now = app_now();
         $timestamp = $now->format('Y-m-d H:i:s');
         $date = $now->format('Y-m-d');
 

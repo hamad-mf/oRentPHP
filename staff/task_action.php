@@ -18,8 +18,8 @@ if ($act === 'complete' && $tid > 0) {
     if (!$t->fetch()) {
         echo json_encode(['ok'=>false,'message'=>'Task not found or already completed.']); exit;
     }
-    $pdo->prepare('UPDATE staff_tasks SET status="completed",completion_note=?,completed_at=NOW() WHERE id=?')
-        ->execute([$note ?: null, $tid]);
+    $pdo->prepare('UPDATE staff_tasks SET status="completed",completion_note=?,completed_at=? WHERE id=?')
+        ->execute([$note ?: null, app_now_sql(), $tid]);
     echo json_encode(['ok'=>true,'message'=>'Task marked as complete!']);
 } else {
     echo json_encode(['ok'=>false,'message'=>'Invalid request.']);

@@ -130,10 +130,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $existingId = (int) ($fallbackStmt->fetchColumn() ?: 0);
         }
 
+        $nowSql = app_now_sql();
         if ($existingId > 0) {
             $upd = $pdo->prepare("
                 UPDATE gps_tracking
-                SET reservation_id = ?, vehicle_id = ?, last_location = ?, tracking_active = ?, notes = ?, last_seen = NOW(), updated_by = ?, updated_at = NOW()
+                SET reservation_id = ?, vehicle_id = ?, last_location = ?, tracking_active = ?, notes = ?, last_seen = ?, updated_by = ?, updated_at = ?
                 WHERE id = ?
             ");
             $upd->execute([
@@ -142,13 +143,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $lastLocation !== '' ? $lastLocation : null,
                 $trackingActive,
                 $inactiveReason !== '' ? $inactiveReason : null,
+                $nowSql,
                 $userId ?: null,
+                $nowSql,
                 $existingId
             ]);
         } else {
             $ins = $pdo->prepare("
                 INSERT INTO gps_tracking (reservation_id, vehicle_id, last_location, tracking_active, notes, last_seen, updated_by, updated_at)
-                VALUES (?, ?, ?, ?, ?, NOW(), ?, NOW())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $ins->execute([
                 $reservationId,
@@ -156,7 +159,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $lastLocation !== '' ? $lastLocation : null,
                 $trackingActive,
                 $inactiveReason !== '' ? $inactiveReason : null,
-                $userId ?: null
+                $nowSql,
+                $userId ?: null,
+                $nowSql
             ]);
         }
 

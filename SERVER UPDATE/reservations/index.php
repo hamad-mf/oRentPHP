@@ -27,6 +27,13 @@ $isValidDate = static function (string $date): bool {
     $dt = DateTime::createFromFormat('Y-m-d', $date);
     return $dt instanceof DateTime && $dt->format('Y-m-d') === $date;
 };
+$formatDateTime12 = static function (?string $datetime): string {
+    if (!$datetime) {
+        return '';
+    }
+    $ts = strtotime($datetime);
+    return $ts === false ? $datetime : date('d M Y, h:i A', $ts);
+};
 
 if (!$isValidDate($fromDate)) {
     $fromDate = '';
@@ -230,8 +237,8 @@ require_once __DIR__ . '/../includes/header.php';
                                     </p>
                                 </td>
                                 <td class="px-6 py-4 text-mb-silver text-xs">
-                                    <?= e($r['start_date']) ?>   ’
-                                    <?= e($r['end_date']) ?>
+                                    <?= e($formatDateTime12($r['start_date'])) ?> to
+                                    <?= e($formatDateTime12($r['end_date'])) ?>
                                     <?php if ($overdue): ?>
                                         <span
                                             class="ml-2 text-xs bg-red-500/20 text-red-400 border border-red-500/30 rounded-full px-2 py-0.5 animate-pulse">Overdue</span>
