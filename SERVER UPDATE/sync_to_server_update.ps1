@@ -1,41 +1,78 @@
 <#
   sync_to_server_update.ps1
-  Copies ALL oRentPHP files → SERVER UPDATE, file by file.
-  Only skips config/db.php (server has its own credentials).
+  Syncs oRentPHP files → SERVER UPDATE, then optionally pushes to GitHub
+  so Hostinger auto-deploys via its Git integration.
 
   Usage:
-    powershell -ExecutionPolicy Bypass -File ".\sync_to_server_update.ps1"
+    Sync only:
+      powershell -ExecutionPolicy Bypass -File ".\sync_to_server_update.ps1"
+
+    Sync + push to GitHub (triggers Hostinger auto-deploy):
+      powershell -ExecutionPolicy Bypass -File ".\sync_to_server_update.ps1" -Deploy
+
+    With custom commit message:
+      powershell -ExecutionPolicy Bypass -File ".\sync_to_server_update.ps1" -Deploy -Message "add feature"
 #>
+
+param(
+    [switch]$Deploy,
+    [string]$Message = ""
+)
 
 $src = $PSScriptRoot
 $dst = Join-Path $PSScriptRoot "SERVER UPDATE"
 
 if (-not (Test-Path $dst)) {
-    Write-Host "  ERROR: SERVER UPDATE folder not found at $dst" -ForegroundColor Red
+    Write-Host "  ERROR: SERVER UPDATE folder not found." -ForegroundColor Red
     exit 1
 }
 
+# ── Phase 1: Sync files ───────────────────────────────────────────────────
 Write-Host ""
-Write-Host "  Syncing oRentPHP → SERVER UPDATE..." -ForegroundColor Cyan
+Write-Host "  Syncing oRentPHP -> SERVER UPDATE..." -ForegroundColor Cyan
 
 $copied  = 0
 $skipped = 0
 
-# Get every file inside $src, skip SERVER UPDATE folder and .git
 $allFiles = Get-ChildItem -Path $src -File -Recurse | Where-Object {
-    $rel = $_.FullName.Substring($src.Length + 1)
-    # Never copy db.php
-    if ($rel -eq 'config\db.php') { return $false }
-    # Never recurse into SERVER UPDATE, .git, or uploads
+    $rel      = $_.FullName.Substring($src.Length + 1)
     $topLevel = $rel.Split('\')[0]
-    $topLevel -notin @('SERVER UPDATE', '.git', 'uploads')
+
+    # Skip these top-level folders
+    if ($topLevel -in @('SERVER UPDATE', '.git', 'uploads')) { return $false }
+
+    # Skip dev-only / sensitive files
+    $skipFiles = @(
+        'config\db.php',
+        'attendance_migrate.php',
+        'auth_migrate.php',
+        'UPDATE_SESSION_RULES.md',
+        'wipe_and_reset.sql',
+        'wipe_sql_diff.php',
+        'tmp_schema_init.php',
+        'schema_diff.php',
+        'reset_admin.php',
+        'PRODUCTION_DB_STEPS.md',
+        'precise_audit.php',
+        'PAGINATION_IMPLEMENTATION_PLAN.md',
+        'generate_wipe_sql.php',
+        'dummy_data.sql',
+        'database.sql',
+        'compare_schema_vs_wipe.php',
+        'audit_columns.php',
+        'ACCOUNT_IMPLEMENTATION.md'
+        
+    )
+    if ($rel -in $skipFiles) { return $false }
+    if ($rel -like '*.rar')  { return $false }
+
+    return $true
 }
 
 foreach ($file in $allFiles) {
     $rel     = $file.FullName.Substring($src.Length + 1)
     $dstPath = Join-Path $dst $rel
 
-    # Compare content — copy if different or missing
     $needsCopy = $true
     if (Test-Path $dstPath) {
         $h1 = (Get-FileHash $file.FullName -Algorithm MD5).Hash
@@ -56,4 +93,27 @@ foreach ($file in $allFiles) {
 
 Write-Host ""
 Write-Host "  Done: $copied synced, $skipped already up to date." -ForegroundColor Cyan
+
+# ── Phase 2: Git push → triggers Hostinger auto-deploy ───────────────────
+if (-not $Deploy) {
+    Write-Host "  Tip: run with -Deploy to push to GitHub and auto-deploy to Hostinger." -ForegroundColor DarkGray
+    Write-Host ""
+    exit 0
+}
+
+Write-Host ""
+Write-Host "  Pushing to GitHub (Hostinger will auto-deploy)..." -ForegroundColor Yellow
+
+Set-Location $dst
+
+$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
+$commitMsg = if ($Message -ne "") { $Message } else { "deploy: $timestamp" }
+
+& git add -A
+& git commit -m "$commitMsg"
+& git push origin main
+
+Write-Host ""
+Write-Host "  Pushed! Hostinger is now deploying automatically." -ForegroundColor Green
+Write-Host "  Check: https://orentin.abrarfuturetech.com" -ForegroundColor Cyan
 Write-Host ""

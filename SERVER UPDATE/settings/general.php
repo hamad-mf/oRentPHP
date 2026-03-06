@@ -24,6 +24,9 @@ if (settings_get($pdo, 'per_page', '') === '') {
 if (settings_get($pdo, 'pipeline_pagination_enabled', '') === '') {
     settings_set($pdo, 'pipeline_pagination_enabled', '1');
 }
+if (settings_get($pdo, 'auto_close_lost_after_followups', '') === '') {
+    settings_set($pdo, 'auto_close_lost_after_followups', '0');
+}
 
 $leadSources = lead_sources_get_map($pdo);
 
@@ -40,6 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     settings_set($pdo, 'per_page', (string) $perPage);
     $pipelinePaginationEnabled = ((int) ($_POST['pipeline_pagination_enabled'] ?? 0)) === 1 ? '1' : '0';
     settings_set($pdo, 'pipeline_pagination_enabled', $pipelinePaginationEnabled);
+    $autoCloseAfter = min(4, max(0, (int) ($_POST['auto_close_lost_after_followups'] ?? 0)));
+    settings_set($pdo, 'auto_close_lost_after_followups', (string) $autoCloseAfter);
     $deliveryIncentivePer = max(0, (float) ($_POST['delivery_incentive_per_delivery'] ?? 0));     settings_set($pdo, 'delivery_incentive_per_delivery', (string)$deliveryIncentivePer);
     app_log('ACTION', 'Updated general settings');
     flash('success', 'Settings saved successfully.');
@@ -52,6 +57,7 @@ $deliveryChargeDefault = (float) settings_get($pdo, 'delivery_charge_default', '
 $leadIncentivePerLead = (float) settings_get($pdo, 'lead_incentive_per_lead', '0');
 $perPageSetting = (int) settings_get($pdo, 'per_page', '25');
 $pipelinePaginationEnabledSetting = settings_get($pdo, 'pipeline_pagination_enabled', '1') !== '0';
+$autoCloseAfterSetting = (int) settings_get($pdo, 'auto_close_lost_after_followups', '0');
 $deliveryIncentiveSetting = (float) settings_get($pdo, 'delivery_incentive_per_delivery', '0');
 
 $pageTitle = 'Settings';
@@ -195,6 +201,21 @@ require_once __DIR__ . '/../includes/header.php';
                         <span class="w-12 h-6 rounded-full bg-mb-black border border-mb-subtle/30 transition-colors peer-checked:bg-mb-accent peer-checked:border-mb-accent/60"></span>
                         <span class="absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-white transition-transform peer-checked:translate-x-6"></span>
                     </label>
+                </div>
+            </div>
+            <div class="pt-4 border-t border-mb-subtle/10">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <label class="block text-sm text-mb-silver mb-1">Auto-close Lost after Follow-ups</label>
+                        <p class="text-xs text-mb-subtle">Automatically move lead to Closed Lost after this many follow-ups.</p>
+                    </div>
+                    <select name="auto_close_lost_after_followups" class="bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
+                        <option value="0" <?= $autoCloseAfterSetting === 0 ? 'selected' : '' ?>>Disabled</option>
+                        <option value="1" <?= $autoCloseAfterSetting === 1 ? 'selected' : '' ?>>1 follow-up</option>
+                        <option value="2" <?= $autoCloseAfterSetting === 2 ? 'selected' : '' ?>>2 follow-ups</option>
+                        <option value="3" <?= $autoCloseAfterSetting === 3 ? 'selected' : '' ?>>3 follow-ups</option>
+                        <option value="4" <?= $autoCloseAfterSetting === 4 ? 'selected' : '' ?>>4 follow-ups</option>
+                    </select>
                 </div>
             </div>
         </div>

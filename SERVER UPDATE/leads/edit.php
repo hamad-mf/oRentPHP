@@ -76,6 +76,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        $autoCloseAfter = (int) settings_get($pdo, 'auto_close_lost_after_followups', '0');
+        if ($newStatus === 'closed_lost' && $autoCloseAfter > 0 && $lead['status'] !== 'closed_lost') {
+            http_response_code(422);
+            echo json_encode(['ok' => false, 'message' => 'Cannot manually close to Lost. Leads auto-close after ' . $autoCloseAfter . ' follow-ups when this setting is enabled.']);
+            exit;
+        }
+
         if ($newStatus === 'closed_lost' && $lostReason === '') {
             http_response_code(422);
             echo json_encode(['ok' => false, 'message' => 'Lost reason is required when closing a lead as lost.']);
@@ -129,6 +136,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['status'] = 'Please select a valid lead status.';
     if ($status === 'closed_lost' && !$lostReason)
         $errors['lost_reason'] = 'Please document the reason for closing as lost.';
+
+    $autoCloseAfter = (int) settings_get($pdo, 'auto_close_lost_after_followups', '0');
+    if ($status === 'closed_lost' && $autoCloseAfter > 0 && $lead['status'] !== 'closed_lost') {
+        $errors['status'] = 'Cannot manually close to Lost. Leads auto-close after ' . $autoCloseAfter . ' follow-ups when this setting is enabled.';
+    }
 
     if (empty($errors)) {
         $nowSql = app_now_sql();

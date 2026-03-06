@@ -609,6 +609,12 @@ require_once __DIR__ . '/../includes/header.php';
 <?php endif; ?>
 
 <style>
+    @media (max-width: 767px) {
+        .pipeline-column {
+            width: 86vw;
+            max-width: 340px;
+        }
+    }
 </style>
 
 <script>
@@ -872,8 +878,9 @@ require_once __DIR__ . '/../includes/header.php';
             if (!pendingDialNumber) {
                 return;
             }
+            const dialNumber = pendingDialNumber;
             closeContactChoice();
-            window.location.href = 'tel:' + pendingDialNumber;
+            window.location.href = 'tel:' + dialNumber;
         });
     }
     if (contactWhatsBtn) {
@@ -881,8 +888,9 @@ require_once __DIR__ . '/../includes/header.php';
             if (!pendingWaNumber) {
                 return;
             }
+            const waNumber = pendingWaNumber;
             closeContactChoice();
-            window.open('https://wa.me/' + pendingWaNumber, '_blank', 'noopener,noreferrer');
+            window.open('https://wa.me/' + waNumber, '_blank', 'noopener,noreferrer');
         });
     }
     if (contactChoiceModal) {

@@ -89,23 +89,25 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="px-6 py-4 border-b border-mb-subtle/10">
                 <h4 class="text-white text-sm font-medium">Stored Keys (auto-generated)</h4>
             </div>
-            <table class="w-full text-left">
-                <thead>
-                    <tr
-                        class="bg-mb-black/40 text-mb-subtle text-xs uppercase tracking-widest border-b border-mb-subtle/10">
-                        <th class="px-6 py-3 font-medium">Label</th>
-                        <th class="px-6 py-3 font-medium">Key</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-mb-subtle/10">
-                    <?php foreach ($leadSources as $value => $label): ?>
-                        <tr>
-                            <td class="px-6 py-3 text-white"><?= e($label) ?></td>
-                            <td class="px-6 py-3 text-mb-silver text-sm"><?= e($value) ?></td>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr
+                            class="bg-mb-black/40 text-mb-subtle text-xs uppercase tracking-widest border-b border-mb-subtle/10">
+                            <th class="px-6 py-3 font-medium">Label</th>
+                            <th class="px-6 py-3 font-medium">Key</th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="divide-y divide-mb-subtle/10">
+                        <?php foreach ($leadSources as $value => $label): ?>
+                            <tr>
+                                <td class="px-6 py-3 text-white"><?= e($label) ?></td>
+                                <td class="px-6 py-3 text-mb-silver text-sm"><?= e($value) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="flex items-center justify-end gap-4">

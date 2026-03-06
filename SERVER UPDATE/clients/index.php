@@ -64,7 +64,7 @@ require_once __DIR__ . '/../includes/header.php';
     <?php endif; ?>
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-lg p-4 text-center">
             <p class="text-3xl font-light text-white">
                 <?= $totalCount ?>
@@ -129,20 +129,21 @@ require_once __DIR__ . '/../includes/header.php';
                 <p class="text-mb-subtle text-lg">No clients found.</p>
             </div>
         <?php else: ?>
-            <table class="w-full text-sm">
-                <thead class="border-b border-mb-subtle/10 bg-mb-black/30">
-                    <tr class="text-mb-subtle text-xs uppercase">
-                        <th class="px-6 py-4 text-left">Client</th>
-                        <th class="px-6 py-4 text-left">Contact</th>
-                        <th class="px-6 py-4 text-center">Rating</th>
-                        <th class="px-6 py-4 text-center">Rentals</th>
-                        <th class="px-6 py-4 text-left">Status</th>
-                        <th class="px-6 py-4 text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-mb-subtle/10">
-                    <?php foreach ($clients as $c): ?>
-                        <tr class="hover:bg-mb-black/30 transition-colors <?= $c['is_blacklisted'] ? 'opacity-70' : '' ?>">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="border-b border-mb-subtle/10 bg-mb-black/30">
+                        <tr class="text-mb-subtle text-xs uppercase">
+                            <th class="px-6 py-4 text-left">Client</th>
+                            <th class="px-6 py-4 text-left">Contact</th>
+                            <th class="px-6 py-4 text-center">Rating</th>
+                            <th class="px-6 py-4 text-center">Rentals</th>
+                            <th class="px-6 py-4 text-left">Status</th>
+                            <th class="px-6 py-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-mb-subtle/10">
+                        <?php foreach ($clients as $c): ?>
+                            <tr class="hover:bg-mb-black/30 transition-colors <?= $c['is_blacklisted'] ? 'opacity-70' : '' ?>">
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-3">
                                     <div
@@ -215,10 +216,11 @@ require_once __DIR__ . '/../includes/header.php';
                                     <?php endif; ?>
                                 </div>
                             </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         <?php endif; ?>
     </div>
 </div>

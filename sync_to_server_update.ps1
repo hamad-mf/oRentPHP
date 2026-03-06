@@ -46,7 +46,22 @@ $allFiles = Get-ChildItem -Path $src -File -Recurse | Where-Object {
         'config\db.php',
         'attendance_migrate.php',
         'auth_migrate.php',
-        'sync_to_server_update.ps1'
+        'UPDATE_SESSION_RULES.md',
+        'wipe_and_reset.sql',
+        'wipe_sql_diff.php',
+        'tmp_schema_init.php',
+        'schema_diff.php',
+        'reset_admin.php',
+        'PRODUCTION_DB_STEPS.md',
+        'precise_audit.php',
+        'PAGINATION_IMPLEMENTATION_PLAN.md',
+        'generate_wipe_sql.php',
+        'dummy_data.sql',
+        'database.sql',
+        'compare_schema_vs_wipe.php',
+        'audit_columns.php',
+        'ACCOUNT_IMPLEMENTATION.md'
+        
     )
     if ($rel -in $skipFiles) { return $false }
     if ($rel -like '*.rar')  { return $false }

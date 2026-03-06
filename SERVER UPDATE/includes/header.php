@@ -234,14 +234,73 @@ $_notifs = notif_all($pdo);
         *::after {
             transition: background-color 0.25s ease, border-color 0.25s ease, color 0.2s ease;
         }
+
+        /* Shared mobile UI patterns (Batch 2)
+           Keeps logic untouched; only visual/touch usability improvements. */
+        @media (max-width: 767px) {
+            main form input:not([type="checkbox"]):not([type="radio"]),
+            main form select,
+            main form textarea {
+                min-height: 44px;
+                font-size: 16px !important;
+            }
+
+            main form button,
+            main .btn,
+            main a[class*="px-"][class*="py-"] {
+                min-height: 40px;
+            }
+
+            main .bg-mb-surface[class*="rounded-xl"] {
+                border-radius: 0.75rem;
+            }
+
+            /* Mobile table behavior (Batch 3) */
+            main .overflow-x-auto {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            main .overflow-x-auto > table,
+            main .overflow-x-auto table {
+                min-width: 680px;
+            }
+
+            main .overflow-x-auto table th,
+            main .overflow-x-auto table td {
+                white-space: nowrap;
+            }
+
+            main .overflow-x-auto table td.whitespace-normal,
+            main .overflow-x-auto table td.whitespace-pre-wrap,
+            main .overflow-x-auto table th.whitespace-normal,
+            main .overflow-x-auto table th.whitespace-pre-wrap {
+                white-space: normal;
+            }
+
+            /* Common modal panels on mobile */
+            .fixed.inset-0.z-50 > .w-full,
+            .fixed.inset-0.z-\[9999\] > .w-full,
+            .fixed.inset-0.z-\[100\] > .w-full {
+                width: calc(100vw - 1rem);
+                max-width: calc(100vw - 1rem);
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+
+            .select2-container {
+                width: 100% !important;
+            }
+        }
     </style>
 </head>
 
 <body
-    class="bg-mb-black text-white font-sans antialiased h-screen flex selection:bg-mb-accent selection:text-white overflow-hidden">
+    class="bg-mb-black text-white font-sans antialiased h-screen flex selection:bg-mb-accent selection:text-white overflow-x-hidden">
 
     <!-- Sidebar -->
-    <aside class="w-64 bg-mb-surface hidden md:flex flex-col border-r border-mb-subtle/20">
+    <aside id="app-sidebar"
+        class="w-64 max-w-[85vw] bg-mb-surface flex flex-col border-r border-mb-subtle/20 fixed inset-y-0 left-0 z-[70] transform -translate-x-full transition-transform duration-300 ease-in-out shadow-2xl md:static md:z-auto md:translate-x-0 md:shadow-none">
         <div class="h-20 flex items-center justify-center border-b border-mb-subtle/20">
             <div class="flex items-center gap-2">
                 <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -284,7 +343,40 @@ $_notifs = notif_all($pdo);
                 'pipeline' => '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 0v10m0-10a2 2 0 012 2h2a2 2 0 012-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2z"/></svg>',
             ];
 
-            $root = str_repeat('../', max(0, substr_count($_SERVER['PHP_SELF'], '/') - 1));
+            $scriptPath = trim(str_replace('\\', '/', $_SERVER['PHP_SELF'] ?? ''), '/');
+            $segments = $scriptPath === '' ? [] : explode('/', $scriptPath);
+            $moduleDirs = [
+                'vehicles',
+                'clients',
+                'reservations',
+                'investments',
+                'gps',
+                'papers',
+                'expenses',
+                'challans',
+                'staff',
+                'settings',
+                'leads',
+                'accounts',
+                'notifications',
+                'attendance',
+                'auth',
+                'payroll',
+                'dashboard',
+            ];
+            $moduleIdx = null;
+            foreach ($segments as $i => $seg) {
+                if (in_array($seg, $moduleDirs, true)) {
+                    $moduleIdx = $i;
+                    break;
+                }
+            }
+            if ($moduleIdx !== null) {
+                $prefixParts = array_slice($segments, 0, $moduleIdx);
+            } else {
+                $prefixParts = count($segments) > 0 ? array_slice($segments, 0, -1) : [];
+            }
+            $root = '/' . (empty($prefixParts) ? '' : implode('/', $prefixParts) . '/');
 
             // Auth-based nav rendering
             $isAdmin = ($_currentUser['role'] ?? '') === 'admin';
@@ -295,6 +387,11 @@ $_notifs = notif_all($pdo);
 
             if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
                 echo navLink("{$root}vehicles/index.php", 'Vehicles', $icons['vehicles'], $currentDir === 'vehicles');
+                echo '<div class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1">';
+                echo '<a href="' . $root . 'vehicles/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'vehicles' && $currentPage !== 'availability.php' && $currentPage !== 'requests.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle List</a>';
+                echo '<a href="' . $root . 'vehicles/availability.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'availability.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Availability</a>';
+                echo '<a href="' . $root . 'vehicles/requests.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'requests.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Requests</a>';
+                echo '</div>';
             }
             if ($isAdmin || array_intersect(['add_reservations', 'do_delivery', 'do_return'], $cuPerms)) {
                 echo navLink("{$root}reservations/index.php", 'Reservations', $icons['reservations'], $currentDir === 'reservations');
@@ -305,9 +402,9 @@ $_notifs = notif_all($pdo);
             if ($isAdmin || in_array('add_leads', $cuPerms, true)) {
                 echo navLink("{$root}leads/pipeline.php", 'Pipeline', $icons['pipeline'], $currentDir === 'leads');
             }
-            if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
-                echo navLink("{$root}vehicles/requests.php", 'Vehicle Requests', '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>', $currentPage === 'requests.php' && $currentDir === 'vehicles');
-            }
+            // if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
+            //     echo navLink("{$root}vehicles/requests.php", 'Vehicle Requests', '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>', $currentPage === 'requests.php' && $currentDir === 'vehicles');
+            // }
             if ($isAdmin || array_intersect(['add_reservations', 'do_delivery', 'do_return'], $cuPerms)) {
                 echo navLink("{$root}gps/index.php", 'GPS Tracking', $icons['gps'], $currentDir === 'gps');
             }
@@ -322,7 +419,7 @@ $_notifs = notif_all($pdo);
             if ($isAdmin) {
                 echo '<div class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1">';
                 echo '<a href="' . $root . 'staff/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'staff' && $currentPage !== 'tasks.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Staff List</a>';
-                echo '<a href="' . $root . 'staff/tasks.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'tasks.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">&#9711; Staff Tasks</a>';
+                echo '<a href="' . $root . 'staff/tasks.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'tasks.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors"> Staff Tasks</a>';
                 echo '</div>';
             }
             }
@@ -360,17 +457,26 @@ $_notifs = notif_all($pdo);
         </div>
     </aside>
 
+    <div id="app-sidebar-backdrop" class="fixed inset-0 z-[60] bg-black/60 hidden md:hidden"></div>
+
     <!-- Main Content -->
-    <main class="flex-1 flex flex-col overflow-hidden relative">
+    <main class="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative">
         <!-- Header -->
         <header
-            class="h-20 flex items-center justify-between px-8 bg-mb-black/90 sticky top-0 z-50 border-b border-mb-subtle/10">
+            class="h-16 md:h-20 flex items-center justify-between px-4 sm:px-6 md:px-8 bg-mb-black/90 sticky top-0 z-50 border-b border-mb-subtle/10">
             <div class="flex items-center gap-4">
-                <h1 class="text-xl font-light text-white tracking-wide">
+                <button id="sidebar-toggle" type="button"
+                    class="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-lg border border-mb-subtle/30 text-mb-silver hover:text-white hover:border-mb-accent/50 transition-colors"
+                    aria-label="Open menu">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <h1 class="text-lg md:text-xl font-light text-white tracking-wide truncate">
                     <?= e($pageTitle ?? 'Dashboard') ?>
                 </h1>
             </div>
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 sm:gap-4">
                 <?php
                 // Punch In/Out Widget (non-admin staff only)
                 if (($_currentUser['role'] ?? '') !== 'admin'):
@@ -397,8 +503,8 @@ $_notifs = notif_all($pdo);
                     $hasPunchIn  = $attRec2 && $attRec2['punch_in'];
                     $hasPunchOut = $attRec2 && $attRec2['punch_out'];
                     ?>
-                    <div class="flex items-center gap-2 bg-mb-surface border border-mb-subtle/20 rounded-full px-3 py-1.5" id="punch-widget">
-                        <span id="ist-clock" class="text-xs text-mb-silver font-mono tabular-nums"></span>
+                    <div class="flex items-center gap-1 sm:gap-2 bg-mb-surface border border-mb-subtle/20 rounded-full px-2 sm:px-3 py-1.5" id="punch-widget">
+                        <span id="ist-clock" class="hidden sm:inline text-xs text-mb-silver font-mono tabular-nums"></span>
                         <?php if ($hasPunchIn && $hasPunchOut): ?>
                             <span class="text-[10px] text-green-400">&#10003; Done</span>
                         <?php elseif ($onBreak2): ?>
@@ -490,7 +596,7 @@ $_notifs = notif_all($pdo);
 
                     <!-- Dropdown -->
                     <div id="notif-dropdown" style="display:none"
-                        class="absolute right-0 top-12 w-80 bg-mb-surface border border-mb-subtle/20 rounded-xl shadow-2xl z-[200] overflow-hidden">
+                        class="absolute right-0 top-12 w-[92vw] max-w-sm sm:w-80 bg-mb-surface border border-mb-subtle/20 rounded-xl shadow-2xl z-[200] overflow-hidden">
 
                         <!-- Header -->
                         <div class="flex items-center justify-between px-4 py-3 border-b border-mb-subtle/20">
@@ -593,7 +699,62 @@ $_notifs = notif_all($pdo);
                     </div>
                 </div>
             </div>
+            <script>
+                (function () {
+                    const sidebar = document.getElementById('app-sidebar');
+                    const backdrop = document.getElementById('app-sidebar-backdrop');
+                    const toggle = document.getElementById('sidebar-toggle');
+                    if (!sidebar || !backdrop || !toggle) return;
+
+                    const desktopMq = window.matchMedia('(min-width: 768px)');
+
+                    const openSidebar = () => {
+                        sidebar.classList.remove('-translate-x-full');
+                        backdrop.classList.remove('hidden');
+                        document.body.classList.add('overflow-hidden');
+                    };
+
+                    const closeSidebar = () => {
+                        sidebar.classList.add('-translate-x-full');
+                        backdrop.classList.add('hidden');
+                        document.body.classList.remove('overflow-hidden');
+                    };
+
+                    toggle.addEventListener('click', function () {
+                        if (sidebar.classList.contains('-translate-x-full')) {
+                            openSidebar();
+                        } else {
+                            closeSidebar();
+                        }
+                    });
+
+                    backdrop.addEventListener('click', closeSidebar);
+
+                    sidebar.querySelectorAll('a').forEach(function (link) {
+                        link.addEventListener('click', function () {
+                            if (!desktopMq.matches) {
+                                closeSidebar();
+                            }
+                        });
+                    });
+
+                    const onViewportChange = function (e) {
+                        if (e.matches) {
+                            backdrop.classList.add('hidden');
+                            document.body.classList.remove('overflow-hidden');
+                        } else {
+                            closeSidebar();
+                        }
+                    };
+
+                    if (desktopMq.addEventListener) {
+                        desktopMq.addEventListener('change', onViewportChange);
+                    } else if (desktopMq.addListener) {
+                        desktopMq.addListener(onViewportChange);
+                    }
+                })();
+            </script>
         </header>
 
         <!-- Page Content -->
-        <div class="flex-1 overflow-y-auto bg-gradient-to-br from-mb-black to-mb-surface p-8">
+        <div class="flex-1 min-h-0 overflow-y-auto bg-gradient-to-br from-mb-black to-mb-surface p-4 sm:p-6 md:p-8">

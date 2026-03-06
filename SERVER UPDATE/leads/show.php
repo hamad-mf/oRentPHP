@@ -26,6 +26,12 @@ $activities = $activities->fetchAll();
 $success = getFlash('success');
 $error = getFlash('error');
 
+// Check if lead has 4+ completed follow-ups and is still open
+$followupCountStmt = $pdo->prepare('SELECT COUNT(*) FROM lead_followups WHERE lead_id=? AND is_done=1');
+$followupCountStmt->execute([$id]);
+$completedFollowups = (int) $followupCountStmt->fetchColumn();
+$showFollowupWarning = $completedFollowups >= 4 && !in_array($lead['status'], ['closed_won', 'closed_lost'], true);
+
 $now = new DateTime();
 $leadSourcesMap = lead_sources_get_map($pdo);
 $sourceLabel = $leadSourcesMap[$lead['source']] ?? lead_source_guess_label((string) $lead['source']);
@@ -229,8 +235,23 @@ require_once __DIR__ . '/../includes/header.php';
                             <input type="date" name="date" value="<?= date('Y-m-d') ?>" required
                                 class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
                         </div>
-                        <input type="time" name="time" value="10:00"
-                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                        <div class="flex gap-2">
+                            <select name="time_hour" class="bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                <?php for ($h = 1; $h <= 12; $h++): ?>
+                                    <option value="<?= $h ?>" <?= $h === 10 ? 'selected' : '' ?>><?= $h ?></option>
+                                <?php endfor; ?>
+                            </select>
+                            <select name="time_minute" class="bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                <option value="00">00</option>
+                                <option value="15">15</option>
+                                <option value="30">30</option>
+                                <option value="45">45</option>
+                            </select>
+                            <select name="time_ampm" class="bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                <option value="AM">AM</option>
+                                <option value="PM">PM</option>
+                            </select>
+                        </div>
                         <textarea name="notes" rows="2" placeholder="What to discuss / objective…"
                             class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent resize-none"></textarea>
                         <button type="submit"

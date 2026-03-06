@@ -142,7 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $deliveryPaymentMethodSave = $collectNowAtDelivery > 0 ? $deliveryPaymentMethod : null;
-        $pdo->prepare("UPDATE reservations SET status='active', km_limit=?, extra_km_price=?, deposit_amount=?, delivery_charge=?, delivery_manual_amount=?, delivery_payment_method=?, delivery_paid_amount=?, delivery_discount_type=?, delivery_discount_value=?, delivery_location=? WHERE id=?")
+        $pdo->prepare("UPDATE reservations SET status='active', delivered_at=" . app_now_sql() . ", km_limit=?, extra_km_price=?, deposit_amount=?, delivery_charge=?, delivery_manual_amount=?, delivery_payment_method=?, delivery_paid_amount=?, delivery_discount_type=?, delivery_discount_value=?, delivery_location=? WHERE id=?")
             ->execute([$kmLimit, $extraKmPrice, $depositAmt, $deliveryCharge, $deliveryManualAmount, $deliveryPaymentMethodSave, $collectNowAtDelivery, $delivDiscType ?: null, $delivDiscVal, $deliveryLocation !== '' ? $deliveryLocation : null, $id]);
         $pdo->prepare("UPDATE vehicles SET status='rented' WHERE id=?")->execute([$r['vehicle_id']]);
         $msg = 'Vehicle delivered. Amount collected at delivery: $' . number_format($collectNowAtDelivery, 2) . '.';

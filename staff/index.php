@@ -71,30 +71,31 @@ $s = getFlash('success');
     </div>
 
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
-        <table class="w-full text-left">
-            <thead class="bg-mb-black text-mb-silver uppercase text-xs tracking-wider">
-                <tr>
-                    <th class="px-6 py-4 font-medium">Name</th>
-                    <th class="px-6 py-4 font-medium">Username</th>
-                    <th class="px-6 py-4 font-medium">Role / Title</th>
-                    <th class="px-6 py-4 font-medium">Account</th>
-                    <th class="px-6 py-4 font-medium">Status</th>
-                    <th class="px-6 py-4 font-medium text-right">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-mb-subtle/10 text-sm">
-                <?php if (empty($staffList)): ?>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-mb-black text-mb-silver uppercase text-xs tracking-wider">
                     <tr>
-                        <td colspan="6" class="px-6 py-12 text-center text-mb-subtle italic">
-                            No staff members added yet.
-                            <?php if (($_currentUser['role'] ?? '') === 'admin'): ?>
-                                <a href="create.php" class="text-mb-accent hover:underline ml-1">Add one now.</a>
-                            <?php endif; ?>
-                        </td>
+                        <th class="px-6 py-4 font-medium">Name</th>
+                        <th class="px-6 py-4 font-medium">Username</th>
+                        <th class="px-6 py-4 font-medium">Role / Title</th>
+                        <th class="px-6 py-4 font-medium">Account</th>
+                        <th class="px-6 py-4 font-medium">Status</th>
+                        <th class="px-6 py-4 font-medium text-right">Actions</th>
                     </tr>
-                <?php endif; ?>
-                <?php foreach ($staffList as $m): ?>
-                    <tr class="hover:bg-mb-black/20 transition-colors">
+                </thead>
+                <tbody class="divide-y divide-mb-subtle/10 text-sm">
+                    <?php if (empty($staffList)): ?>
+                        <tr>
+                            <td colspan="6" class="px-6 py-12 text-center text-mb-subtle italic">
+                                No staff members added yet.
+                                <?php if (($_currentUser['role'] ?? '') === 'admin'): ?>
+                                    <a href="create.php" class="text-mb-accent hover:underline ml-1">Add one now.</a>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php foreach ($staffList as $m): ?>
+                        <tr class="hover:bg-mb-black/20 transition-colors">
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-3">
                                 <div
@@ -166,10 +167,11 @@ $s = getFlash('success');
                                 <?php endif; ?>
                             </div>
                         </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 

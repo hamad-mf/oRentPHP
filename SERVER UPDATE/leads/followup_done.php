@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/settings_helpers.php';
 require_once __DIR__ . '/../includes/activity_log.php';
 auth_check();
 if (!auth_has_perm('add_leads')) {
@@ -26,13 +27,34 @@ if (!$followup) {
 }
 
 if (!(int) $followup['is_done']) {
-    $pdo->prepare('UPDATE lead_followups SET is_done=1 WHERE id=? AND lead_id=?')->execute([$fid, $leadId]);
+    $nowSql = app_now_sql();
+    $pdo->prepare('UPDATE lead_followups SET is_done=1, done_at=? WHERE id=? AND lead_id=?')->execute([$nowSql, $fid, $leadId]);
     $pdo->prepare('INSERT INTO lead_activities (lead_id, note) VALUES (?,?)')->execute([$leadId, 'Follow-up marked as done.']);
 
     log_activity($pdo, 'completed_followup', 'lead', $leadId, "Marked follow-up #$fid as done for lead #$leadId.");
 
-    app_log('ACTION', "Marked followup done for lead (ID: $leadId)");
-    flash('success', 'Follow-up marked as done.');
+    $autoCloseAfter = (int) settings_get($pdo, 'auto_close_lost_after_followups', '0');
+    $countStmt = $pdo->prepare('SELECT COUNT(*) FROM lead_followups WHERE lead_id=? AND is_done=1');
+    $countStmt->execute([$leadId]);
+    $totalDone = (int) $countStmt->fetchColumn();
+    
+    if ($autoCloseAfter > 0 && $totalDone >= $autoCloseAfter) {
+        $leadStmt = $pdo->prepare('SELECT status FROM leads WHERE id=?');
+        $leadStmt->execute([$leadId]);
+        $currentStatus = $leadStmt->fetchColumn();
+        
+        if ($currentStatus !== 'closed_lost' && $currentStatus !== 'closed_won') {
+            $pdo->prepare('UPDATE leads SET status=?, lost_reason=?, updated_at=? WHERE id=?')
+                ->execute(['closed_lost', 'Auto-closed after ' . $autoCloseAfter . ' follow-ups', $nowSql, $leadId]);
+            $pdo->prepare('INSERT INTO lead_activities (lead_id, note) VALUES (?,?)')
+                ->execute([$leadId, 'Lead auto-closed to Lost after ' . $autoCloseAfter . ' follow-ups.']);
+            log_activity($pdo, 'auto_closed_lost', 'lead', $leadId, "Lead #$leadId auto-closed to Lost after $autoCloseAfter follow-ups.");
+            flash('success', 'Follow-up marked as done. Lead auto-closed to Lost.');
+        }
+    } else {
+        app_log('ACTION', "Marked followup done for lead (ID: $leadId)");
+        flash('success', 'Follow-up marked as done.');
+    }
 } else {
     flash('success', 'Follow-up is already marked as done.');
 }

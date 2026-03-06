@@ -170,7 +170,7 @@ $statusLabel = [
 <div class="max-w-6xl mx-auto px-4 py-8">
 
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
             <h1 class="text-2xl font-light text-white">Vehicle Requests</h1>
             <p class="text-mb-subtle text-sm mt-1">Track vehicles clients ask for that aren't in your fleet</p>
@@ -224,21 +224,22 @@ $statusLabel = [
                 <p class="text-mb-subtle text-xs mt-1">Click "Log Request" to add one.</p>
             </div>
         <?php else: ?>
-            <table class="w-full">
-                <thead>
-                    <tr class="border-b border-mb-subtle/20">
-                        <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Date</th>
-                        <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Client</th>
-                        <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Vehicle Wanted</th>
-                        <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">People</th>
-                        <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Notes</th>
-                        <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Status</th>
-                        <th class="px-5 py-3"></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-mb-subtle/10">
-                    <?php foreach ($requests as $req): ?>
-                        <tr class="hover:bg-mb-black/20 transition-colors">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-mb-subtle/20">
+                            <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Date</th>
+                            <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Client</th>
+                            <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Vehicle Wanted</th>
+                            <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">People</th>
+                            <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Notes</th>
+                            <th class="text-left px-5 py-3 text-xs uppercase tracking-wider text-mb-subtle">Status</th>
+                            <th class="px-5 py-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-mb-subtle/10">
+                        <?php foreach ($requests as $req): ?>
+                            <tr class="hover:bg-mb-black/20 transition-colors">
                             <td class="px-5 py-4 text-sm text-mb-subtle whitespace-nowrap">
                                 <?= date('d M Y', strtotime($req['requested_at'])) ?>
                             </td>
@@ -311,10 +312,11 @@ $statusLabel = [
                                     </button>
                                 </form>
                             </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         <?php endif; ?>
     </div>
 

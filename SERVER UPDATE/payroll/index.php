@@ -14,6 +14,44 @@ $action = $_POST['action'] ?? '';
 $batchStaff = [];
 $prepareMonth = (int) date('n');
 $prepareYear = (int) date('Y');
+$advanceSchemaReady = false;
+$advanceSchemaError = null;
+
+try {
+    $hasAdvanceTable = (bool) $pdo->query("SHOW TABLES LIKE 'payroll_advances'")->fetchColumn();
+    $hasAdvanceDeducted = (bool) $pdo->query("SHOW COLUMNS FROM payroll LIKE 'advance_deducted'")->fetchColumn();
+    $hasPayableSalary = (bool) $pdo->query("SHOW COLUMNS FROM payroll LIKE 'payable_salary'")->fetchColumn();
+    $advanceSchemaReady = $hasAdvanceTable && $hasAdvanceDeducted && $hasPayableSalary;
+} catch (Throwable $e) {
+    $advanceSchemaError = $e->getMessage();
+}
+
+$getAdvanceOutstandingMap = function (array $userIds) use ($pdo, $advanceSchemaReady): array {
+    $map = [];
+    if (!$advanceSchemaReady || empty($userIds)) {
+        return $map;
+    }
+
+    $userIds = array_values(array_unique(array_map('intval', $userIds)));
+    if (empty($userIds)) {
+        return $map;
+    }
+
+    $ph = implode(',', array_fill(0, count($userIds), '?'));
+    $stmt = $pdo->prepare("
+        SELECT user_id, COALESCE(SUM(remaining_amount), 0) AS outstanding
+        FROM payroll_advances
+        WHERE user_id IN ($ph)
+          AND remaining_amount > 0
+          AND status IN ('pending', 'partially_recovered')
+        GROUP BY user_id
+    ");
+    $stmt->execute($userIds);
+    foreach ($stmt->fetchAll() as $row) {
+        $map[(int) $row['user_id']] = (float) $row['outstanding'];
+    }
+    return $map;
+};
 
 //  ”  ”  Step 1: Prepare (show batch form)  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'prepare_payroll') {
@@ -83,6 +121,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'prepare_payroll') {
             $deliveriesMap[$row['user_id']] = (int) $row['cnt'];
         }
     }
+
+    $advanceOutstandingMap = $getAdvanceOutstandingMap(array_column($batchStaff, 'user_id'));
+    foreach ($batchStaff as &$staffRow) {
+        $staffRow['advance_outstanding'] = (float) ($advanceOutstandingMap[$staffRow['user_id']] ?? 0);
+    }
+    unset($staffRow);
     // Don't redirect  ” render the batch form below
 }
 
@@ -113,10 +157,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save_payroll') {
             $incentive = (float) ($incentives[$uid] ?? 0);
             $net = $basic + $incentive;
 
-            $pdo->prepare("
-                INSERT INTO payroll (user_id, month, year, basic_salary, incentive, allowances, deductions, net_salary, notes, created_by, status)
-                VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, ?, 'Pending')
-            ")->execute([$uid, $month, $year, $basic, $incentive, $net, $notesList[$uid] ?? null, current_user()['id']]);
+            if ($advanceSchemaReady) {
+                $pdo->prepare("
+                    INSERT INTO payroll (user_id, month, year, basic_salary, incentive, allowances, deductions, advance_deducted, net_salary, payable_salary, notes, created_by, status)
+                    VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, 'Pending')
+                ")->execute([$uid, $month, $year, $basic, $incentive, $net, $net, $notesList[$uid] ?? null, current_user()['id']]);
+            } else {
+                $pdo->prepare("
+                    INSERT INTO payroll (user_id, month, year, basic_salary, incentive, allowances, deductions, net_salary, notes, created_by, status)
+                    VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, ?, 'Pending')
+                ")->execute([$uid, $month, $year, $basic, $incentive, $net, $notesList[$uid] ?? null, current_user()['id']]);
+            }
             $count++;
         }
 
@@ -126,53 +177,248 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save_payroll') {
     redirect('index.php?month=' . $month . '&year=' . $year);
 }
 
-//  ”  ”  Step 3: Mark as Paid + create ledger entry  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'pay') {
+//  ”  ”  Step 2.5: Give staff advance  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'give_advance') {
     $payrollId = (int) ($_POST['payroll_id'] ?? 0);
     $bankAcctId = (int) ($_POST['bank_account_id'] ?? 0);
+    $advanceAmount = (float) ($_POST['advance_amount'] ?? 0);
+    $advanceNote = trim($_POST['advance_note'] ?? '');
+
+    if (!$advanceSchemaReady) {
+        flash('error', 'Advance feature is not enabled yet. Run the payroll advances migration first.');
+        redirect('index.php');
+    }
 
     $pr = $pdo->prepare("SELECT p.*, u.name AS staff_name FROM payroll p JOIN users u ON u.id = p.user_id WHERE p.id = ?");
     $pr->execute([$payrollId]);
     $pay = $pr->fetch();
 
-    if ($pay && $pay['status'] === 'Pending' && $bankAcctId) {
-        try {
-            $pdo->beginTransaction();
+    if (!$pay || $pay['status'] !== 'Pending') {
+        flash('error', 'Advance can only be added for pending payroll records.');
+        redirect('index.php');
+    }
+    if ($advanceAmount <= 0) {
+        flash('error', 'Advance amount must be greater than 0.');
+        redirect('index.php?month=' . $pay['month'] . '&year=' . $pay['year']);
+    }
+    if ($bankAcctId <= 0) {
+        flash('error', 'Please select a bank account for the advance payment.');
+        redirect('index.php?month=' . $pay['month'] . '&year=' . $pay['year']);
+    }
 
-            $monthName = date('F', mktime(0, 0, 0, $pay['month'], 1));
-            $desc = "Salary  “ {$pay['staff_name']} ($monthName {$pay['year']})";
-            $nowSql = app_now_sql();
+    $acc = $pdo->prepare("SELECT id FROM bank_accounts WHERE id = ? AND is_active = 1");
+    $acc->execute([$bankAcctId]);
+    if (!$acc->fetch()) {
+        flash('error', 'Selected bank account is invalid or inactive.');
+        redirect('index.php?month=' . $pay['month'] . '&year=' . $pay['year']);
+    }
 
-            // Post to ledger as expense
-            $ledgerId = null;
+    try {
+        $pdo->beginTransaction();
+
+        $prLock = $pdo->prepare("SELECT p.*, u.name AS staff_name FROM payroll p JOIN users u ON u.id = p.user_id WHERE p.id = ? FOR UPDATE");
+        $prLock->execute([$payrollId]);
+        $payLocked = $prLock->fetch();
+        if (!$payLocked || $payLocked['status'] !== 'Pending') {
+            throw new RuntimeException('Advance can only be added for pending payroll records.');
+        }
+        $pay = $payLocked;
+
+        $advLockStmt = $pdo->prepare("
+            SELECT remaining_amount
+            FROM payroll_advances
+            WHERE user_id = ?
+              AND remaining_amount > 0
+              AND status IN ('pending', 'partially_recovered')
+            FOR UPDATE
+        ");
+        $advLockStmt->execute([(int) $pay['user_id']]);
+
+        $outstandingAdvance = 0.0;
+        foreach ($advLockStmt->fetchAll() as $advRow) {
+            $outstandingAdvance += (float) ($advRow['remaining_amount'] ?? 0);
+        }
+
+        $netSalary = (float) ($pay['net_salary'] ?? 0);
+        $alreadyDeductible = min($netSalary, $outstandingAdvance);
+        $availableAdvanceLimit = round(max(0, $netSalary - $alreadyDeductible), 2);
+
+        if ($advanceAmount > $availableAdvanceLimit + 0.00001) {
+            throw new RuntimeException('Advance exceeds allowed limit for this payroll. Max allowed now: $' . number_format($availableAdvanceLimit, 2));
+        }
+
+        $nowSql = app_now_sql();
+
+        $advStmt = $pdo->prepare("
+            INSERT INTO payroll_advances
+            (user_id, payroll_id, month, year, amount, remaining_amount, status, note, given_at, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+        ");
+        $advStmt->execute([
+            (int) $pay['user_id'],
+            (int) $pay['id'],
+            (int) $pay['month'],
+            (int) $pay['year'],
+            $advanceAmount,
+            $advanceAmount,
+            $advanceNote !== '' ? $advanceNote : null,
+            $nowSql,
+            current_user()['id'],
+        ]);
+        $advanceId = (int) $pdo->lastInsertId();
+
+        $monthName = date('F', mktime(0, 0, 0, (int) $pay['month'], 1));
+        $desc = "Staff Advance - {$pay['staff_name']} ($monthName {$pay['year']})";
+
+        $pdo->prepare("INSERT INTO ledger_entries
+            (txn_type, category, description, amount, payment_mode, bank_account_id,
+             source_type, source_id, source_event, posted_at, created_by)
+            VALUES ('expense', 'Staff Advance', ?, ?, 'account', ?, 'payroll_advance', ?, 'advance_payment', ?, ?)")
+            ->execute([$desc, $advanceAmount, $bankAcctId, $advanceId, $nowSql, current_user()['id']]);
+        $ledgerId = (int) $pdo->lastInsertId();
+
+        $pdo->prepare("UPDATE bank_accounts SET balance = balance - ? WHERE id = ?")
+            ->execute([$advanceAmount, $bankAcctId]);
+
+        $pdo->prepare("UPDATE payroll_advances SET bank_account_id = ?, ledger_entry_id = ? WHERE id = ?")
+            ->execute([$bankAcctId, $ledgerId, $advanceId]);
+
+        $pdo->commit();
+        flash('success', "Advance of $" . number_format($advanceAmount, 2) . " paid to {$pay['staff_name']}.");
+        app_log('ACTION', "Payroll advance#{$advanceId} paid for payroll#{$payrollId} amount={$advanceAmount}");
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        flash('error', 'Advance payment failed: ' . $e->getMessage());
+        app_log('ERROR', 'Payroll advance payment failed: ' . $e->getMessage());
+    }
+
+    redirect('index.php?month=' . $pay['month'] . '&year=' . $pay['year']);
+}
+
+//  ”  ”  Step 3: Mark as Paid + create ledger entry  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'pay') {
+    $payrollId = (int) ($_POST['payroll_id'] ?? 0);
+    $bankAcctId = (int) ($_POST['bank_account_id'] ?? 0);
+    $redirectMonth = (int) date('n');
+    $redirectYear = (int) date('Y');
+
+    try {
+        $pdo->beginTransaction();
+
+        $pr = $pdo->prepare("SELECT p.*, u.name AS staff_name FROM payroll p JOIN users u ON u.id = p.user_id WHERE p.id = ? FOR UPDATE");
+        $pr->execute([$payrollId]);
+        $pay = $pr->fetch();
+
+        if (!$pay) {
+            throw new RuntimeException('Payroll record not found.');
+        }
+        $redirectMonth = (int) $pay['month'];
+        $redirectYear = (int) $pay['year'];
+
+        if ($pay['status'] !== 'Pending') {
+            throw new RuntimeException('This payroll record is already paid.');
+        }
+
+        $nowSql = app_now_sql();
+        $netSalary = (float) $pay['net_salary'];
+        $advanceDeducted = 0.0;
+
+        if ($advanceSchemaReady) {
+            $remainingToRecover = $netSalary;
+            $advStmt = $pdo->prepare("
+                SELECT id, remaining_amount
+                FROM payroll_advances
+                WHERE user_id = ?
+                  AND remaining_amount > 0
+                  AND status IN ('pending', 'partially_recovered')
+                ORDER BY given_at ASC, id ASC
+                FOR UPDATE
+            ");
+            $advStmt->execute([(int) $pay['user_id']]);
+            $advRows = $advStmt->fetchAll();
+
+            foreach ($advRows as $adv) {
+                if ($remainingToRecover <= 0) {
+                    break;
+                }
+
+                $currentRemaining = (float) $adv['remaining_amount'];
+                if ($currentRemaining <= 0) {
+                    continue;
+                }
+
+                $recoverAmount = min($currentRemaining, $remainingToRecover);
+                if ($recoverAmount <= 0) {
+                    continue;
+                }
+
+                $newRemaining = round($currentRemaining - $recoverAmount, 2);
+                $newStatus = $newRemaining <= 0 ? 'recovered' : 'partially_recovered';
+                $recoveredAt = $newRemaining <= 0 ? $nowSql : null;
+
+                $pdo->prepare("UPDATE payroll_advances SET remaining_amount = ?, status = ?, recovered_at = ? WHERE id = ?")
+                    ->execute([$newRemaining, $newStatus, $recoveredAt, (int) $adv['id']]);
+
+                $advanceDeducted += $recoverAmount;
+                $remainingToRecover -= $recoverAmount;
+            }
+        }
+
+        $advanceDeducted = round($advanceDeducted, 2);
+        $payableSalary = round(max(0, $netSalary - $advanceDeducted), 2);
+
+        $monthName = date('F', mktime(0, 0, 0, (int) $pay['month'], 1));
+        $desc = "Salary - {$pay['staff_name']} ($monthName {$pay['year']})";
+        $ledgerId = null;
+        $paidFromAccountId = null;
+
+        if ($payableSalary > 0) {
+            if ($bankAcctId <= 0) {
+                throw new RuntimeException('Please select a bank account.');
+            }
+            $acc = $pdo->prepare("SELECT id FROM bank_accounts WHERE id = ? AND is_active = 1 FOR UPDATE");
+            $acc->execute([$bankAcctId]);
+            if (!$acc->fetch()) {
+                throw new RuntimeException('Selected bank account is invalid or inactive.');
+            }
+
             $pdo->prepare("INSERT INTO ledger_entries
                 (txn_type, category, description, amount, payment_mode, bank_account_id,
                  source_type, source_id, source_event, posted_at, created_by)
                 VALUES ('expense', 'Salary', ?, ?, 'account', ?, 'payroll', ?, 'salary_payment', ?, ?)")
-                ->execute([$desc, $pay['net_salary'], $bankAcctId, $payrollId, $nowSql, current_user()['id']]);
+                ->execute([$desc, $payableSalary, $bankAcctId, $payrollId, $nowSql, current_user()['id']]);
             $ledgerId = (int) $pdo->lastInsertId();
 
-            // Deduct bank balance
             $pdo->prepare("UPDATE bank_accounts SET balance = balance - ? WHERE id = ?")
-                ->execute([$pay['net_salary'], $bankAcctId]);
+                ->execute([$payableSalary, $bankAcctId]);
 
-            // Mark payroll as Paid
-            $pdo->prepare("UPDATE payroll SET status='Paid', payment_date=?, paid_from_account_id=?, ledger_entry_id=? WHERE id=?")
-                ->execute([$nowSql, $bankAcctId, $ledgerId, $payrollId]);
-
-            $pdo->commit();
-            flash('success', "Salary paid to {$pay['staff_name']} and ledger entry created.");
-            app_log('ACTION', "Payroll#$payrollId paid for user_id={$pay['user_id']} amount={$pay['net_salary']}");
-        } catch (Throwable $e) {
-            if ($pdo->inTransaction())
-                $pdo->rollBack();
-            flash('error', 'Payment failed: ' . $e->getMessage());
-            app_log('ERROR', 'Payroll payment failed: ' . $e->getMessage());
+            $paidFromAccountId = $bankAcctId;
         }
-    } else {
-        flash('error', 'Invalid payroll record or already paid.');
+
+        if ($advanceSchemaReady) {
+            $pdo->prepare("UPDATE payroll
+                           SET status='Paid', payment_date=?, paid_from_account_id=?, ledger_entry_id=?, advance_deducted=?, payable_salary=?
+                           WHERE id=?")
+                ->execute([$nowSql, $paidFromAccountId, $ledgerId, $advanceDeducted, $payableSalary, $payrollId]);
+        } else {
+            $pdo->prepare("UPDATE payroll SET status='Paid', payment_date=?, paid_from_account_id=?, ledger_entry_id=? WHERE id=?")
+                ->execute([$nowSql, $paidFromAccountId, $ledgerId, $payrollId]);
+        }
+
+        $pdo->commit();
+        flash('success', "Salary settled for {$pay['staff_name']}. Net $" . number_format($netSalary, 2) . ", advance adjusted $" . number_format($advanceDeducted, 2) . ", paid now $" . number_format($payableSalary, 2) . ".");
+        app_log('ACTION', "Payroll#$payrollId paid for user_id={$pay['user_id']} net={$netSalary} advance={$advanceDeducted} payable={$payableSalary}");
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        flash('error', 'Payment failed: ' . $e->getMessage());
+        app_log('ERROR', 'Payroll payment failed: ' . $e->getMessage());
     }
-    redirect('index.php?month=' . ($pay['month'] ?? date('n')) . '&year=' . ($pay['year'] ?? date('Y')));
+
+    redirect('index.php?month=' . $redirectMonth . '&year=' . $redirectYear);
 }
 
 //  ”  ”  Read payroll list  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
@@ -182,15 +428,56 @@ $year = (int) ($_GET['year'] ?? date('Y'));
 $_pySql  = "SELECT p.*, u.name AS staff_name, s.role AS staff_role, ba.name AS paid_from_name FROM payroll p JOIN users u ON u.id=p.user_id JOIN staff s ON s.id=u.staff_id LEFT JOIN bank_accounts ba ON ba.id=p.paid_from_account_id WHERE p.month=? AND p.year=? ORDER BY u.name";
 $_pyCnt  = "SELECT COUNT(*) FROM payroll p JOIN users u ON u.id=p.user_id JOIN staff s ON s.id=u.staff_id WHERE p.month=? AND p.year=?";
 $pgPayroll   = paginate_query($pdo, $_pySql, $_pyCnt, [$month, $year], $page, $perPage);
-$payrollRows = $pgPayroll[
-'rows'
-];
+$payrollRows = $pgPayroll['rows'];
 
-// Totals
-$totalBasic = array_sum(array_column($payrollRows, 'basic_salary'));
-$totalIncentive = array_sum(array_column($payrollRows, 'incentive'));
-$totalNet = array_sum(array_column($payrollRows, 'net_salary'));
-$totalPaid = array_sum(array_map(fn($r) => $r['status'] === 'Paid' ? $r['net_salary'] : 0, $payrollRows));
+$advanceOutstandingByUser = $getAdvanceOutstandingMap(array_column($payrollRows, 'user_id'));
+
+// Totals + display fields
+$totalBasic = 0.0;
+$totalIncentive = 0.0;
+$totalNet = 0.0;
+$totalAdvance = 0.0;
+$totalPayable = 0.0;
+$totalPaid = 0.0;
+foreach ($payrollRows as &$row) {
+    $basic = (float) ($row['basic_salary'] ?? 0);
+    $incentive = (float) ($row['incentive'] ?? 0);
+    $net = (float) ($row['net_salary'] ?? 0);
+    $isPaid = ($row['status'] ?? '') === 'Paid';
+
+    if ($advanceSchemaReady) {
+        $storedAdvance = isset($row['advance_deducted']) ? (float) $row['advance_deducted'] : 0.0;
+        $storedPayable = isset($row['payable_salary']) ? (float) $row['payable_salary'] : max(0, $net - $storedAdvance);
+
+        if ($isPaid) {
+            $advanceDeducted = max(0, $storedAdvance);
+            $payableSalary = max(0, $storedPayable);
+            $outstandingAdvance = 0.0;
+        } else {
+            $outstandingAdvance = max(0, (float) ($advanceOutstandingByUser[$row['user_id']] ?? 0));
+            $advanceDeducted = min($net, $outstandingAdvance);
+            $payableSalary = max(0, $net - $advanceDeducted);
+        }
+    } else {
+        $outstandingAdvance = 0.0;
+        $advanceDeducted = 0.0;
+        $payableSalary = $net;
+    }
+
+    $row['display_outstanding_advance'] = $outstandingAdvance;
+    $row['display_advance_deducted'] = round($advanceDeducted, 2);
+    $row['display_payable_salary'] = round($payableSalary, 2);
+
+    $totalBasic += $basic;
+    $totalIncentive += $incentive;
+    $totalNet += $net;
+    $totalAdvance += $row['display_advance_deducted'];
+    $totalPayable += $row['display_payable_salary'];
+    if ($isPaid) {
+        $totalPaid += $row['display_payable_salary'];
+    }
+}
+unset($row);
 
 // Bank accounts for pay modal
 $bankAccounts = $pdo->query("SELECT id, name FROM bank_accounts WHERE is_active = 1 ORDER BY name")->fetchAll();
@@ -219,6 +506,19 @@ require_once __DIR__ . '/../includes/header.php';
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
             <?= e($error) ?>
+        </div>
+    <?php endif; ?>
+    <?php if (!$advanceSchemaReady): ?>
+        <div class="flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 rounded-xl px-5 py-3 text-sm">
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-7.938 4h15.876c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L2.33 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+                Payroll advances are disabled because the latest migration is not applied.
+                <?php if ($advanceSchemaError): ?>
+                    <span class="text-yellow-200/80">Schema check error: <?= e($advanceSchemaError) ?></span>
+                <?php endif; ?>
+            </div>
         </div>
     <?php endif; ?>
 
@@ -383,12 +683,14 @@ require_once __DIR__ . '/../includes/header.php';
 
         <?php if (!empty($payrollRows)): ?>
             <!-- Summary cards -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
                 <?php foreach ([
                     ['Total Basic', '$' . number_format($totalBasic, 2), 'text-mb-silver'],
                     ['Total Incentive', '$' . number_format($totalIncentive, 2), 'text-blue-400'],
                     ['Total Net', '$' . number_format($totalNet, 2), 'text-mb-accent'],
-                    ['Total Paid', '$' . number_format($totalPaid, 2), 'text-green-400'],
+                    ['Advance Adj.', '$' . number_format($totalAdvance, 2), 'text-orange-400'],
+                    ['Total Payable', '$' . number_format($totalPayable, 2), 'text-green-400'],
+                    ['Total Paid', '$' . number_format($totalPaid, 2), 'text-emerald-300'],
                 ] as [$label, $val, $clr]): ?>
                     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-4">
                         <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">
@@ -427,9 +729,11 @@ require_once __DIR__ . '/../includes/header.php';
                                 <th class="px-6 py-4 text-right">Basic</th>
                                 <th class="px-6 py-4 text-right">Incentive</th>
                                 <th class="px-6 py-4 text-right">Net Salary</th>
-                                <th class="px-6 py-4 text-left">Status</th>
-                                <th class="px-6 py-4 text-left">Paid From</th>
-                                <th class="px-6 py-4 text-left">Action</th>
+                                <th class="px-6 py-4 text-right">Advance</th>
+                                <th class="px-6 py-4 text-right">Payable</th>
+                                <th class="px-6 py-4 text-left whitespace-nowrap">Status</th>
+                                <th class="px-6 py-4 text-left whitespace-nowrap">Paid From</th>
+                                <th class="px-6 py-4 text-left whitespace-nowrap">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-mb-subtle/10">
@@ -444,7 +748,7 @@ require_once __DIR__ . '/../includes/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td class="px-6 py-4 text-mb-subtle">
-                                        <?= e($row['staff_role'] ?? ' ”') ?>
+                                        <?= e($row['staff_role'] ?? '--') ?>
                                     </td>
                                     <td class="px-6 py-4 text-right text-mb-silver">$
                                         <?= number_format($row['basic_salary'], 2) ?>
@@ -455,28 +759,47 @@ require_once __DIR__ . '/../includes/header.php';
                                     <td class="px-6 py-4 text-right text-mb-accent font-semibold">$
                                         <?= number_format($row['net_salary'], 2) ?>
                                     </td>
-                                    <td class="px-6 py-4">
+                                    <td class="px-6 py-4 text-right text-orange-400 font-medium">
+                                        -$<?= number_format((float) ($row['display_advance_deducted'] ?? 0), 2) ?>
+                                        <?php if ($row['status'] === 'Pending' && (float) ($row['display_outstanding_advance'] ?? 0) > 0): ?>
+                                            <p class="text-[11px] text-orange-300/80 mt-0.5">
+                                                Outstanding: $<?= number_format((float) $row['display_outstanding_advance'], 2) ?>
+                                            </p>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="px-6 py-4 text-right text-green-400 font-semibold">$
+                                        <?= number_format((float) ($row['display_payable_salary'] ?? $row['net_salary']), 2) ?>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
                                         <?php if ($row['status'] === 'Paid'): ?>
                                             <span
-                                                class="px-2.5 py-1 rounded-full text-xs border bg-green-500/10 text-green-400 border-green-500/30">
-                                                    Paid
-                                                <?= $row['payment_date'] ? date('d M', strtotime($row['payment_date'])) : '' ?>
+                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border bg-green-500/10 text-green-400 border-green-500/30 whitespace-nowrap">
+                                                Paid <?= $row['payment_date'] ? date('d M', strtotime($row['payment_date'])) : '' ?>
                                             </span>
                                         <?php else: ?>
                                             <span
-                                                class="px-2.5 py-1 rounded-full text-xs border bg-yellow-500/10 text-yellow-400 border-yellow-500/30">Pending</span>
+                                                class="inline-flex items-center px-2.5 py-1 rounded-full text-xs border bg-yellow-500/10 text-yellow-400 border-yellow-500/30 whitespace-nowrap">Pending</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="px-6 py-4 text-mb-subtle text-xs">
-                                        <?= e($row['paid_from_name'] ?? ' ”') ?>
+                                    <td class="px-6 py-4 text-mb-subtle text-xs whitespace-nowrap">
+                                        <?= e($row['paid_from_name'] ?? '--') ?>
                                     </td>
                                     <td class="px-6 py-4">
                                         <?php if ($row['status'] === 'Pending'): ?>
-                                            <button type="button"
-                                                onclick="openPayModal(<?= $row['id'] ?>, '<?= addslashes($row['staff_name']) ?>', <?= $row['net_salary'] ?>)"
-                                                class="text-xs bg-mb-accent/15 text-mb-accent border border-mb-accent/30 px-3 py-1.5 rounded-full hover:bg-mb-accent/25 transition-colors">
-                                                Pay Now
-                                            </button>
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <?php if ($advanceSchemaReady): ?>
+                                                    <button type="button"
+                                                        onclick="openAdvanceModal(<?= (int) $row['id'] ?>, '<?= addslashes($row['staff_name']) ?>', <?= (float) ($row['display_outstanding_advance'] ?? 0) ?>, <?= (float) ($row['display_payable_salary'] ?? 0) ?>)"
+                                                        class="text-xs bg-orange-500/15 text-orange-300 border border-orange-500/30 px-3 py-1.5 rounded-full hover:bg-orange-500/25 transition-colors">
+                                                        Give Advance
+                                                    </button>
+                                                <?php endif; ?>
+                                                <button type="button"
+                                                    onclick="openPayModal(<?= (int) $row['id'] ?>, '<?= addslashes($row['staff_name']) ?>', <?= (float) $row['net_salary'] ?>, <?= (float) ($row['display_advance_deducted'] ?? 0) ?>, <?= (float) ($row['display_payable_salary'] ?? $row['net_salary']) ?>)"
+                                                    class="text-xs bg-mb-accent/15 text-mb-accent border border-mb-accent/30 px-3 py-1.5 rounded-full hover:bg-mb-accent/25 transition-colors">
+                                                    Pay Now
+                                                </button>
+                                            </div>
                                         <?php else: ?>
                                             <a href="../accounts/index.php"
                                                 class="text-xs text-mb-subtle hover:text-white transition-colors">View Ledger</a>
@@ -562,20 +885,35 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="bg-mb-black/40 rounded-lg px-4 py-3">
                 <p class="text-xs text-mb-subtle mb-0.5">Paying salary to</p>
                 <p class="text-white font-medium" id="payModalName"></p>
-                <p class="text-mb-accent font-semibold text-lg mt-1" id="payModalAmount"></p>
+                <div class="mt-2 space-y-1 text-xs">
+                    <div class="flex items-center justify-between text-mb-silver">
+                        <span>Net Salary</span>
+                        <span id="payModalNet"></span>
+                    </div>
+                    <div class="flex items-center justify-between text-orange-300">
+                        <span>Advance Deducted</span>
+                        <span id="payModalAdvance"></span>
+                    </div>
+                    <div class="flex items-center justify-between text-mb-accent font-semibold border-t border-mb-subtle/20 pt-1 mt-1">
+                        <span>Payable Now</span>
+                        <span id="payModalPayable"></span>
+                    </div>
+                </div>
+                <p class="text-mb-accent font-semibold text-lg mt-2" id="payModalAmount"></p>
             </div>
             <div>
                 <label class="block text-sm text-mb-silver mb-1.5">Pay From Bank Account <span
                         class="text-red-400">*</span></label>
-                <select name="bank_account_id" required
+                <select name="bank_account_id" id="payModalBankAccount" required
                     class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent">
-                    <option value=""> ” Select account  ”</option>
+                    <option value=""> -- Select account --</option>
                     <?php foreach ($bankAccounts as $ba): ?>
                         <option value="<?= $ba['id'] ?>">
                             <?= e($ba['name']) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
+                <p id="payModalBankHint" class="hidden text-xs text-mb-subtle mt-1">No bank payout needed. Salary is fully adjusted by advances.</p>
             </div>
             <div class="flex items-center justify-end gap-3">
                 <button type="button" onclick="document.getElementById('payModal').classList.add('hidden')"
@@ -589,19 +927,126 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
+<!-- Payroll Advance Modal -->
+<div id="advanceModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl shadow-2xl w-full max-w-sm">
+        <div class="flex items-center justify-between p-5 border-b border-mb-subtle/10">
+            <h2 class="text-white font-medium">Give Staff Advance</h2>
+            <button onclick="document.getElementById('advanceModal').classList.add('hidden')"
+                class="text-mb-subtle hover:text-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <form method="POST" class="p-5 space-y-4">
+            <input type="hidden" name="action" value="give_advance">
+            <input type="hidden" name="payroll_id" id="advanceModalPayrollId">
+            <div class="bg-mb-black/40 rounded-lg px-4 py-3">
+                <p class="text-xs text-mb-subtle mb-0.5">Giving advance to</p>
+                <p class="text-white font-medium" id="advanceModalName"></p>
+                <p class="text-xs text-mb-subtle mt-1" id="advanceModalOutstanding"></p>
+            </div>
+            <div>
+                <label class="block text-sm text-mb-silver mb-1.5">Advance Amount <span class="text-red-400">*</span></label>
+                <input type="number" id="advanceModalAmount" name="advance_amount" min="0.01" step="0.01" required
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent"
+                    placeholder="0.00">
+                <p id="advanceModalLimit" class="text-xs text-mb-subtle mt-1"></p>
+            </div>
+            <div>
+                <label class="block text-sm text-mb-silver mb-1.5">Pay From Bank Account <span class="text-red-400">*</span></label>
+                <select name="bank_account_id" required
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent">
+                    <option value=""> -- Select account --</option>
+                    <?php foreach ($bankAccounts as $ba): ?>
+                        <option value="<?= $ba['id'] ?>">
+                            <?= e($ba['name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm text-mb-silver mb-1.5">Note</label>
+                <input type="text" name="advance_note" maxlength="255"
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent"
+                    placeholder="Optional note">
+            </div>
+            <div class="flex items-center justify-end gap-3">
+                <button type="button" onclick="document.getElementById('advanceModal').classList.add('hidden')"
+                    class="text-mb-subtle hover:text-white text-sm transition-colors px-3 py-2">Cancel</button>
+                <button type="submit" id="advanceModalSubmit"
+                    class="bg-orange-600 hover:bg-orange-500 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
+                    Confirm Advance
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     // Backdrop close
-    ['generateModal', 'payModal'].forEach(id => {
+    ['generateModal', 'payModal', 'advanceModal'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('click', function (e) { if (e.target === this) this.classList.add('hidden'); });
     });
 
+    function formatMoney(amount) {
+        return '$' + (parseFloat(amount) || 0).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
     // Pay modal
-    function openPayModal(id, name, amount) {
+    function openPayModal(id, name, netSalary, advanceDeducted, payableNow) {
         document.getElementById('payModalId').value = id;
         document.getElementById('payModalName').textContent = name;
-        document.getElementById('payModalAmount').textContent = '$' + parseFloat(amount).toLocaleString('en', { minimumFractionDigits: 2 });
+        document.getElementById('payModalNet').textContent = formatMoney(netSalary);
+        document.getElementById('payModalAdvance').textContent = '-' + formatMoney(advanceDeducted);
+        document.getElementById('payModalPayable').textContent = formatMoney(payableNow);
+        document.getElementById('payModalAmount').textContent = 'Payable: ' + formatMoney(payableNow);
+        const needsBank = (parseFloat(payableNow) || 0) > 0;
+        const bankSelect = document.getElementById('payModalBankAccount');
+        const bankHint = document.getElementById('payModalBankHint');
+        if (bankSelect) {
+            bankSelect.required = needsBank;
+            bankSelect.disabled = !needsBank;
+            if (!needsBank) {
+                bankSelect.value = '';
+            }
+        }
+        if (bankHint) {
+            bankHint.classList.toggle('hidden', needsBank);
+        }
         document.getElementById('payModal').classList.remove('hidden');
+    }
+
+    // Advance modal
+    function openAdvanceModal(id, name, outstanding, payableLimit) {
+        document.getElementById('advanceModalPayrollId').value = id;
+        document.getElementById('advanceModalName').textContent = name;
+        document.getElementById('advanceModalOutstanding').textContent = outstanding > 0
+            ? ('Current outstanding advance: ' + formatMoney(outstanding))
+            : 'No outstanding advance currently. New amount will be added.';
+
+        const allowedNow = Math.max(0, parseFloat(payableLimit) || 0);
+        const amountInput = document.getElementById('advanceModalAmount');
+        const limitHint = document.getElementById('advanceModalLimit');
+        const submitBtn = document.getElementById('advanceModalSubmit');
+
+        if (amountInput) {
+            amountInput.value = '';
+            amountInput.max = allowedNow.toFixed(2);
+        }
+        if (limitHint) {
+            limitHint.textContent = 'Max allowed now: ' + formatMoney(allowedNow);
+        }
+        if (submitBtn) {
+            submitBtn.disabled = allowedNow <= 0;
+            submitBtn.classList.toggle('opacity-50', allowedNow <= 0);
+            submitBtn.classList.toggle('cursor-not-allowed', allowedNow <= 0);
+            submitBtn.textContent = allowedNow <= 0 ? 'No Advance Allowed' : 'Confirm Advance';
+        }
+
+        document.getElementById('advanceModal').classList.remove('hidden');
     }
 
     // Batch: update single row net
