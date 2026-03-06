@@ -310,9 +310,9 @@ $_notifs = notif_all($pdo);
             if ($isAdmin || in_array('add_leads', $cuPerms, true)) {
                 echo navLink("{$root}leads/pipeline.php", 'Pipeline', $icons['pipeline'], $currentDir === 'leads');
             }
-            if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
-                echo navLink("{$root}vehicles/requests.php", 'Vehicle Requests', '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>', $currentPage === 'requests.php' && $currentDir === 'vehicles');
-            }
+            // if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
+            //     echo navLink("{$root}vehicles/requests.php", 'Vehicle Requests', '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>', $currentPage === 'requests.php' && $currentDir === 'vehicles');
+            // }
             if ($isAdmin || array_intersect(['add_reservations', 'do_delivery', 'do_return'], $cuPerms)) {
                 echo navLink("{$root}gps/index.php", 'GPS Tracking', $icons['gps'], $currentDir === 'gps');
             }
@@ -327,7 +327,7 @@ $_notifs = notif_all($pdo);
             if ($isAdmin) {
                 echo '<div class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1">';
                 echo '<a href="' . $root . 'staff/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'staff' && $currentPage !== 'tasks.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Staff List</a>';
-                echo '<a href="' . $root . 'staff/tasks.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'tasks.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">&#9711; Staff Tasks</a>';
+                echo '<a href="' . $root . 'staff/tasks.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'tasks.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors"> Staff Tasks</a>';
                 echo '</div>';
             }
             }

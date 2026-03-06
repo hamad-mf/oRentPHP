@@ -13,23 +13,26 @@ $pdo = db();
 $leadId = (int) ($_POST['lead_id'] ?? 0);
 $type = in_array($_POST['type'] ?? '', ['call', 'meeting', 'email', 'whatsapp']) ? $_POST['type'] : 'call';
 $date = $_POST['date'] ?? '';
-$time = $_POST['time'] ?? '09:00';
+$timeHour = (int) ($_POST['time_hour'] ?? 10);
+$timeMinute = (int) ($_POST['time_minute'] ?? 0);
+$timeAmpm = strtoupper($_POST['time_ampm'] ?? 'AM');
 $notes = trim($_POST['notes'] ?? '');
 if (!$leadId) {
     flash('error', 'Invalid lead selected.');
     redirect('index.php');
 }
-if (!$date || !$time) {
-    flash('error', 'Please select both date and time for the follow-up.');
+if (!$date) {
+    flash('error', 'Please select a date for the follow-up.');
     redirect("show.php?id=$leadId");
 }
 
-$leadExistsStmt = $pdo->prepare('SELECT id FROM leads WHERE id=? LIMIT 1');
-$leadExistsStmt->execute([$leadId]);
-if (!$leadExistsStmt->fetchColumn()) {
-    flash('error', 'Lead not found.');
-    redirect('index.php');
+$hour24 = $timeHour;
+if ($timeAmpm === 'PM' && $hour24 !== 12) {
+    $hour24 += 12;
+} elseif ($timeAmpm === 'AM' && $hour24 === 12) {
+    $hour24 = 0;
 }
+$time = sprintf('%02d:%02d', $hour24, $timeMinute);
 
 $scheduledDt = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time);
 $dtErrors = DateTime::getLastErrors();

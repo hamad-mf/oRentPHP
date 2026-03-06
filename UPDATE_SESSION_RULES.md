@@ -78,4 +78,7 @@ Add one row per release.
 | Date | Release ID | Code Deploy | DB SQL File | Prod SQL Applied By | Notes |
 |------|------------|-------------|-------------|----------------------|-------|
 | 2026-03-05 | timezone_consistency_fix | Yes | None | N/A | IST timezone fix and NOW/CURDATE hardening |
-
+| 2026-03-06 | lead_auto_close_followups | Yes | None | N/A | Auto-close lead to Lost after X follow-ups. Config in Settings. |
+| 2026-03-06 | vehicle_availability | Yes | Yes | Pending | Vehicle availability page + delivery tracking |
+| 2026-03-06 | vehicle_collation_hotfix | No (DB hotfix) | `migrations/releases/2026-03-06_vehicle_collation_hotfix.sql` | Applied manually (phpMyAdmin) | Production collation alignment for `vehicles`, `vehicle_images`, and `vehicle_requests`; resolved illegal mix of collations error in vehicle edit flow. |
+| 2026-03-06 | payroll_staff_advances | Pending | `migrations/releases/2026-03-06_payroll_staff_advances.sql` | Pending | Staff advance tracking and payroll-time deduction with payable breakdown. |
