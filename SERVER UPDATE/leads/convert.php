@@ -71,9 +71,10 @@ try {
         $clientId = (int) $pdo->lastInsertId();
     }
 
-    $pdo->prepare("UPDATE leads SET converted_client_id=?, status='closed_won', updated_at=NOW(),
-        closed_at = IF(closed_at IS NULL, NOW(), closed_at) WHERE id=?")
-        ->execute([$clientId, $id]);
+    $nowSql = app_now_sql();
+    $pdo->prepare("UPDATE leads SET converted_client_id=?, status='closed_won', updated_at=?,
+        closed_at = IF(closed_at IS NULL, ?, closed_at) WHERE id=?")
+        ->execute([$clientId, $nowSql, $nowSql, $id]);
 
     $activityNote = $linkedExistingClient
         ? "Lead linked to existing client #$clientId."

@@ -30,6 +30,10 @@ try {
     if ($hasDeliveryChargeCol === 0) {
         $pdo->exec("ALTER TABLE reservations ADD COLUMN delivery_charge DECIMAL(10,2) NOT NULL DEFAULT 0.00");
     }
+    $hasDeliveryLocationCol = (int) $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'reservations' AND COLUMN_NAME = 'delivery_location'")->fetchColumn();
+    if ($hasDeliveryLocationCol === 0) {
+        $pdo->exec("ALTER TABLE reservations ADD COLUMN delivery_location VARCHAR(255) DEFAULT NULL");
+    }
 } catch (Throwable $e) {
 }
 
@@ -66,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fuel = (int) ($_POST['fuel_level'] ?? 100);
     $miles = (int) ($_POST['mileage'] ?? 0);
     $notes = trim($_POST['notes'] ?? '');
+    $deliveryLocation = trim($_POST['delivery_location'] ?? '');
     $kmLimit = $_POST['km_limit'] !== '' ? (int) $_POST['km_limit'] : null;
     $extraKmPrice = $_POST['extra_km_price'] !== '' ? (float) $_POST['extra_km_price'] : null;
     $depositAmt = max(0, (float) ($_POST['deposit_amount'] ?? 0));
@@ -137,8 +142,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $deliveryPaymentMethodSave = $collectNowAtDelivery > 0 ? $deliveryPaymentMethod : null;
-        $pdo->prepare("UPDATE reservations SET status='active', km_limit=?, extra_km_price=?, deposit_amount=?, delivery_charge=?, delivery_manual_amount=?, delivery_payment_method=?, delivery_paid_amount=?, delivery_discount_type=?, delivery_discount_value=? WHERE id=?")
-            ->execute([$kmLimit, $extraKmPrice, $depositAmt, $deliveryCharge, $deliveryManualAmount, $deliveryPaymentMethodSave, $collectNowAtDelivery, $delivDiscType ?: null, $delivDiscVal, $id]);
+        $pdo->prepare("UPDATE reservations SET status='active', delivered_at=" . app_now_sql() . ", km_limit=?, extra_km_price=?, deposit_amount=?, delivery_charge=?, delivery_manual_amount=?, delivery_payment_method=?, delivery_paid_amount=?, delivery_discount_type=?, delivery_discount_value=?, delivery_location=? WHERE id=?")
+            ->execute([$kmLimit, $extraKmPrice, $depositAmt, $deliveryCharge, $deliveryManualAmount, $deliveryPaymentMethodSave, $collectNowAtDelivery, $delivDiscType ?: null, $delivDiscVal, $deliveryLocation !== '' ? $deliveryLocation : null, $id]);
         $pdo->prepare("UPDATE vehicles SET status='rented' WHERE id=?")->execute([$r['vehicle_id']]);
         $msg = 'Vehicle delivered. Amount collected at delivery: $' . number_format($collectNowAtDelivery, 2) . '.';
         if ($collectNowAtDelivery > 0) {
@@ -157,6 +162,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         app_log('ACTION', "Delivered reservation (ID: $id)");
         // ── Auto-post income to ledger ──────────────────────────────────
         ledger_post_reservation_event($pdo, $id, 'delivery', $collectNowAtDelivery, $deliveryPaymentMethodSave, $_SESSION['user']['id'] ?? 0, $deliveryBankAccountId);
+        // Auto-create GPS tracking entry with delivery location
+        try {
+            require_once __DIR__ . '/../includes/gps_helpers.php';
+            gps_tracking_ensure_schema($pdo);
+            $gpsStmt = $pdo->prepare("INSERT INTO gps_tracking (reservation_id, vehicle_id, last_location, tracking_active, notes, last_seen, updated_by, updated_at) VALUES (?, ?, ?, 1, 'Initial delivery', " . app_now_sql() . ", ?, " . app_now_sql() . ")");
+            $gpsStmt->execute([$id, (int)$r['vehicle_id'], $deliveryLocation !== '' ? $deliveryLocation : null, $_SESSION['user']['id'] ?? null]);
+        } catch (Throwable $e) {
+            app_log('ERROR', 'Auto GPS entry failed for reservation #' . $id . ': ' . $e->getMessage());
+        }
         flash('success', $msg);
         // Log staff activity
         require_once __DIR__ . '/../includes/activity_log.php';
@@ -209,6 +223,16 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         </div>
 
+        <!-- Delivery Location -->
+        <div class="bg-mb-surface border border-mb-subtle/20 rounded-lg p-6">
+            <h3 class="text-white font-light border-l-2 border-mb-accent pl-3 mb-4">Delivery Location</h3>
+            <p class="text-xs text-mb-subtle mb-3">Where is the vehicle being delivered? This will be used for GPS tracking.</p>
+            <input type="text" name="delivery_location" id="delivery_location"
+                value="<?= e($_POST['delivery_location'] ?? '') ?>"
+                placeholder="e.g. Client's office, Airport parking lot B3..."
+                class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white placeholder-mb-subtle focus:outline-none focus:border-mb-accent transition-colors"
+                maxlength="255">
+        </div>
         <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
             <p class="text-xs uppercase tracking-wider text-green-400 mb-1">Charge At Delivery</p>
             <div class="space-y-2 text-sm">

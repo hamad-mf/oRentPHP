@@ -30,6 +30,7 @@ $gpsWarnings     = gps_active_warning_count($pdo);
 $eq = $pdo->prepare("SELECT COUNT(*) FROM reservations WHERE DATE(created_at)=?"); $eq->execute([$istToday]); $enquiries = (int)$eq->fetchColumn();
 $cd = $pdo->prepare("SELECT COUNT(*) FROM reservations r JOIN vehicle_inspections vi ON vi.reservation_id=r.id AND vi.type='return' WHERE r.status='completed' AND DATE(vi.created_at)=?"); $cd->execute([$istToday]); $closedDeals = (int)$cd->fetchColumn();
 $nc = $pdo->prepare("SELECT COUNT(*) FROM clients WHERE DATE(created_at)=?"); $nc->execute([$istToday]); $newClients = (int)$nc->fetchColumn();
+$totalClients = (int)$pdo->query("SELECT COUNT(*) FROM clients")->fetchColumn();
 
 $overdueFollowups = 0; $activeLeads = 0;
 try {
@@ -182,7 +183,7 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
             </div>
             <?= statCard('Enquiries',$enquiries) ?>
             <?= statCard('Closed Deals',$closedDeals) ?>
-            <?= statCard('Clients',$newClients) ?>
+            <?= statCard('Total Clients',$totalClients,'clients/index.php','text-white',$newClients > 0 ? $newClients . ' new today' : '') ?>
         </div>
     </section>
 

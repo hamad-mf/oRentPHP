@@ -427,7 +427,7 @@ function ledger_get_entries(PDO $pdo, array $f = []): array
             LEFT JOIN bank_accounts ba ON ba.id = le.bank_account_id
             LEFT JOIN users u ON u.id = le.created_by
             WHERE " . implode(' AND ', $where) . "
-            ORDER BY le.posted_at DESC, le.id DESC
+            ORDER BY le.id DESC, le.posted_at DESC
             LIMIT 500";
 
     $stmt = $pdo->prepare($sql);
@@ -448,7 +448,7 @@ function ledger_build_query(array $f = []): array {
         'select' => "SELECT le.*, ba.name AS account_name, u.name AS posted_by_name ",
         'count'  => "SELECT COUNT(*) ",
         'base'   => $base,
-        'order'  => " ORDER BY le.posted_at DESC, le.id DESC",
+        'order'  => " ORDER BY le.id DESC, le.posted_at DESC",
         'params' => $params,
     ];
 }

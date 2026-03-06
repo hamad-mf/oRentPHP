@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/db.php';
 auth_check();
 // current_user() reads from $_SESSION  ” must be called before header.php
@@ -111,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-//  ”  ”  Filters  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
+
 $fType = $_GET['type'] ?? '';
 $fAccount = (int) ($_GET['account'] ?? 0);
 $fDateFrom = $_GET['date_from'] ?? date('Y-m-01');
@@ -131,6 +131,16 @@ $activeAccounts = array_values(array_filter($accounts, fn($a) => (int) ($a['is_a
 $_lq = ledger_build_query($filters);
 $_pgLedger = paginate_query($pdo, $_lq['select'] . $_lq['base'] . $_lq['order'], $_lq['count'] . $_lq['base'], $_lq['params'], $page, $perPage);
 $entries  = $_pgLedger['rows'];
+usort($entries, static function (array $a, array $b): int {
+    $aId = (int) ($a['id'] ?? 0);
+    $bId = (int) ($b['id'] ?? 0);
+    if ($aId !== $bId) {
+        return $bId <=> $aId;
+    }
+    $aTs = strtotime((string) ($a['posted_at'] ?? '')) ?: 0;
+    $bTs = strtotime((string) ($b['posted_at'] ?? '')) ?: 0;
+    return $bTs <=> $aTs;
+});
 $totals = ledger_get_totals($pdo, $fDateFrom, $fDateTo);
 
 $totalIncome = (float) $totals['total_income'];
@@ -145,6 +155,12 @@ foreach ($accounts as $acc) {
     else
         $totalBank += (float) $acc['balance'];
 }
+
+// Cash & Credit virtual balances (from ledger_entries.payment_mode)
+$cashIncome  = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income'")->fetchColumn();
+$cashExpense = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense'")->fetchColumn();
+$cashBalance = $cashIncome - $cashExpense;
+$creditBalance = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income'")->fetchColumn();
 
 $success = getFlash('success');
 $error   = getFlash('error');
@@ -181,7 +197,7 @@ require_once __DIR__ . '/../includes/header.php';
     <!--  ”  ”  Bank Accounts Row  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
         <div class="flex items-center justify-between px-6 py-4 border-b border-mb-subtle/10">
-            <h2 class="text-white font-light">Bank Accounts</h2>
+            <h2 class="text-white font-light">Accounts</h2>
             <?php if ($isAdmin): ?>
             <div class="flex items-center gap-2">
                 <button onclick="openTransferModal()"
@@ -197,6 +213,7 @@ require_once __DIR__ . '/../includes/header.php';
             <?php endif; ?>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-6">
+            <!-- Bank Account Cards -->
             <?php foreach ($accounts as $acc): ?>
                 <div
                     class="bg-mb-black/40 border border-mb-subtle/20 rounded-xl p-4 flex items-start justify-between gap-3">
@@ -227,36 +244,63 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
                 </div>
             <?php endforeach; ?>
+            <!-- Cash Account Card -->
+            <a href="cash.php"
+                class="bg-mb-black/40 border border-green-500/20 rounded-xl p-4 flex items-start justify-between gap-3 hover:border-green-500/40 transition-colors group cursor-pointer">
+                <div>
+<p class="text-white font-medium">Cash Account</p>
+                    <p class="text-xs text-mb-subtle mt-0.5">All cash transactions</p>
+                    <p class="text-lg font-light mt-2 <?= $cashBalance >= 0 ? 'text-green-400' : 'text-red-400' ?>">
+                        $<?= number_format($cashBalance, 2) ?>
+                    </p>
+                </div>
+                <svg class="w-4 h-4 text-mb-subtle group-hover:text-green-400 transition-colors mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"/>
+                </svg>
+            </a>
+            <!-- Credit Account Card -->
+            <a href="credit.php"
+                class="bg-mb-black/40 border border-amber-500/20 rounded-xl p-4 flex items-start justify-between gap-3 hover:border-amber-500/40 transition-colors group cursor-pointer">
+                <div>
+<p class="text-white font-medium">Credit Account</p>
+                    <p class="text-xs text-mb-subtle mt-0.5">Unpaid / credit transactions</p>
+                    <p class="text-lg font-light mt-2 text-amber-400">
+                        $<?= number_format($creditBalance, 2) ?>
+                    </p>
+                </div>
+                <svg class="w-4 h-4 text-mb-subtle group-hover:text-amber-400 transition-colors mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"/>
+                </svg>
+            </a>
+            
         </div>
     </div>
 
     <!--  ”  ”  Ledger Table  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
-        <div
-            class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between px-6 py-4 border-b border-mb-subtle/10">
-            <h2 class="text-white font-light">Ledger</h2>
-            <div class="flex flex-wrap gap-2 items-center">
+        <div class="px-6 py-4 border-b border-mb-subtle/10">
+            <div class="flex items-center flex-wrap gap-3">
+                <h2 class="text-white font-light leading-none m-0 p-0 shrink-0" style="margin:0;padding:0;line-height:1">Ledger</h2>
                 <!-- Filters -->
-                <form method="GET" class="flex flex-wrap gap-2 items-center">
+                <form method="GET" class="flex flex-wrap gap-2 items-center ml-auto">
                     <select name="type" onchange="this.form.submit()"
-                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-mb-accent">
+                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
                         <option value="">All Types</option>
                         <option value="income" <?= $fType === 'income' ? 'selected' : '' ?>>Income</option>
                         <option value="expense" <?= $fType === 'expense' ? 'selected' : '' ?>>Expense</option>
                     </select>
                     <select name="source" onchange="this.form.submit()"
-                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-mb-accent">
+                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
                         <option value="">All Sources</option>
-                        <option value="reservation" <?= $fSource === 'reservation' ? 'selected' : '' ?>>Reservations
-                        </option>
+                        <option value="reservation" <?= $fSource === 'reservation' ? 'selected' : '' ?>>Reservations</option>
                         <option value="manual" <?= $fSource === 'manual' ? 'selected' : '' ?>>Manual</option>
                     </select>
                     <input type="date" name="date_from" value="<?= e($fDateFrom) ?>"
-                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-mb-accent">
+                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
                     <input type="date" name="date_to" value="<?= e($fDateTo) ?>"
-                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-mb-accent">
+                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
                     <select name="account" onchange="this.form.submit()"
-                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-mb-accent">
+                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
                         <option value="">All Accounts</option>
                         <?php foreach ($accounts as $acc): ?>
                             <option value="<?= $acc['id'] ?>" <?= $fAccount == $acc['id'] ? 'selected' : '' ?>>
@@ -265,17 +309,17 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php endforeach; ?>
                     </select>
                     <button type="submit"
-                        class="bg-mb-accent/15 text-mb-accent border border-mb-accent/30 px-3 py-1.5 rounded-lg text-xs hover:bg-mb-accent/25 transition-colors">
+                        class="bg-mb-accent/15 text-mb-accent border border-mb-accent/30 px-3 h-10 rounded-lg text-xs hover:bg-mb-accent/25 transition-colors">
                         Apply
                     </button>
+                       <!-- Add buttons -->
+                <button type="button" onclick="openEntryModal('income')"
+                    class="text-xs bg-green-500/10 text-green-400 border border-green-500/20 px-4 h-10 rounded-full hover:bg-green-500/20 transition-colors whitespace-nowrap shrink-0">+ Income</button>
+                <button type="button" onclick="openEntryModal('expense')"
+                    class="text-xs bg-red-500/10 text-red-400 border border-red-500/20 px-4 h-10 rounded-full hover:bg-red-500/20 transition-colors whitespace-nowrap shrink-0">+ Expense</button>
                 </form>
-                <!-- Add buttons -->
-                <button onclick="openEntryModal('income')"
-                    class="text-xs bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1.5 rounded-full hover:bg-green-500/20 transition-colors whitespace-nowrap">+
-                    Income</button>
-                <button onclick="openEntryModal('expense')"
-                    class="text-xs bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-full hover:bg-red-500/20 transition-colors whitespace-nowrap">+
-                    Expense</button>
+             
+                </div>
             </div>
         </div>
 

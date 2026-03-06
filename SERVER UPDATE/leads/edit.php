@@ -83,9 +83,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $lostReasonValue = $newStatus === 'closed_lost' ? $lostReason : null;
-        $pdo->prepare('UPDATE leads SET status=?, lost_reason=?, updated_at=NOW(),
-            closed_at = IF(? = ? AND closed_at IS NULL, NOW(), closed_at) WHERE id=?')
-            ->execute([$newStatus, $lostReasonValue, 'closed_won', $newStatus, $id]);
+        $nowSql = app_now_sql();
+        $pdo->prepare('UPDATE leads SET status=?, lost_reason=?, updated_at=?,
+            closed_at = IF(? = ? AND closed_at IS NULL, ?, closed_at) WHERE id=?')
+            ->execute([$newStatus, $lostReasonValue, $nowSql, 'closed_won', $newStatus, $nowSql, $id]);
 
         $activityNote = "Status updated to: " . str_replace('_', ' ', $newStatus) . ".";
         if ($newStatus === 'closed_lost') {
@@ -130,9 +131,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['lost_reason'] = 'Please document the reason for closing as lost.';
 
     if (empty($errors)) {
-        $pdo->prepare('UPDATE leads SET name=?,phone=?,email=?,inquiry_type=?,vehicle_interest=?,source=?,assigned_to=?,notes=?,status=?,lost_reason=?,updated_at=NOW(),
-            closed_at = IF(? = ? AND closed_at IS NULL, NOW(), closed_at) WHERE id=?')
-            ->execute([$name, $phone, $email ?: null, $inquiry, $vehicle ?: null, $source, $assigned ?: null, $notes ?: null, $status, $lostReason ?: null, 'closed_won', $status, $id]);
+        $nowSql = app_now_sql();
+        $pdo->prepare('UPDATE leads SET name=?,phone=?,email=?,inquiry_type=?,vehicle_interest=?,source=?,assigned_to=?,notes=?,status=?,lost_reason=?,updated_at=?,
+            closed_at = IF(? = ? AND closed_at IS NULL, ?, closed_at) WHERE id=?')
+            ->execute([$name, $phone, $email ?: null, $inquiry, $vehicle ?: null, $source, $assigned ?: null, $notes ?: null, $status, $lostReason ?: null, $nowSql, 'closed_won', $status, $nowSql, $id]);
 
         if ($status !== $lead['status']) {
             $pdo->prepare('INSERT INTO lead_activities (lead_id, note) VALUES (?,?)')->execute([$id, "Status changed to: " . str_replace('_', ' ', $status) . "."]);

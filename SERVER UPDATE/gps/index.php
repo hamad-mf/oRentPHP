@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/gps_helpers.php';
 require_once __DIR__ . '/../includes/activity_log.php';
@@ -10,36 +10,11 @@ $page    = max(1, (int) ($_GET['page'] ?? 1));
 gps_tracking_ensure_schema($pdo);
 
 $search = trim($_GET['search'] ?? '');
-$status = $_GET['status'] ?? '';
 $tracking = $_GET['tracking'] ?? '';
-$fromDate = trim((string) ($_GET['from_date'] ?? ''));
-$toDate = trim((string) ($_GET['to_date'] ?? ''));
 
-$isValidDate = static function (string $date): bool {
-    if ($date === '') {
-        return false;
-    }
-    $dt = DateTime::createFromFormat('Y-m-d', $date);
-    return $dt instanceof DateTime && $dt->format('Y-m-d') === $date;
-};
-
-$allowedStatuses = ['', 'pending', 'confirmed', 'active', 'completed'];
 $allowedTracking = ['', 'yes', 'no'];
-
-if (!in_array($status, $allowedStatuses, true)) {
-    $status = '';
-}
 if (!in_array($tracking, $allowedTracking, true)) {
     $tracking = '';
-}
-if (!$isValidDate($fromDate)) {
-    $fromDate = '';
-}
-if (!$isValidDate($toDate)) {
-    $toDate = '';
-}
-if ($fromDate !== '' && $toDate !== '' && $fromDate > $toDate) {
-    [$fromDate, $toDate] = [$toDate, $fromDate];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -49,35 +24,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $trackingActive = ($_POST['tracking_active'] ?? '1') === '0' ? 0 : 1;
 
     $fSearch = trim((string) ($_POST['f_search'] ?? ''));
-    $fStatus = (string) ($_POST['f_status'] ?? '');
     $fTracking = (string) ($_POST['f_tracking'] ?? '');
-    $fFromDate = trim((string) ($_POST['f_from_date'] ?? ''));
-    $fToDate = trim((string) ($_POST['f_to_date'] ?? ''));
     $fPage = max(1, (int) ($_POST['f_page'] ?? 1));
 
-    if (!in_array($fStatus, $allowedStatuses, true)) {
-        $fStatus = '';
-    }
     if (!in_array($fTracking, $allowedTracking, true)) {
         $fTracking = '';
-    }
-    if (!$isValidDate($fFromDate)) {
-        $fFromDate = '';
-    }
-    if (!$isValidDate($fToDate)) {
-        $fToDate = '';
-    }
-    if ($fFromDate !== '' && $fToDate !== '' && $fFromDate > $fToDate) {
-        [$fFromDate, $fToDate] = [$fToDate, $fFromDate];
     }
 
     $redirectParams = array_filter(
         [
             'search' => $fSearch,
-            'status' => $fStatus,
             'tracking' => $fTracking,
-            'from_date' => $fFromDate,
-            'to_date' => $fToDate,
             'page' => $fPage > 1 ? $fPage : null,
         ],
         static fn($value) => $value !== '' && $value !== null
@@ -85,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $redirectUrl = 'index.php' . ($redirectParams ? '?' . http_build_query($redirectParams) : '');
 
     if ($reservationId <= 0) {
-        flash('error', 'Invalid reservation selected for GPS update.');
+        flash('error', 'Invalid reservation selected.');
         redirect($redirectUrl);
     }
     if (strlen($lastLocation) > 255) {
@@ -97,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect($redirectUrl);
     }
     if ($trackingActive === 0 && $inactiveReason === '') {
-        flash('error', 'Reason is required when GPS is set to No.');
+        flash('error', 'Reason is required when vehicle is not at delivery location.');
         redirect($redirectUrl);
     }
 
@@ -130,94 +87,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $existingId = (int) ($fallbackStmt->fetchColumn() ?: 0);
         }
 
-        if ($existingId > 0) {
-            $upd = $pdo->prepare("
-                UPDATE gps_tracking
-                SET reservation_id = ?, vehicle_id = ?, last_location = ?, tracking_active = ?, notes = ?, last_seen = NOW(), updated_by = ?, updated_at = NOW()
-                WHERE id = ?
-            ");
-            $upd->execute([
-                $reservationId,
-                (int) $reservation['vehicle_id'],
-                $lastLocation !== '' ? $lastLocation : null,
-                $trackingActive,
-                $inactiveReason !== '' ? $inactiveReason : null,
-                $userId ?: null,
-                $existingId
-            ]);
-        } else {
-            $ins = $pdo->prepare("
-                INSERT INTO gps_tracking (reservation_id, vehicle_id, last_location, tracking_active, notes, last_seen, updated_by, updated_at)
-                VALUES (?, ?, ?, ?, ?, NOW(), ?, NOW())
-            ");
-            $ins->execute([
-                $reservationId,
-                (int) $reservation['vehicle_id'],
-                $lastLocation !== '' ? $lastLocation : null,
-                $trackingActive,
-                $inactiveReason !== '' ? $inactiveReason : null,
-                $userId ?: null
-            ]);
-        }
+        $nowSql = app_now_sql();
+
+        // Always INSERT a new row to keep history of location changes
+        $ins = $pdo->prepare("
+            INSERT INTO gps_tracking (reservation_id, vehicle_id, last_location, tracking_active, notes, last_seen, updated_by, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $ins->execute([
+            $reservationId,
+            (int) $reservation['vehicle_id'],
+            $lastLocation !== '' ? $lastLocation : null,
+            $trackingActive,
+            $inactiveReason !== '' ? $inactiveReason : null,
+            $nowSql,
+            $userId ?: null,
+            $nowSql
+        ]);
 
         $trackingLabel = $trackingActive === 1 ? 'Yes' : 'No';
         $locationLabel = $lastLocation !== '' ? $lastLocation : 'Not set';
         $reasonLabel = $inactiveReason !== '' ? $inactiveReason : 'n/a';
-        $message = "GPS updated for reservation #{$reservationId}. Tracking: {$trackingLabel}. Location: {$locationLabel}.";
+        $message = "Updated reservation #{$reservationId}. At Location: {$trackingLabel}. Delivery Location: {$locationLabel}.";
         if ($trackingActive === 0) {
             $message .= " Reason: {$reasonLabel}.";
         }
 
         app_log(
             'ACTION',
-            "GPS update for reservation #{$reservationId} ({$reservation['brand']} {$reservation['model']} - {$reservation['client_name']}): tracking={$trackingLabel}, location={$locationLabel}, reason={$reasonLabel}"
+            "GPS update for reservation #{$reservationId} ({$reservation['brand']} {$reservation['model']} - {$reservation['client_name']}): at_location={$trackingLabel}, location={$locationLabel}, reason={$reasonLabel}"
         );
         log_activity(
             $pdo,
             'gps_update',
             'reservation',
             $reservationId,
-            "Updated GPS for reservation #{$reservationId} ({$reservation['brand']} {$reservation['model']} - {$reservation['license_plate']}). Tracking {$trackingLabel}, location: {$locationLabel}, reason: {$reasonLabel}."
+            "Updated GPS for reservation #{$reservationId} ({$reservation['brand']} {$reservation['model']} - {$reservation['license_plate']}). At Location: {$trackingLabel}, location: {$locationLabel}, reason: {$reasonLabel}."
         );
 
         flash('success', $message);
     } catch (Throwable $e) {
         app_log('ERROR', 'GPS update failed for reservation #' . $reservationId . ': ' . $e->getMessage());
-        flash('error', 'Could not update GPS details right now. Please try again.');
+        flash('error', 'Could not update details right now. Please try again.');
     }
 
     redirect($redirectUrl);
 }
 
-$counts = [
-    'all' => (int) $pdo->query("SELECT COUNT(*) FROM reservations")->fetchColumn(),
-    'pending' => (int) $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='pending'")->fetchColumn(),
-    'confirmed' => (int) $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='confirmed'")->fetchColumn(),
-    'active' => (int) $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='active'")->fetchColumn(),
-    'completed' => (int) $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='completed'")->fetchColumn(),
-];
+// Count active rentals
+$activeCount = (int) $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='active'")->fetchColumn();
 
-$trackingCounts = ['all' => 0, 'yes' => 0, 'no' => 0];
+$latestGpsSql = gps_latest_tracking_join_sql();
+$trackingCounts = ['all' => $activeCount, 'yes' => 0, 'no' => 0];
 try {
-    $latestGpsSql = gps_latest_tracking_join_sql();
-    $trackingCounts['all'] = (int) $pdo->query("SELECT COUNT(*) FROM reservations")->fetchColumn();
     $trackingCounts['yes'] = (int) $pdo->query("
         SELECT COUNT(*)
         FROM reservations r
         LEFT JOIN ($latestGpsSql) g ON g.reservation_id = r.id
-        WHERE COALESCE(g.tracking_active, 1) = 1
+        WHERE r.status = 'active' AND COALESCE(g.tracking_active, 1) = 1
     ")->fetchColumn();
     $trackingCounts['no'] = (int) $pdo->query("
         SELECT COUNT(*)
         FROM reservations r
         LEFT JOIN ($latestGpsSql) g ON g.reservation_id = r.id
-        WHERE COALESCE(g.tracking_active, 1) = 0
+        WHERE r.status = 'active' AND COALESCE(g.tracking_active, 1) = 0
     ")->fetchColumn();
 } catch (Throwable $e) {
     app_log('ERROR', 'GPS tracking count query failed: ' . $e->getMessage());
 }
 
-$where = ['1=1'];
+$where = ["r.status = 'active'"];
 $params = [];
 
 if ($search !== '') {
@@ -228,18 +167,6 @@ if ($search !== '') {
     $params[] = $like;
     $params[] = $like;
     $params[] = ctype_digit($search) ? (int) $search : -1;
-}
-if ($status !== '') {
-    $where[] = 'r.status = ?';
-    $params[] = $status;
-}
-if ($fromDate !== '') {
-    $where[] = 'DATE(r.end_date) >= ?';
-    $params[] = $fromDate;
-}
-if ($toDate !== '') {
-    $where[] = 'DATE(r.start_date) <= ?';
-    $params[] = $toDate;
 }
 if ($tracking === 'yes') {
     $where[] = 'COALESCE(g.tracking_active, 1) = 1';
@@ -280,7 +207,7 @@ $sql = "
         r.status,
         r.start_date,
         r.end_date,
-        r.actual_end_date,
+        r.delivery_location AS res_delivery_location,
         c.id AS client_id,
         c.name AS client_name,
         v.id AS vehicle_id,
@@ -309,8 +236,7 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 <div class="space-y-6">
     <?php if ($success = getFlash('success')): ?>
-        <div
-            class="flex items-center gap-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg px-5 py-3 text-sm">
+        <div class="flex items-center gap-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg px-5 py-3 text-sm">
             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
@@ -318,8 +244,7 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     <?php endif; ?>
     <?php if ($error = getFlash('error')): ?>
-        <div
-            class="flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-5 py-3 text-sm">
+        <div class="flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-5 py-3 text-sm">
             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -329,32 +254,12 @@ require_once __DIR__ . '/../includes/header.php';
 
     <div class="flex items-center gap-1 bg-mb-surface border border-mb-subtle/20 rounded-xl p-1 w-fit flex-wrap">
         <?php
-        $tabs = ['' => 'All', 'pending' => 'Pending', 'confirmed' => 'Confirmed', 'active' => 'Active', 'completed' => 'Completed'];
-        foreach ($tabs as $val => $lbl):
-            $active = $status === $val;
-            $cnt = $counts[$val === '' ? 'all' : $val] ?? 0;
-            $query = array_filter(
-                ['status' => $val, 'tracking' => $tracking, 'search' => $search, 'from_date' => $fromDate, 'to_date' => $toDate],
-                static fn($v) => $v !== '' && $v !== null
-            );
-            ?>
-            <a href="?<?= http_build_query($query) ?>"
-                class="px-4 py-2 rounded-lg text-sm transition-all <?= $active ? 'bg-mb-accent text-white' : 'text-mb-subtle hover:text-white hover:bg-mb-black/50' ?>">
-                <?= $lbl ?> <span class="ml-1 text-xs opacity-70">
-                    <?= $cnt ?>
-                </span>
-            </a>
-        <?php endforeach; ?>
-    </div>
-
-    <div class="flex items-center gap-1 bg-mb-surface border border-mb-subtle/20 rounded-xl p-1 w-fit flex-wrap">
-        <?php
-        $trackingTabs = ['' => 'Tracking: All', 'yes' => 'GPS Yes', 'no' => 'GPS No'];
+        $trackingTabs = ['' => 'All', 'yes' => 'At Location', 'no' => 'Not at Location'];
         foreach ($trackingTabs as $val => $lbl):
             $active = $tracking === $val;
             $countKey = $val === '' ? 'all' : $val;
             $query = array_filter(
-                ['status' => $status, 'tracking' => $val, 'search' => $search, 'from_date' => $fromDate, 'to_date' => $toDate],
+                ['tracking' => $val, 'search' => $search],
                 static fn($v) => $v !== '' && $v !== null
             );
             ?>
@@ -369,8 +274,6 @@ require_once __DIR__ . '/../includes/header.php';
 
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <form method="GET" class="flex flex-wrap items-center gap-3 flex-1">
-            <?php if ($status): ?><input type="hidden" name="status" value="<?= e($status) ?>">
-            <?php endif; ?>
             <?php if ($tracking): ?><input type="hidden" name="tracking" value="<?= e($tracking) ?>">
             <?php endif; ?>
             <div class="relative flex-1 min-w-[220px] max-w-sm">
@@ -383,27 +286,21 @@ require_once __DIR__ . '/../includes/header.php';
                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="text-mb-subtle text-xs uppercase tracking-wide">From</span>
-                <input type="date" name="from_date" value="<?= e($fromDate) ?>"
-                    class="bg-mb-surface border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors">
-            </div>
-            <div class="flex items-center gap-2">
-                <span class="text-mb-subtle text-xs uppercase tracking-wide">To</span>
-                <input type="date" name="to_date" value="<?= e($toDate) ?>"
-                    class="bg-mb-surface border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors">
-            </div>
             <button type="submit" class="text-mb-silver hover:text-white text-sm transition-colors">Search</button>
-            <?php if ($search || $status || $tracking || $fromDate || $toDate): ?><a href="index.php"
+            <?php if ($search || $tracking): ?><a href="index.php"
                     class="text-mb-subtle hover:text-white text-sm transition-colors">Clear</a>
             <?php endif; ?>
         </form>
+        <a href="history.php" class="inline-flex items-center gap-2 bg-mb-surface border border-mb-subtle/20 px-4 py-2 rounded-lg text-sm text-mb-silver hover:text-white hover:border-mb-accent/30 transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            History
+        </a>
     </div>
 
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
         <div class="px-6 py-4 border-b border-mb-subtle/10">
-            <h3 class="text-white font-light text-lg">GPS Tracking</h3>
-            <p class="text-mb-subtle text-xs mt-1">Update current location and tracking status for any reservation, including completed ones.</p>
+            <h3 class="text-white font-light text-lg">GPS Tracking <span class="text-mb-subtle text-sm font-normal">(Active Rentals)</span></h3>
+            <p class="text-mb-subtle text-xs mt-1">Track delivery locations and vehicle status for active rentals.</p>
         </div>
         <?php if (empty($rows)): ?>
             <div class="py-20 text-center">
@@ -411,7 +308,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2"
                         d="M12 2a7 7 0 00-7 7c0 4.5 7 13 7 13s7-8.5 7-13a7 7 0 00-7-7zm0 10a3 3 0 110-6 3 3 0 010 6z" />
                 </svg>
-                <p class="text-mb-subtle text-lg">No reservations found for the selected filters.</p>
+                <p class="text-mb-subtle text-lg">No active rentals found.</p>
             </div>
         <?php else: ?>
             <div class="overflow-x-auto">
@@ -422,10 +319,9 @@ require_once __DIR__ . '/../includes/header.php';
                             <th class="px-6 py-4 text-left">Client</th>
                             <th class="px-6 py-4 text-left">Vehicle</th>
                             <th class="px-6 py-4 text-left">Period</th>
-                            <th class="px-6 py-4 text-left">Status</th>
-                            <th class="px-6 py-4 text-left">Current Location</th>
-                            <th class="px-6 py-4 text-left">GPS Active</th>
-                            <th class="px-6 py-4 text-left">Reason (If No)</th>
+                            <th class="px-6 py-4 text-left">Delivery Location</th>
+                            <th class="px-6 py-4 text-left">At Location</th>
+                            <th class="px-6 py-4 text-left">Reason (If Not)</th>
                             <th class="px-6 py-4 text-left">Last Updated</th>
                             <th class="px-6 py-4 text-left">Updated By</th>
                             <th class="px-6 py-4 text-right">Action</th>
@@ -436,15 +332,7 @@ require_once __DIR__ . '/../includes/header.php';
                             $trackingActiveVal = array_key_exists('tracking_active', $row) && $row['tracking_active'] !== null
                                 ? (int) $row['tracking_active']
                                 : 1;
-                            $isGpsOff = $trackingActiveVal === 0;
-                            $isActiveWarning = $isGpsOff && $row['status'] === 'active';
-                            $statusColors = [
-                                'pending' => 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
-                                'confirmed' => 'bg-sky-500/10 text-sky-400 border-sky-500/30',
-                                'active' => 'bg-green-500/10 text-green-400 border-green-500/30',
-                                'completed' => 'bg-mb-subtle/10 text-mb-subtle border-mb-subtle/30',
-                            ];
-                            $sc = $statusColors[$row['status']] ?? 'bg-mb-subtle/10 text-mb-subtle border-mb-subtle/30';
+                            $isNotAtLocation = $trackingActiveVal === 0;
                             $lastUpdated = $row['updated_at'] ?? $row['last_seen'] ?? null;
                             $formId = 'gps-form-' . (int) $row['id'];
                             $trackingInputId = 'gps-active-' . (int) $row['id'];
@@ -452,6 +340,10 @@ require_once __DIR__ . '/../includes/header.php';
                             $noBtnId = 'gps-no-' . (int) $row['id'];
                             $reasonId = 'gps-reason-' . (int) $row['id'];
                             $inactiveReason = trim((string) ($row['notes'] ?? ''));
+                            // Use delivery location from reservation if GPS entry has no location
+                            $displayLocation = trim((string) ($row['last_location'] ?? '')) !== ''
+                                ? $row['last_location']
+                                : ($row['res_delivery_location'] ?? '');
                             $updatedByLabel = '-';
                             if (!empty($row['updated_by_name'])) {
                                 $updatedByLabel = (string) $row['updated_by_name'];
@@ -461,43 +353,25 @@ require_once __DIR__ . '/../includes/header.php';
                                 $updatedByLabel = 'User #' . (int) $row['updated_by'];
                             }
                             ?>
-                            <tr
-                                class="hover:bg-mb-black/30 transition-colors <?= $isActiveWarning ? 'bg-red-500/5 border-l-2 border-red-500/40' : '' ?>">
+                            <tr class="hover:bg-mb-black/30 transition-colors <?= $isNotAtLocation ? 'bg-red-500/5 border-l-2 border-red-500/40' : '' ?>">
                                 <td class="px-6 py-4">
                                     <a href="<?= '../reservations/show.php?id=' . (int) $row['id'] ?>"
-                                        class="text-white hover:text-mb-accent transition-colors font-light">#
-                                        <?= (int) $row['id'] ?>
-                                    </a>
+                                        class="text-white hover:text-mb-accent transition-colors font-light">#<?= (int) $row['id'] ?></a>
                                 </td>
                                 <td class="px-6 py-4">
                                     <a href="<?= '../clients/show.php?id=' . (int) $row['client_id'] ?>"
-                                        class="text-white hover:text-mb-accent transition-colors">
-                                        <?= e($row['client_name']) ?>
-                                    </a>
+                                        class="text-white hover:text-mb-accent transition-colors"><?= e($row['client_name']) ?></a>
                                 </td>
                                 <td class="px-6 py-4">
-                                    <p class="text-mb-silver">
-                                        <?= e($row['brand']) ?>
-                                        <?= e($row['model']) ?>
-                                    </p>
-                                    <p class="text-mb-subtle text-xs">
-                                        <?= e($row['license_plate']) ?>
-                                    </p>
+                                    <p class="text-mb-silver"><?= e($row['brand']) ?> <?= e($row['model']) ?></p>
+                                    <p class="text-mb-subtle text-xs"><?= e($row['license_plate']) ?></p>
                                 </td>
                                 <td class="px-6 py-4 text-mb-silver text-xs">
-                                    <?= e($row['start_date']) ?> -> <?= e($row['end_date']) ?>
-                                    <?php if ($row['status'] === 'completed' && !empty($row['actual_end_date'])): ?>
-                                        <p class="text-mb-subtle mt-1">Returned: <?= e($row['actual_end_date']) ?></p>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <span class="px-2.5 py-1 rounded-full text-xs border capitalize <?= $sc ?>">
-                                        <?= e($row['status']) ?>
-                                    </span>
+                                    <?= e($row['start_date']) ?> &rarr; <?= e($row['end_date']) ?>
                                 </td>
                                 <td class="px-6 py-4 min-w-[240px]">
                                     <input type="text" name="last_location" form="<?= $formId ?>"
-                                        value="<?= e((string) ($row['last_location'] ?? '')) ?>" placeholder="Enter current location"
+                                        value="<?= e((string) $displayLocation) ?>" placeholder="Enter delivery location"
                                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors">
                                 </td>
                                 <td class="px-6 py-4 min-w-[150px]">
@@ -513,16 +387,16 @@ require_once __DIR__ . '/../includes/header.php';
                                             No
                                         </button>
                                     </div>
-                                    <?php if ($isActiveWarning): ?>
-                                        <p class="text-red-400 text-xs mt-1">Warning: Active rental with GPS off.</p>
+                                    <?php if ($isNotAtLocation): ?>
+                                        <p class="text-red-400 text-xs mt-1">Vehicle not at delivery location.</p>
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 min-w-[260px]">
                                     <input id="<?= $reasonId ?>" type="text" name="inactive_reason" form="<?= $formId ?>"
                                         value="<?= e($inactiveReason) ?>" maxlength="500"
-                                        placeholder="Reason required when GPS is No"
-                                        class="w-full bg-mb-black border <?= ($isGpsOff && $inactiveReason === '') ? 'border-red-500/40' : 'border-mb-subtle/20' ?> rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors">
-                                    <?php if ($isGpsOff && $inactiveReason === ''): ?>
+                                        placeholder="Reason required when not at location"
+                                        class="w-full bg-mb-black border <?= ($isNotAtLocation && $inactiveReason === '') ? 'border-red-500/40' : 'border-mb-subtle/20' ?> rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors">
+                                    <?php if ($isNotAtLocation && $inactiveReason === ''): ?>
                                         <p class="text-red-400 text-xs mt-1">Please add reason and save.</p>
                                     <?php endif; ?>
                                 </td>
@@ -540,10 +414,7 @@ require_once __DIR__ . '/../includes/header.php';
                                         <input type="hidden" id="<?= $trackingInputId ?>" name="tracking_active"
                                             value="<?= $trackingActiveVal ?>">
                                         <input type="hidden" name="f_search" value="<?= e($search) ?>">
-                                        <input type="hidden" name="f_status" value="<?= e($status) ?>">
                                         <input type="hidden" name="f_tracking" value="<?= e($tracking) ?>">
-                                        <input type="hidden" name="f_from_date" value="<?= e($fromDate) ?>">
-                                        <input type="hidden" name="f_to_date" value="<?= e($toDate) ?>">
                                         <input type="hidden" name="f_page" value="<?= (int) $page ?>">
                                         <button type="submit"
                                             class="bg-mb-accent text-white px-4 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-xs font-medium">
@@ -563,10 +434,7 @@ require_once __DIR__ . '/../includes/header.php';
 $_qp = array_filter(
     [
         'search' => $search,
-        'status' => $status,
         'tracking' => $tracking,
-        'from_date' => $fromDate,
-        'to_date' => $toDate,
     ],
     static fn($value) => $value !== null && $value !== ''
 );
@@ -633,7 +501,7 @@ document.addEventListener('DOMContentLoaded', function () {
             applyRule();
             if (trackingInput.value === '0' && reason.value.trim() === '') {
                 e.preventDefault();
-                reason.setCustomValidity('Reason is required when GPS is set to No.');
+                reason.setCustomValidity('Reason is required when vehicle is not at delivery location.');
                 reason.reportValidity();
             }
         });

@@ -54,8 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $isAdmin) {
         if ($pS && $pE && $am > 0) {
             $pdo->prepare("INSERT INTO monthly_targets (period_start,period_end,target_amount,notes,created_by)
                 VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE period_end=VALUES(period_end),
-                target_amount=VALUES(target_amount),notes=VALUES(notes),created_by=VALUES(created_by),updated_at=NOW()")
-                ->execute([$pS, $pE, $am, $no ?: null, $userId]);
+                target_amount=VALUES(target_amount),notes=VALUES(notes),created_by=VALUES(created_by),updated_at=?")
+                ->execute([$pS, $pE, $am, $no ?: null, $userId, app_now_sql()]);
             flash('success', 'Target saved.');
         } else { flash('error', 'Enter a valid period and amount.'); }
         $bm = (int)date('m', strtotime($pS));
@@ -105,6 +105,7 @@ while ($cur <= $endTs) {
     $dailyRows[] = ['date'=>$ds,'achieved'=>$ach,'gap'=>$ach-$dailyTarget,'status'=>$st,'is_today'=>$isTod,'is_future'=>$isFut];
     $cur = strtotime('+1 day', $cur);
 }
+$dailyRows = array_reverse($dailyRows);
 $dailyTotal = count($dailyRows);
 $dailyTotalPages = max(1, (int) ceil($dailyTotal / $perPage));
 $page = min($page, $dailyTotalPages);

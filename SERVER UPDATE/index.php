@@ -22,16 +22,21 @@ $totalCars       = $pdo->query("SELECT COUNT(*) FROM vehicles")->fetchColumn();
 $availableCars   = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='available'")->fetchColumn();
 $rentedCars      = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='rented'")->fetchColumn();
 $maintenanceCars = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='maintenance'")->fetchColumn();
-$todayReturns    = $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='active' AND DATE(end_date)=CURDATE()")->fetchColumn();
+$tr = $pdo->prepare("SELECT COUNT(*) FROM reservations WHERE status='active' AND DATE(end_date)=?");
+$tr->execute([$istToday]);
+$todayReturns = (int) $tr->fetchColumn();
 $gpsWarnings     = gps_active_warning_count($pdo);
 
 $eq = $pdo->prepare("SELECT COUNT(*) FROM reservations WHERE DATE(created_at)=?"); $eq->execute([$istToday]); $enquiries = (int)$eq->fetchColumn();
 $cd = $pdo->prepare("SELECT COUNT(*) FROM reservations r JOIN vehicle_inspections vi ON vi.reservation_id=r.id AND vi.type='return' WHERE r.status='completed' AND DATE(vi.created_at)=?"); $cd->execute([$istToday]); $closedDeals = (int)$cd->fetchColumn();
 $nc = $pdo->prepare("SELECT COUNT(*) FROM clients WHERE DATE(created_at)=?"); $nc->execute([$istToday]); $newClients = (int)$nc->fetchColumn();
+$totalClients = (int)$pdo->query("SELECT COUNT(*) FROM clients")->fetchColumn();
 
 $overdueFollowups = 0; $activeLeads = 0;
 try {
-    $overdueFollowups = (int)$pdo->query("SELECT COUNT(*) FROM lead_followups WHERE scheduled_at<NOW() AND is_done=0")->fetchColumn();
+    $of = $pdo->prepare("SELECT COUNT(*) FROM lead_followups WHERE scheduled_at < ? AND is_done=0");
+    $of->execute([app_now_sql()]);
+    $overdueFollowups = (int) $of->fetchColumn();
     $activeLeads = (int)$pdo->query("SELECT COUNT(*) FROM leads WHERE status NOT IN('closed_won','closed_lost')")->fetchColumn();
 } catch(Throwable $e) {
      app_log('ERROR', 'Dashboard: lead metrics query failed - ' . $e->getMessage(), [
@@ -178,7 +183,7 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
             </div>
             <?= statCard('Enquiries',$enquiries) ?>
             <?= statCard('Closed Deals',$closedDeals) ?>
-            <?= statCard('Clients',$newClients) ?>
+            <?= statCard('Total Clients',$totalClients,'clients/index.php','text-white',$newClients > 0 ? $newClients . ' new today' : '') ?>
         </div>
     </section>
 

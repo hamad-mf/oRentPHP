@@ -17,6 +17,7 @@ $page    = max(1, (int) ($_GET['page'] ?? 1));
 $search = trim($_GET['search'] ?? '');
 $status = $_GET['status'] ?? '';
 $dueToday = isset($_GET['due_today']);
+$todayDate = app_today_sql();
 $fromDate = trim((string) ($_GET['from_date'] ?? ''));
 $toDate = trim((string) ($_GET['to_date'] ?? ''));
 
@@ -27,6 +28,7 @@ $isValidDate = static function (string $date): bool {
     $dt = DateTime::createFromFormat('Y-m-d', $date);
     return $dt instanceof DateTime && $dt->format('Y-m-d') === $date;
 };
+
 $formatDateTime12 = static function (?string $datetime): string {
     if (!$datetime) {
         return '';
@@ -65,7 +67,8 @@ if ($toDate !== '') {
     $params[] = $toDate;
 }
 if ($dueToday) {
-    $where[] = "r.status = 'active' AND DATE(r.end_date) = CURDATE()";
+    $where[] = "r.status = 'active' AND DATE(r.end_date) = ?";
+    $params[] = $todayDate;
 }
 
 $baseFrom  = 'FROM reservations r

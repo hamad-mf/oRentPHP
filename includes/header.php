@@ -295,6 +295,11 @@ $_notifs = notif_all($pdo);
 
             if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
                 echo navLink("{$root}vehicles/index.php", 'Vehicles', $icons['vehicles'], $currentDir === 'vehicles');
+                echo '<div class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1">';
+                echo '<a href="' . $root . 'vehicles/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'vehicles' && $currentPage !== 'availability.php' && $currentPage !== 'requests.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle List</a>';
+                echo '<a href="' . $root . 'vehicles/availability.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'availability.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Availability</a>';
+                echo '<a href="' . $root . 'vehicles/requests.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'requests.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Requests</a>';
+                echo '</div>';
             }
             if ($isAdmin || array_intersect(['add_reservations', 'do_delivery', 'do_return'], $cuPerms)) {
                 echo navLink("{$root}reservations/index.php", 'Reservations', $icons['reservations'], $currentDir === 'reservations');

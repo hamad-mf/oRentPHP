@@ -85,8 +85,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->beginTransaction();
         try {
             // Update staff
-            $us = $pdo->prepare("UPDATE staff SET name=?, role=?, phone=?, email=?, salary=?, joined_date=?, notes=?, id_proof_path=?, updated_at=NOW() WHERE id=?");
-            $us->execute([$name, $staffRole ?: null, $phone ?: null, $email ?: null, $salary !== '' ? (float)$salary : null, $joined ?: null, $notes ?: null, $proofPath, $id]);
+            $us = $pdo->prepare("UPDATE staff SET name=?, role=?, phone=?, email=?, salary=?, joined_date=?, notes=?, id_proof_path=?, updated_at=? WHERE id=?");
+            $us->execute([$name, $staffRole ?: null, $phone ?: null, $email ?: null, $salary !== '' ? (float)$salary : null, $joined ?: null, $notes ?: null, $proofPath, app_now_sql(), $id]);
 
             // Update user
             if ($userId) {
