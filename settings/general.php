@@ -2,9 +2,11 @@
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/export_enabled.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
+require_once __DIR__ . '/../includes/ledger_helpers.php';
 $pdo = db();
 
 settings_ensure_table($pdo);
+ledger_ensure_schema($pdo);
 if (settings_get($pdo, 'late_return_rate_per_hour', '') === '') {
     settings_set($pdo, 'late_return_rate_per_hour', '0');
 }
@@ -27,8 +29,12 @@ if (settings_get($pdo, 'pipeline_pagination_enabled', '') === '') {
 if (settings_get($pdo, 'auto_close_lost_after_followups', '') === '') {
     settings_set($pdo, 'auto_close_lost_after_followups', '0');
 }
+if (settings_get($pdo, 'security_deposit_bank_account_id', '') === '') {
+    settings_set($pdo, 'security_deposit_bank_account_id', '0');
+}
 
 $leadSources = lead_sources_get_map($pdo);
+$activeBankAccounts = array_values(array_filter(ledger_get_accounts($pdo), fn($a) => (int) ($a['is_active'] ?? 0) === 1));
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rate = max(0, (float) ($_POST['late_return_rate_per_hour'] ?? 0));
@@ -46,6 +52,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $autoCloseAfter = min(4, max(0, (int) ($_POST['auto_close_lost_after_followups'] ?? 0)));
     settings_set($pdo, 'auto_close_lost_after_followups', (string) $autoCloseAfter);
     $deliveryIncentivePer = max(0, (float) ($_POST['delivery_incentive_per_delivery'] ?? 0));     settings_set($pdo, 'delivery_incentive_per_delivery', (string)$deliveryIncentivePer);
+    $securityDepositBankAccountId = (int) ($_POST['security_deposit_bank_account_id'] ?? 0);
+    if ($securityDepositBankAccountId > 0) {
+        $resolvedDepositBankId = ledger_get_active_bank_account_id($pdo, $securityDepositBankAccountId);
+        if ($resolvedDepositBankId === null) {
+            flash('error', 'Selected security deposit bank account is invalid or inactive.');
+            redirect('general.php');
+        }
+        settings_set($pdo, 'security_deposit_bank_account_id', (string) $resolvedDepositBankId);
+    } else {
+        settings_set($pdo, 'security_deposit_bank_account_id', '0');
+    }
     app_log('ACTION', 'Updated general settings');
     flash('success', 'Settings saved successfully.');
     redirect('general.php');
@@ -59,6 +76,7 @@ $perPageSetting = (int) settings_get($pdo, 'per_page', '25');
 $pipelinePaginationEnabledSetting = settings_get($pdo, 'pipeline_pagination_enabled', '1') !== '0';
 $autoCloseAfterSetting = (int) settings_get($pdo, 'auto_close_lost_after_followups', '0');
 $deliveryIncentiveSetting = (float) settings_get($pdo, 'delivery_incentive_per_delivery', '0');
+$securityDepositBankAccountIdSetting = (int) settings_get($pdo, 'security_deposit_bank_account_id', '0');
 
 $pageTitle = 'Settings';
 require_once __DIR__ . '/../includes/header.php';
@@ -81,6 +99,9 @@ require_once __DIR__ . '/../includes/header.php';
 
     <?php $s = getFlash('success'); if ($s): ?>
         <div class="flex items-center gap-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg px-5 py-3 text-sm">Success: <?= e($s) ?></div>
+    <?php endif; ?>
+    <?php $e = getFlash('error'); if ($e): ?>
+        <div class="flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-5 py-3 text-sm"><?= e($e) ?></div>
     <?php endif; ?>
 
     <form method="POST" class="space-y-6">
@@ -127,6 +148,23 @@ require_once __DIR__ . '/../includes/header.php';
                     <input type="number" name="deposit_percentage" value="<?= $depositPct ?>" min="0" max="100" step="1" required
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm" placeholder="0">
                 </div>
+            </div>
+            <div class="pt-2 border-t border-mb-subtle/10">
+                <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Security Deposit Ledger</h3>
+                <p class="text-xs text-mb-subtle mt-2 ml-5">Security deposit collection/return posts to this bank account for record and balance tracking. These entries are excluded from income and target KPIs.</p>
+            </div>
+            <div>
+                <label class="block text-sm text-mb-silver mb-2">Security Deposit Bank Account</label>
+                <select name="security_deposit_bank_account_id"
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent text-sm">
+                    <option value="0">Not configured</option>
+                    <?php foreach ($activeBankAccounts as $acc): ?>
+                    <option value="<?= (int) $acc['id'] ?>" <?= $securityDepositBankAccountIdSetting === (int) $acc['id'] ? 'selected' : '' ?>>
+                        <?= e($acc['name']) ?><?= !empty($acc['bank_name']) ? ' - ' . e($acc['bank_name']) : '' ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="text-xs text-mb-subtle mt-1">Required if you want automatic deposit in/out entries in ledger.</p>
             </div>
         </div>
 

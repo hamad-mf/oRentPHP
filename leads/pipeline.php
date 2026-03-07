@@ -386,6 +386,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <div id="lead-card-<?= (int) $l['id'] ?>" data-lead-id="<?= (int) $l['id'] ?>"
                             data-current-stage="<?= e($stage) ?>" data-lead-name="<?= e(strtolower((string) $l['name'])) ?>"
                             data-lead-phone="<?= e(strtolower((string) $l['phone'])) ?>"
+                            data-lead-alt-phone="<?= e(strtolower((string) ($l['alternative_number'] ?? ''))) ?>"
                             draggable="<?= $isMovable ? 'true' : 'false' ?>"
                             class="pipeline-card relative bg-mb-black/40 border border-mb-subtle/10 rounded-lg p-3 hover:border-mb-subtle/30 transition-all cursor-pointer group"
                             onclick="window.location='show.php?id=<?= (int) $l['id'] ?>'">
@@ -400,11 +401,21 @@ require_once __DIR__ . '/../includes/header.php';
                             </div>
 
                             <div class="flex items-center gap-1.5 mt-0.5" onclick="event.stopPropagation()">
-                                <p class="text-mb-subtle text-xs"><?= e($l['phone']) ?></p>
-                                <?php if (!empty($l['phone'])): ?>
+                                <?php
+                                $primaryPhone = trim((string) ($l['phone'] ?? ''));
+                                $altPhone = trim((string) ($l['alternative_number'] ?? ''));
+                                $contactPhone = $primaryPhone !== '' ? $primaryPhone : $altPhone;
+                                ?>
+                                <?php if ($contactPhone !== ''): ?>
+                                    <p class="text-mb-subtle text-xs"><?= e($contactPhone) ?></p>
+                                <?php endif; ?>
+                                <?php if ($altPhone !== '' && $altPhone !== $contactPhone): ?>
+                                    <p class="text-mb-subtle text-[10px]">Alt: <?= e($altPhone) ?></p>
+                                <?php endif; ?>
+                                <?php if ($contactPhone !== ''): ?>
                                     <?php
-                                    $phoneDigits = preg_replace('/\D/', '', (string) $l['phone']);
-                                    $phoneDial = preg_replace('/[^0-9+]/', '', (string) $l['phone']);
+                                    $phoneDigits = preg_replace('/\D/', '', $contactPhone);
+                                    $phoneDial = preg_replace('/[^0-9+]/', '', $contactPhone);
                                     if ($phoneDial === '') {
                                         $phoneDial = $phoneDigits;
                                     }
@@ -649,7 +660,8 @@ require_once __DIR__ . '/../includes/header.php';
             cards.forEach((card) => {
                 const leadName = card.dataset.leadName || '';
                 const leadPhone = card.dataset.leadPhone || '';
-                const matchesStage = !stageTerm || leadName.includes(stageTerm) || leadPhone.includes(stageTerm);
+                const leadAltPhone = card.dataset.leadAltPhone || '';
+                const matchesStage = !stageTerm || leadName.includes(stageTerm) || leadPhone.includes(stageTerm) || leadAltPhone.includes(stageTerm);
                 const shouldShow = matchesStage;
                 card.classList.toggle('hidden', !shouldShow);
                 if (shouldShow) {

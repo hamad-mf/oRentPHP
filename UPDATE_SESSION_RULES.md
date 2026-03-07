@@ -82,3 +82,7 @@ Add one row per release.
 | 2026-03-06 | vehicle_availability | Yes | Yes | Pending | Vehicle availability page + delivery tracking |
 | 2026-03-06 | vehicle_collation_hotfix | No (DB hotfix) | `migrations/releases/2026-03-06_vehicle_collation_hotfix.sql` | Applied manually (phpMyAdmin) | Production collation alignment for `vehicles`, `vehicle_images`, and `vehicle_requests`; resolved illegal mix of collations error in vehicle edit flow. |
 | 2026-03-06 | payroll_staff_advances | Pending | `migrations/releases/2026-03-06_payroll_staff_advances.sql` | Pending | Staff advance tracking and payroll-time deduction with payable breakdown. |
+| 2026-03-07 | client_lead_alternative_numbers | Pending | `migrations/releases/2026-03-07_client_lead_alternative_numbers.sql` | Pending | Optional `alternative_number` added to clients and leads; client/lead create/edit/view flows updated. |
+| 2026-03-08 | vehicle_condition_notes | Pending | `migrations/releases/2026-03-08_vehicle_condition_notes.sql` | Pending | Added optional `condition_notes` on vehicles and editable notes block on Vehicle Details page. |
+| 2026-03-08 | vehicle_insurance_metadata | Pending | `migrations/releases/2026-03-08_vehicle_insurance_metadata.sql` | Pending | Added insurance type + expiry fields on vehicles and red alert highlight on risky/expired insurance cards. |
+| 2026-03-08 | security_deposit_ledger_tracking | Pending | None | N/A | Added configurable bank account for security deposit in/out ledger records; excluded these entries from income and monthly target KPI calculations. |

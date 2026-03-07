@@ -86,6 +86,7 @@ $aS = $pdo->prepare("SELECT DATE(posted_at) AS day,
     COALESCE(SUM(CASE WHEN txn_type='income' THEN amount WHEN txn_type='expense' THEN -amount ELSE 0 END),0) AS achieved
     FROM ledger_entries
     WHERE DATE(posted_at)>=? AND DATE(posted_at)<=?
+      AND " . ledger_kpi_exclusion_clause() . "
     GROUP BY DATE(posted_at)");
 $aS->execute([$activePStart, $activePEnd]);
 $achByDay = [];

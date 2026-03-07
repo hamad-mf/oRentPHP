@@ -37,7 +37,30 @@ function lead_status_ensure_pipeline(PDO $pdo): void
     }
 }
 
+function lead_has_column(PDO $pdo, string $column): bool
+{
+    static $cache = [];
+    $key = $column;
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+    try {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'leads'
+              AND COLUMN_NAME = ?");
+        $stmt->execute([$column]);
+        $cache[$key] = ((int) $stmt->fetchColumn()) > 0;
+    } catch (Throwable $e) {
+        $cache[$key] = false;
+    }
+
+    return $cache[$key];
+}
+
 lead_status_ensure_pipeline($pdo);
+$supportsAlternativeNumber = lead_has_column($pdo, 'alternative_number');
 
 // Ensure closed_at column exists (added in later migration)
 try {
@@ -115,6 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $name = trim($_POST['name'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
+    $alternativeNumber = trim($_POST['alternative_number'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $inquiry = $_POST['inquiry_type'] ?? 'daily';
     $vehicle = trim($_POST['vehicle_interest'] ?? '');
@@ -144,9 +168,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         $nowSql = app_now_sql();
-        $pdo->prepare('UPDATE leads SET name=?,phone=?,email=?,inquiry_type=?,vehicle_interest=?,source=?,assigned_to=?,notes=?,status=?,lost_reason=?,updated_at=?,
-            closed_at = IF(? = ? AND closed_at IS NULL, ?, closed_at) WHERE id=?')
-            ->execute([$name, $phone, $email ?: null, $inquiry, $vehicle ?: null, $source, $assigned ?: null, $notes ?: null, $status, $lostReason ?: null, $nowSql, 'closed_won', $status, $nowSql, $id]);
+        if ($supportsAlternativeNumber) {
+            $pdo->prepare('UPDATE leads SET name=?,phone=?,alternative_number=?,email=?,inquiry_type=?,vehicle_interest=?,source=?,assigned_to=?,notes=?,status=?,lost_reason=?,updated_at=?,
+                closed_at = IF(? = ? AND closed_at IS NULL, ?, closed_at) WHERE id=?')
+                ->execute([$name, $phone, $alternativeNumber ?: null, $email ?: null, $inquiry, $vehicle ?: null, $source, $assigned ?: null, $notes ?: null, $status, $lostReason ?: null, $nowSql, 'closed_won', $status, $nowSql, $id]);
+        } else {
+            $pdo->prepare('UPDATE leads SET name=?,phone=?,email=?,inquiry_type=?,vehicle_interest=?,source=?,assigned_to=?,notes=?,status=?,lost_reason=?,updated_at=?,
+                closed_at = IF(? = ? AND closed_at IS NULL, ?, closed_at) WHERE id=?')
+                ->execute([$name, $phone, $email ?: null, $inquiry, $vehicle ?: null, $source, $assigned ?: null, $notes ?: null, $status, $lostReason ?: null, $nowSql, 'closed_won', $status, $nowSql, $id]);
+        }
 
         if ($status !== $lead['status']) {
             $pdo->prepare('INSERT INTO lead_activities (lead_id, note) VALUES (?,?)')->execute([$id, "Status changed to: " . str_replace('_', ' ', $status) . "."]);
@@ -164,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Re-populate for re-render
-    $lead = array_merge($lead, ['name' => $name, 'phone' => $phone, 'email' => $email, 'inquiry_type' => $inquiry, 'vehicle_interest' => $vehicle, 'source' => $source, 'assigned_to' => $assigned, 'notes' => $notes, 'status' => $status, 'lost_reason' => $lostReason]);
+    $lead = array_merge($lead, ['name' => $name, 'phone' => $phone, 'alternative_number' => $alternativeNumber, 'email' => $email, 'inquiry_type' => $inquiry, 'vehicle_interest' => $vehicle, 'source' => $source, 'assigned_to' => $assigned, 'notes' => $notes, 'status' => $status, 'lost_reason' => $lostReason]);
 }
 
 $pageTitle = 'Edit Lead';
@@ -204,10 +234,14 @@ require_once __DIR__ . '/../includes/header.php';
                 $fields = [
                     ['name', 'Full Name', 'text', true, 'Ahmed Al Rashid'],
                     ['phone', 'Phone / WhatsApp', 'text', true, '+971 50 123 4567'],
+                    ['alternative_number', 'Alternative Number', 'text', false, '+971 52 123 4567'],
                     ['email', 'Email', 'email', false, 'ahmed@example.com'],
                     ['vehicle_interest', 'Vehicle Interest', 'text', false, 'e.g. SUV, Camry'],
                     ['assigned_to', 'Assigned To', 'text', false, 'Staff name'],
                 ];
+                if (!$supportsAlternativeNumber) {
+                    $fields = array_values(array_filter($fields, static fn($f) => $f[0] !== 'alternative_number'));
+                }
                 foreach ($fields as [$fname, $label, $type, $req, $ph]):
                     $val = e($lead[$fname] ?? '');
                     $err = $errors[$fname] ?? '';

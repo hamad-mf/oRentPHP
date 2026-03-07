@@ -11,9 +11,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Rate
     if ($action === 'rate') {
         $rating = (int) ($_POST['rating'] ?? 0);
+        $review = trim($_POST['rating_review'] ?? '');
         if ($rating >= 1 && $rating <= 5) {
-            $pdo->prepare('UPDATE clients SET rating=? WHERE id=?')->execute([$rating, $id]);
-            app_log('ACTION', "Updated client rating to $rating stars (ID: $id)");
+            $pdo->prepare('UPDATE clients SET rating=?, rating_review=? WHERE id=?')->execute([$rating, $review, $id]);
+            app_log('ACTION', "Updated client rating to $rating stars with review (ID: $id)");
             flash('success', "Rating updated to $rating stars.");
         }
         redirect("show.php?id=$id");
@@ -113,6 +114,12 @@ require_once __DIR__ . '/../includes/header.php';
                     <p class="text-mb-subtle text-sm">
                         <?= e($c['phone']) ?>
                     </p>
+                    <?php if (!empty($c['alternative_number'])): ?>
+                        <p class="text-mb-subtle text-sm">
+                            Alt:
+                            <?= e($c['alternative_number']) ?>
+                        </p>
+                    <?php endif; ?>
                     <?php if ($c['address']): ?>
                         <p class="text-mb-subtle text-xs mt-1">
                             <?= e($c['address']) ?>
@@ -220,6 +227,11 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="text-center"><span id="ratingLabel"
                             class="text-mb-subtle text-sm"><?= ['', 'Poor', 'Below Average', 'Average', 'Good', 'Excellent'][$c['rating'] ?? 0] ?? '' ?></span>
                     </div>
+                    <div class="space-y-1.5 mb-4">
+                        <label class="text-xs text-mb-subtle uppercase tracking-wider font-medium ml-1">Review Notes</label>
+                        <textarea name="rating_review" rows="3" placeholder="Enter review or notes about this client..."
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent/50 transition-colors placeholder-mb-subtle/50 resize-none"><?= e($c['rating_review'] ?? '') ?></textarea>
+                    </div>
                     <button type="submit"
                         class="mt-4 w-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 py-2 rounded-lg hover:bg-yellow-500/20 transition-colors text-sm font-medium">Save
                         Rating</button>
@@ -227,9 +239,9 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
 
             <!-- Blacklist Controls -->
-            <div
-                class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5 <?= $c['is_blacklisted'] ? 'border-red-500/30' : '' ?>">
-                <h3
+        <div
+            class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5 <?= $c['is_blacklisted'] ? 'border-red-500/30' : '' ?>">
+            <h3
                     class="text-white font-light border-l-2 border-<?= $c['is_blacklisted'] ? 'red-500' : 'mb-accent' ?> pl-3 mb-4">
                     Blacklist</h3>
                 <?php if ($c['is_blacklisted']): ?>

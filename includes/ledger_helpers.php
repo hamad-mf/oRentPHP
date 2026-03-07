@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * includes/ledger_helpers.php
  * Bank accounts + ledger core service.
@@ -229,6 +229,150 @@ function ledger_post_reservation_event(
 
 //  ”  ”  Manual Entry  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
+/**
+ * Post multiple split-payment ledger entries for a reservation event.
+ * Each split = ['mode' => 'cash'|'account'|'credit', 'amount' => float, 'bank_id' => int|null]
+ * Idempotent - each split gets its own unique key: reservation:{event}:{id}:{mode}
+ * @return array  List of ledger entry IDs created.
+ */
+function ledger_post_reservation_event_multi(
+    PDO $pdo,
+    int $reservationId,
+    string $event,
+    array $splits,
+    int $userId
+): array {
+    ledger_ensure_schema($pdo);
+    $entryIds = [];
+    $category = $event === 'delivery' ? 'Reservation Delivery' : 'Reservation Return';
+
+    foreach ($splits as $split) {
+        $mode = $split['mode'] ?? null;
+        $amount = (float) ($split['amount'] ?? 0);
+        $bankId = !empty($split['bank_id']) ? (int) $split['bank_id'] : null;
+
+        if ($amount <= 0) continue;
+
+        $description = "Reservation #$reservationId - " . ucfirst($event) . " payment (" . ucfirst($mode ?? 'unknown') . ")";
+        $idKey = "reservation:{$event}:{$reservationId}:{$mode}";
+        $resolvedBankId = ledger_resolve_bank_account_id($pdo, $mode, $bankId);
+
+        $entryId = ledger_post(
+            $pdo,
+            'income',
+            $category,
+            $amount,
+            $mode,
+            $resolvedBankId,
+            'reservation',
+            $reservationId,
+            $event,
+            $description,
+            $userId,
+            $idKey
+        );
+        if ($entryId) {
+            $entryIds[] = $entryId;
+        }
+    }
+    return $entryIds;
+}
+
+/**
+ * Return an active bank account id when valid; otherwise null.
+ */
+function ledger_get_active_bank_account_id(PDO $pdo, ?int $bankAccountId): ?int
+{
+    if ($bankAccountId === null || $bankAccountId <= 0) {
+        return null;
+    }
+
+    $stmt = $pdo->prepare("SELECT id FROM bank_accounts WHERE id = ? AND is_active = 1 LIMIT 1");
+    $stmt->execute([$bankAccountId]);
+    $row = $stmt->fetch();
+    return $row ? (int) $row['id'] : null;
+}
+
+function ledger_is_security_deposit_event(?string $sourceEvent): bool
+{
+    return in_array((string) $sourceEvent, ['security_deposit_in', 'security_deposit_out'], true);
+}
+
+function ledger_kpi_exclusion_clause(string $alias = ''): string
+{
+    $prefix = trim($alias);
+    if ($prefix !== '') {
+        $prefix = rtrim($prefix, '.') . '.';
+    }
+    return "(" . $prefix . "source_event IS NULL OR " . $prefix . "source_event NOT IN ('security_deposit_in','security_deposit_out'))";
+}
+
+/**
+ * Post security deposit in/out as non-KPI ledger entries.
+ * These entries affect the selected bank account balance, but are excluded from target/income KPI calculations.
+ */
+function ledger_post_security_deposit(
+    PDO $pdo,
+    int $reservationId,
+    string $direction, // in | out
+    float $amount,
+    int $bankAccountId,
+    int $userId
+): ?int {
+    if ($amount <= 0 || $bankAccountId <= 0) {
+        return null;
+    }
+
+    ledger_ensure_schema($pdo);
+
+    $dir = strtolower(trim($direction));
+    if (!in_array($dir, ['in', 'out'], true)) {
+        return null;
+    }
+
+    $sourceEvent = $dir === 'in' ? 'security_deposit_in' : 'security_deposit_out';
+    $txnType = $dir === 'in' ? 'income' : 'expense';
+    $category = $dir === 'in' ? 'Security Deposit Collected' : 'Security Deposit Returned';
+    $description = $dir === 'in'
+        ? "Reservation #$reservationId - Security deposit collected"
+        : "Reservation #$reservationId - Security deposit returned";
+    $idKey = "reservation:{$sourceEvent}:{$reservationId}";
+
+    return ledger_post(
+        $pdo,
+        $txnType,
+        $category,
+        $amount,
+        'account',
+        $bankAccountId,
+        'reservation',
+        $reservationId,
+        $sourceEvent,
+        $description,
+        $userId,
+        $idKey
+    );
+}
+
+function ledger_get_security_deposit_account_id(PDO $pdo, int $reservationId): ?int
+{
+    ledger_ensure_schema($pdo);
+    $stmt = $pdo->prepare("SELECT bank_account_id
+        FROM ledger_entries
+        WHERE source_type = 'reservation'
+          AND source_id = ?
+          AND source_event = 'security_deposit_in'
+          AND bank_account_id IS NOT NULL
+        ORDER BY id DESC
+        LIMIT 1");
+    $stmt->execute([$reservationId]);
+    $bankAccountId = $stmt->fetchColumn();
+    if ($bankAccountId === false || $bankAccountId === null) {
+        return null;
+    }
+    return (int) $bankAccountId;
+}
+
 function ledger_post_manual(
     PDO $pdo,
     string $txnType,      // 'income' | 'expense'
@@ -456,7 +600,7 @@ function ledger_get_totals(PDO $pdo, string $dateFrom = '', string $dateTo = '')
 {
     ledger_ensure_schema($pdo);
 
-    $where = ["source_type != 'manual' OR source_type = 'manual'"];
+    $where = [ledger_kpi_exclusion_clause()];
     $params = [];
     if ($dateFrom) {
         $where[] = "DATE(posted_at) >= ?";

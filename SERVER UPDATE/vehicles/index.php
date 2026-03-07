@@ -10,11 +10,6 @@ vehicle_ensure_schema($pdo);
 $search = trim($_GET['search'] ?? '');
 $status = $_GET['status'] ?? '';
 $rentedDate = trim($_GET['rented_date'] ?? '');
-$sort = strtolower(trim($_GET['sort'] ?? 'asc'));
-if (!in_array($sort, ['asc', 'desc'], true)) {
-    $sort = 'asc';
-}
-$orderDirection = strtoupper($sort);
 
 $where = ['1=1'];
 $params = [];
@@ -57,8 +52,28 @@ $sql = 'SELECT v.*,
                rc.name AS rented_client_name,
                (SELECT COUNT(*) FROM documents d WHERE d.vehicle_id = v.id) AS doc_count
         ' . $baseFrom . '
-        ORDER BY CASE WHEN v.status = "rented" THEN 0 ELSE 1 END,
-                 v.created_at ' . $orderDirection;
+        ORDER BY
+            CASE
+                WHEN v.status = "rented" THEN 0
+                WHEN v.status = "available" THEN 1
+                WHEN v.status = "maintenance" THEN 2
+                ELSE 3
+            END,
+            CASE
+                WHEN v.status = "rented" AND ar.end_date >= NOW() THEN 0
+                WHEN v.status = "rented" AND ar.end_date < NOW() THEN 1
+                WHEN v.status = "rented" AND ar.end_date IS NULL THEN 2
+                ELSE 0
+            END,
+            CASE
+                WHEN v.status = "rented" AND ar.end_date >= NOW() THEN ar.end_date
+                ELSE NULL
+            END ASC,
+            CASE
+                WHEN v.status = "rented" AND ar.end_date < NOW() THEN ar.end_date
+                ELSE NULL
+            END DESC,
+            v.created_at DESC';
 
 $countSql2 = 'SELECT COUNT(*) ' . $baseFrom;
 $pgResult  = paginate_query($pdo, $sql, $countSql2, $params, $page, $perPage);
@@ -129,7 +144,6 @@ require_once __DIR__ . '/../includes/header.php';
                 'status' => $card['filter'],
                 'search' => $search,
                 'rented_date' => $rentedDate,
-                'sort' => $sort !== 'asc' ? $sort : null,
             ], static fn($v) => $v !== null && $v !== ''));
             $activeBorder = $card['active'] ? ($borderActive[$card['filter']] ?? 'border-white/20') : '';
             ?>
@@ -162,13 +176,8 @@ require_once __DIR__ . '/../includes/header.php';
             <input type="date" name="rented_date" value="<?= e($rentedDate) ?>"
                 class="bg-mb-surface border border-mb-subtle/20 rounded-full py-2 px-4 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors"
                 title="Filter by rented start date">
-            <select name="sort" onchange="this.form.submit()"
-                class="bg-mb-surface border border-mb-subtle/20 rounded-full py-2 px-4 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors">
-                <option value="desc" <?= $sort === 'desc' ? 'selected' : '' ?>>Newest first</option>
-                <option value="asc" <?= $sort === 'asc' ? 'selected' : '' ?>>Oldest first</option>
-            </select>
             <button type="submit" class="text-mb-silver hover:text-white text-sm transition-colors">Search</button>
-            <?php if ($search || $status || $rentedDate || $sort !== 'asc'): ?><a href="index.php"
+            <?php if ($search || $status || $rentedDate): ?><a href="index.php"
                     class="text-mb-subtle hover:text-white text-sm transition-colors">Clear</a>
             <?php endif; ?>
         </form>
@@ -281,9 +290,40 @@ require_once __DIR__ . '/../includes/header.php';
                 $dotCls = $dot[$v['status']] ?? 'bg-gray-500';
                 $remainingLabel = '';
                 $remainingTone = 'text-mb-subtle';
+                $usageLabel = '';
                 $maintenanceLabel = '';
                 $maintenanceSinceLabel = '';
                 $maintenanceWorkshopLabel = trim((string) ($v['maintenance_workshop_name'] ?? ''));
+                $insuranceType = strtolower(trim((string) ($v['insurance_type'] ?? '')));
+                if ($insuranceType === 'thrid class') {
+                    $insuranceType = 'third class';
+                } elseif ($insuranceType === 'bumber to bumber') {
+                    $insuranceType = 'bumper to bumper';
+                }
+                $insuranceExpiryDate = trim((string) ($v['insurance_expiry_date'] ?? ''));
+                $insuranceExpired = false;
+                if ($insuranceExpiryDate !== '') {
+                    $expDateObj = DateTime::createFromFormat('Y-m-d', $insuranceExpiryDate);
+                    if ($expDateObj && $expDateObj->format('Y-m-d') === $insuranceExpiryDate) {
+                        $insuranceExpired = $insuranceExpiryDate < date('Y-m-d');
+                    }
+                }
+                $isThirdClassInsurance = ($insuranceType === 'third class');
+                $insuranceAlert = $insuranceExpired || $isThirdClassInsurance;
+                $insuranceAlertLabel = '';
+                if ($insuranceExpired && $isThirdClassInsurance) {
+                    $insuranceAlertLabel = 'Insurance expired • Third class';
+                } elseif ($insuranceExpired) {
+                    $insuranceAlertLabel = 'Insurance expired';
+                } elseif ($isThirdClassInsurance) {
+                    $insuranceAlertLabel = 'Third class insurance';
+                }
+                $cardShellClasses = 'relative bg-mb-surface rounded-xl border overflow-hidden group transition-all duration-300 flex flex-col cursor-pointer';
+                if ($insuranceAlert) {
+                    $cardShellClasses .= ' border-red-500/70 ring-2 ring-red-500/50 shadow-[0_0_18px_rgba(239,68,68,0.25)]';
+                } else {
+                    $cardShellClasses .= ' border-mb-subtle/20 hover:border-mb-accent/30';
+                }
                 if (($v['status'] ?? '') === 'rented' && !empty($v['rented_end_date'])) {
                     $endTs = strtotime((string) $v['rented_end_date']);
                     $nowTs = time();
@@ -314,6 +354,22 @@ require_once __DIR__ . '/../includes/header.php';
                         }
                     }
                 }
+                if (($v['status'] ?? '') === 'rented' && !empty($v['rented_start_date'])) {
+                    $startTs = strtotime((string) $v['rented_start_date']);
+                    if ($startTs !== false) {
+                        $elapsed = max(0, time() - $startTs);
+                        $days = intdiv($elapsed, 86400);
+                        $hours = intdiv($elapsed % 86400, 3600);
+                        $mins = intdiv($elapsed % 3600, 60);
+                        if ($days > 0) {
+                            $usageLabel = 'In use for ' . $days . 'd ' . $hours . 'h';
+                        } elseif ($hours > 0) {
+                            $usageLabel = 'In use for ' . $hours . 'h ' . max(1, $mins) . 'm';
+                        } else {
+                            $usageLabel = 'In use for ' . max(1, $mins) . 'm';
+                        }
+                    }
+                }
                 if (($v['status'] ?? '') === 'maintenance') {
                     $maintenanceStartRaw = (string) ($v['maintenance_started_at'] ?? '');
                     if ($maintenanceStartRaw === '') {
@@ -337,7 +393,10 @@ require_once __DIR__ . '/../includes/header.php';
                 }
                 ?>
                 <div onclick="window.location='show.php?id=<?= $v['id'] ?>'"
-                    class="bg-mb-surface rounded-xl border border-mb-subtle/20 overflow-hidden group hover:border-mb-accent/30 transition-all duration-300 flex flex-col cursor-pointer">
+                    class="<?= e($cardShellClasses) ?>">
+                    <?php if ($insuranceAlert): ?>
+                        <div class="pointer-events-none absolute inset-0 rounded-xl border-2 border-red-500/80 animate-pulse z-20"></div>
+                    <?php endif; ?>
                     <!-- Image -->
                     <div class="h-44 bg-mb-black relative overflow-hidden">
                         <?php
@@ -389,6 +448,11 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?= e($v['color']) ?>
                             </p>
                         <?php endif; ?>
+                        <?php if ($insuranceAlertLabel !== ''): ?>
+                            <p class="text-[10px] text-red-400 mt-1 font-medium uppercase tracking-wide">
+                                <?= e($insuranceAlertLabel) ?>
+                            </p>
+                        <?php endif; ?>
                         <?php if (($v['status'] ?? '') === 'rented'): ?>
                             <div class="mt-3 rounded-lg bg-mb-black/40 border border-mb-subtle/20 px-3 py-2">
                                 <?php if ($remainingLabel !== ''): ?>
@@ -397,6 +461,11 @@ require_once __DIR__ . '/../includes/header.php';
                                     </p>
                                 <?php else: ?>
                                     <p class="text-xs font-medium text-mb-subtle">Rented</p>
+                                <?php endif; ?>
+                                <?php if ($usageLabel !== ''): ?>
+                                    <p class="text-[10px] text-mb-silver mt-0.5">
+                                        <?= e($usageLabel) ?>
+                                    </p>
                                 <?php endif; ?>
                                 <?php if (!empty($v['rented_start_date']) && !empty($v['rented_end_date'])): ?>
                                     <p class="text-[10px] text-mb-subtle mt-0.5">
@@ -492,7 +561,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 
 <?php
-$_vqp = array_filter(['search' => $search, 'status' => $status, 'rented_date' => $rentedDate, 'sort' => ($sort !== 'asc' ? $sort : null)], fn($v) => $v !== null && $v !== '');
+$_vqp = array_filter(['search' => $search, 'status' => $status, 'rented_date' => $rentedDate], fn($v) => $v !== null && $v !== '');
 echo render_pagination($pgResult, $_vqp);
 ?>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

@@ -18,6 +18,7 @@ if (!$dateCheck || $dateCheck->format('Y-m-d') !== $selectedDate) {
     $selectedDate = $today;
 }
 
+// Fetch all vehicles with their reservation status for the selected date
 $sql = "SELECT v.*,
                r.id AS reservation_id,
                r.status AS reservation_status,
@@ -38,55 +39,15 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute([$selectedDate, $selectedDate]);
 $vehicles = $stmt->fetchAll();
 
-$availableCount = 0;
-$reservedCount = 0;
-$rentedCount = 0;
-$maintenanceCount = 0;
-
-$vehicleStatusList = [];
+// Only keep available vehicles (not in maintenance and no active reservation)
+$availableVehicles = [];
 foreach ($vehicles as $v) {
-    $status = 'available';
-    $statusLabel = 'Available';
-    $detail = '';
-    $detail2 = '';
-    
-    if ($v['status'] === 'maintenance') {
-        $status = 'maintenance';
-        $statusLabel = 'Maintenance';
-        $maintenanceCount++;
-    } elseif ($v['reservation_id']) {
-        $isDelivered = $v['reservation_status'] === 'active';
-        
-        if ($isDelivered) {
-            $status = 'rented';
-            $statusLabel = 'Rented (Delivered)';
-            $rentedCount++;
-            $detail = e($v['client_name']);
-            $detail2 = 'Booking: ' . date('d M', strtotime($v['res_start_date'])) . ' - ' . date('d M', strtotime($v['res_end_date']));
-            if (!empty($v['delivered_at'])) {
-                $detail2 .= ' | Delivered: ' . date('d M, h:i A', strtotime($v['delivered_at']));
-            }
-        } else {
-            $status = 'reserved';
-            $statusLabel = 'Reserved (Not Delivered)';
-            $reservedCount++;
-            $detail = e($v['client_name']);
-            $detail2 = 'Booking: ' . date('d M', strtotime($v['res_start_date'])) . ' - ' . date('d M', strtotime($v['res_end_date']));
-        }
-    } else {
-        $availableCount++;
+    if ($v['status'] !== 'maintenance' && !$v['reservation_id']) {
+        $availableVehicles[] = $v;
     }
-    
-    $vehicleStatusList[] = [
-        'vehicle' => $v,
-        'status' => $status,
-        'statusLabel' => $statusLabel,
-        'detail' => $detail,
-        'detail2' => $detail2,
-    ];
 }
 
-$totalCount = count($vehicles);
+$availableCount = count($availableVehicles);
 $success = getFlash('success');
 $error = getFlash('error');
 
@@ -131,42 +92,11 @@ require_once __DIR__ . '/../includes/header.php';
         </form>
     </div>
 
-    <!-- Status Summary -->
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <?php
-        $summaryCards = [
-            ['label' => 'Total Vehicles', 'count' => $totalCount, 'color' => 'text-white', 'bg' => 'bg-mb-surface'],
-            ['label' => 'Available', 'count' => $availableCount, 'color' => 'text-green-400', 'bg' => 'bg-green-500/10'],
-            ['label' => 'Reserved', 'count' => $reservedCount, 'color' => 'text-amber-400', 'bg' => 'bg-amber-500/10'],
-            ['label' => 'Rented', 'count' => $rentedCount, 'color' => 'text-mb-accent', 'bg' => 'bg-mb-accent/10'],
-            ['label' => 'Maintenance', 'count' => $maintenanceCount, 'color' => 'text-red-400', 'bg' => 'bg-red-500/10'],
-        ];
-        foreach ($summaryCards as $card): ?>
-            <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-4">
-                <p class="text-mb-subtle text-xs uppercase tracking-wide mb-1"><?= e($card['label']) ?></p>
-                <p class="<?= e($card['color']) ?> text-2xl font-semibold"><?= $card['count'] ?></p>
-            </div>
-        <?php endforeach; ?>
-    </div>
-
-    <!-- Legend -->
-    <div class="flex flex-wrap gap-4 text-sm">
-        <div class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-green-500"></span>
-            <span class="text-mb-subtle">Available</span>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-amber-500"></span>
-            <span class="text-mb-subtle">Reserved (Not Delivered)</span>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-mb-accent"></span>
-            <span class="text-mb-subtle">Rented (Delivered)</span>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-red-500"></span>
-            <span class="text-mb-subtle">Maintenance</span>
-        </div>
+    <!-- Available Count -->
+    <div class="inline-flex items-center gap-3 bg-green-500/10 border border-green-500/30 rounded-xl px-5 py-4">
+        <span class="w-3 h-3 rounded-full bg-green-500"></span>
+        <span class="text-green-400 text-lg font-semibold"><?= $availableCount ?></span>
+        <span class="text-mb-subtle text-sm">vehicle<?= $availableCount !== 1 ? 's' : '' ?> available on <?= date('d M Y', strtotime($selectedDate)) ?></span>
     </div>
 
     <!-- Vehicle List -->
@@ -177,29 +107,18 @@ require_once __DIR__ . '/../includes/header.php';
                     <tr>
                         <th class="text-left px-5 py-4 font-medium">Vehicle</th>
                         <th class="text-left px-5 py-4 font-medium">License Plate</th>
-                        <th class="text-left px-5 py-4 font-medium">Status</th>
-                        <th class="text-left px-5 py-4 font-medium">Client</th>
-                        <th class="text-left px-5 py-4 font-medium">Details</th>
+                        <th class="text-left px-5 py-4 font-medium">Daily Rate</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-mb-subtle/20">
-                    <?php if (empty($vehicleStatusList)): ?>
+                    <?php if (empty($availableVehicles)): ?>
                         <tr>
-                            <td colspan="5" class="px-5 py-8 text-center text-mb-subtle">
-                                No vehicles found.
+                            <td colspan="3" class="px-5 py-8 text-center text-mb-subtle">
+                                No available vehicles for this date.
                             </td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($vehicleStatusList as $item): 
-                            $v = $item['vehicle'];
-                            $badgeClass = match($item['status']) {
-                                'available' => 'bg-green-500/10 text-green-400 border-green-500/30',
-                                'reserved' => 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-                                'rented' => 'bg-mb-accent/10 text-mb-accent border-mb-accent/30',
-                                'maintenance' => 'bg-red-500/10 text-red-400 border-red-500/30',
-                                default => 'bg-gray-500/10 text-gray-400 border-gray-500/30',
-                            };
-                        ?>
+                        <?php foreach ($availableVehicles as $v): ?>
                             <tr class="hover:bg-mb-black/30 transition-colors">
                                 <td class="px-5 py-4">
                                     <div class="flex items-center gap-3">
@@ -215,38 +134,19 @@ require_once __DIR__ . '/../includes/header.php';
                                         <?php endif; ?>
                                         <div>
                                             <p class="text-white font-medium"><?= e($v['brand']) ?> <?= e($v['model']) ?></p>
-                                            <p class="text-mb-subtle text-sm"><?= e($v['category'] ?? 'Sedan') ?></p>
+                                            <p class="text-mb-subtle text-sm"><?= e($v['year'] ?? '') ?></p>
                                         </div>
                                     </div>
                                 </td>
                                 <td class="px-5 py-4">
                                     <span class="text-white font-mono"><?= e($v['license_plate']) ?></span>
                                 </td>
+
                                 <td class="px-5 py-4">
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border <?= $badgeClass ?>">
-                                        <?= e($item['statusLabel']) ?>
-                                    </span>
-                                </td>
-                                <td class="px-5 py-4">
-                                    <?php if ($item['detail']): ?>
-                                        <p class="text-white"><?= $item['detail'] ?></p>
-                                        <?php if ($item['detail2']): ?>
-                                            <p class="text-mb-subtle text-sm"><?= $item['detail2'] ?></p>
-                                        <?php endif; ?>
+                                    <?php if (!empty($v['daily_rate']) && $v['daily_rate'] > 0): ?>
+                                        <span class="text-green-400 font-medium">$ <?= number_format($v['daily_rate'], 0) ?> <span class="text-mb-subtle font-normal text-xs">/day</span></span>
                                     <?php else: ?>
                                         <span class="text-mb-subtle">-</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="px-5 py-4">
-                                    <?php if ($item['status'] !== 'available' && $item['status'] !== 'maintenance' && $v['reservation_id']): ?>
-                                        <a href="../reservations/show.php?id=<?= (int) $v['reservation_id'] ?>" 
-                                           class="text-mb-accent hover:text-mb-accent/80 text-sm">
-                                            View Reservation
-                                        </a>
-                                    <?php elseif ($item['status'] === 'maintenance'): ?>
-                                        <span class="text-mb-subtle text-sm">In workshop</span>
-                                    <?php else: ?>
-                                        <span class="text-mb-subtle text-sm">-</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>

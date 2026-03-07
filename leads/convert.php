@@ -18,6 +18,28 @@ if (!$id) {
     redirect('index.php');
 }
 
+function leads_has_column(PDO $pdo, string $column): bool
+{
+    static $cache = [];
+    $key = $column;
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+    try {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'leads'
+              AND COLUMN_NAME = ?");
+        $stmt->execute([$column]);
+        $cache[$key] = ((int) $stmt->fetchColumn()) > 0;
+    } catch (Throwable $e) {
+        $cache[$key] = false;
+    }
+
+    return $cache[$key];
+}
+
 try {
     $pdo->beginTransaction();
 
@@ -45,6 +67,9 @@ try {
     $linkedExistingClient = false;
     $leadEmail = trim((string) ($lead['email'] ?? ''));
     $leadPhone = trim((string) ($lead['phone'] ?? ''));
+    $supportsLeadAlternative = leads_has_column($pdo, 'alternative_number');
+    $supportsClientAlternative = clients_has_column($pdo, 'alternative_number');
+    $leadAlternative = $supportsLeadAlternative ? trim((string) ($lead['alternative_number'] ?? '')) : '';
 
     // Avoid duplicate clients: first try by email, then by phone.
     if ($leadEmail !== '') {
@@ -54,20 +79,36 @@ try {
         $linkedExistingClient = $clientId > 0;
     }
     if (!$clientId && $leadPhone !== '') {
-        $clientLookup = $pdo->prepare('SELECT id FROM clients WHERE phone=? ORDER BY id DESC LIMIT 1');
-        $clientLookup->execute([$leadPhone]);
+        if ($supportsClientAlternative) {
+            $clientLookup = $pdo->prepare('SELECT id FROM clients WHERE phone=? OR alternative_number=? ORDER BY id DESC LIMIT 1');
+            $clientLookup->execute([$leadPhone, $leadPhone]);
+        } else {
+            $clientLookup = $pdo->prepare('SELECT id FROM clients WHERE phone=? ORDER BY id DESC LIMIT 1');
+            $clientLookup->execute([$leadPhone]);
+        }
         $clientId = (int) ($clientLookup->fetchColumn() ?: 0);
         $linkedExistingClient = $clientId > 0;
     }
 
     if (!$clientId) {
-        $pdo->prepare('INSERT INTO clients (name, phone, email, notes) VALUES (?,?,?,?)')
-            ->execute([
-                $lead['name'],
-                $lead['phone'],
-                ($leadEmail !== '' ? $leadEmail : null),
-                'Converted from lead #' . $id
-            ]);
+        if ($supportsClientAlternative) {
+            $pdo->prepare('INSERT INTO clients (name, phone, alternative_number, email, notes) VALUES (?,?,?,?,?)')
+                ->execute([
+                    $lead['name'],
+                    $lead['phone'],
+                    ($leadAlternative !== '' ? $leadAlternative : null),
+                    ($leadEmail !== '' ? $leadEmail : null),
+                    'Converted from lead #' . $id
+                ]);
+        } else {
+            $pdo->prepare('INSERT INTO clients (name, phone, email, notes) VALUES (?,?,?,?)')
+                ->execute([
+                    $lead['name'],
+                    $lead['phone'],
+                    ($leadEmail !== '' ? $leadEmail : null),
+                    'Converted from lead #' . $id
+                ]);
+        }
         $clientId = (int) $pdo->lastInsertId();
     }
 

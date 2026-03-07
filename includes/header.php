@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/db.php';
 auth_check();
 $_currentUser = current_user();
@@ -292,6 +292,12 @@ $_notifs = notif_all($pdo);
                 width: 100% !important;
             }
         }
+
+        /* Expandable sidebar menu */
+        .sidebar-chevron { transition: transform 0.25s ease; }
+        .sidebar-chevron.expanded { transform: rotate(90deg); }
+        .sidebar-submenu { display: none !important; }
+        .sidebar-submenu.open { display: block !important; }
     </style>
 </head>
 
@@ -386,8 +392,16 @@ $_notifs = notif_all($pdo);
             echo navLink("{$root}index.php", 'Dashboard', $icons['dashboard'], $isDash);
 
             if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
-                echo navLink("{$root}vehicles/index.php", 'Vehicles', $icons['vehicles'], $currentDir === 'vehicles');
-                echo '<div class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1">';
+                $vActive = $currentDir === 'vehicles';
+                $vCls = $vActive
+                    ? 'bg-mb-black text-white border-l-2 border-mb-accent'
+                    : 'text-mb-silver hover:bg-mb-black hover:text-white';
+                echo '<div onclick="toggleSubmenu(\'vehicles\')" class="flex items-center gap-4 px-4 py-3 transition-all rounded-md group cursor-pointer ' . $vCls . '">
+                    ' . $icons['vehicles'] . '
+                    <span class="font-light flex-1">Vehicles</span>
+                    <svg class="w-4 h-4 opacity-50 sidebar-chevron ' . ($vActive ? 'expanded' : '') . '" id="chevron-vehicles" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>';
+                echo '<div id="submenu-vehicles" class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1 sidebar-submenu ' . ($vActive ? 'open' : '') . '">';
                 echo '<a href="' . $root . 'vehicles/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'vehicles' && $currentPage !== 'availability.php' && $currentPage !== 'requests.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle List</a>';
                 echo '<a href="' . $root . 'vehicles/availability.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'availability.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Availability</a>';
                 echo '<a href="' . $root . 'vehicles/requests.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'requests.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Requests</a>';
@@ -415,11 +429,19 @@ $_notifs = notif_all($pdo);
                 echo navLink("{$root}accounts/targets.php", 'Targets', $targetIcon, $currentDir === 'accounts' && $currentPage === 'targets.php');
             }
             if ($isAdmin || in_array('manage_staff', $cuPerms, true)) {
-                echo navLink("{$root}staff/index.php", 'Staff', $icons['staff'], $currentDir === 'staff');
+                $sActive = $currentDir === 'staff';
+                $sCls = $sActive
+                    ? 'bg-mb-black text-white border-l-2 border-mb-accent'
+                    : 'text-mb-silver hover:bg-mb-black hover:text-white';
+                echo '<div onclick="toggleSubmenu(\'staff\')" class="flex items-center gap-4 px-4 py-3 transition-all rounded-md group cursor-pointer ' . $sCls . '">
+                    ' . $icons['staff'] . '
+                    <span class="font-light flex-1">Staff</span>
+                    <svg class="w-4 h-4 opacity-50 sidebar-chevron ' . ($sActive ? 'expanded' : '') . '" id="chevron-staff" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>';
             if ($isAdmin) {
-                echo '<div class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1">';
+                echo '<div id="submenu-staff" class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1 sidebar-submenu ' . ($sActive ? 'open' : '') . '">';
                 echo '<a href="' . $root . 'staff/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'staff' && $currentPage !== 'tasks.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Staff List</a>';
-                echo '<a href="' . $root . 'staff/tasks.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'tasks.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors"> Staff Tasks</a>';
+                echo '<a href="' . $root . 'staff/tasks.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'tasks.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Staff Tasks</a>';
                 echo '</div>';
             }
             }
@@ -754,7 +776,21 @@ $_notifs = notif_all($pdo);
                     }
                 })();
             </script>
-        </header>
+            <script>
+                function toggleSubmenu(key) {
+                    var sub = document.getElementById('submenu-' + key);
+                    var chev = document.getElementById('chevron-' + key);
+                    if (!sub) return;
+                    var isOpen = sub.classList.contains('open');
+                    if (isOpen) {
+                        sub.classList.remove('open');
+                        if (chev) chev.classList.remove('expanded');
+                    } else {
+                        sub.classList.add('open');
+                        if (chev) chev.classList.add('expanded');
+                    }
+                }
+            </script>        </header>
 
         <!-- Page Content -->
         <div class="flex-1 min-h-0 overflow-y-auto bg-gradient-to-br from-mb-black to-mb-surface p-4 sm:p-6 md:p-8">

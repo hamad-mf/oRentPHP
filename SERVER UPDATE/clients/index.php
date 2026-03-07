@@ -1,7 +1,10 @@
 ﻿<?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/client_helpers.php';
 
 $pdo = db();
+clients_ensure_schema($pdo);
+$supportsAlternativeNumber = clients_has_column($pdo, 'alternative_number');
 require_once __DIR__ . '/../includes/settings_helpers.php';
 $perPage = get_per_page($pdo);
 $page    = max(1, (int) ($_GET['page'] ?? 1));
@@ -12,8 +15,13 @@ $where = ['1=1'];
 $params = [];
 
 if ($search !== '') {
-    $where[] = '(name LIKE ? OR email LIKE ? OR phone LIKE ?)';
-    $params = array_merge($params, ["%$search%", "%$search%", "%$search%"]);
+    if ($supportsAlternativeNumber) {
+        $where[] = '(name LIKE ? OR email LIKE ? OR phone LIKE ? OR alternative_number LIKE ?)';
+        $params = array_merge($params, ["%$search%", "%$search%", "%$search%", "%$search%"]);
+    } else {
+        $where[] = '(name LIKE ? OR email LIKE ? OR phone LIKE ?)';
+        $params = array_merge($params, ["%$search%", "%$search%", "%$search%"]);
+    }
 }
 switch ($filter) {
     case 'blacklisted':
@@ -89,7 +97,7 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <form method="GET" class="flex items-center gap-3 flex-1 flex-wrap">
             <div class="relative flex-1 max-w-sm">
-                <input type="text" name="search" value="<?= e($search) ?>" placeholder="Search name, email or phone..."
+                <input type="text" name="search" value="<?= e($search) ?>" placeholder="Search name, email or phone numbers..."
                     class="w-full bg-mb-surface border border-mb-subtle/20 rounded-full py-2 pl-10 pr-4 text-white placeholder-mb-subtle focus:outline-none focus:border-mb-accent text-sm transition-colors">
                 <svg class="w-4 h-4 text-mb-subtle absolute left-4 top-2.5" fill="none" stroke="currentColor"
                     viewBox="0 0 24 24">
@@ -169,6 +177,12 @@ require_once __DIR__ . '/../includes/header.php';
                                 <p class="text-mb-subtle text-xs">
                                     <?= e($c['phone']) ?>
                                 </p>
+                                <?php if ($supportsAlternativeNumber && !empty($c['alternative_number'])): ?>
+                                    <p class="text-mb-subtle text-xs">
+                                        Alt:
+                                        <?= e($c['alternative_number']) ?>
+                                    </p>
+                                <?php endif; ?>
                             </td>
                             <td class="px-6 py-4 text-center text-yellow-400">
                                 <?= $c['rating'] ? starDisplay($c['rating']) : '<span class="text-mb-subtle text-xs"> ”</span>' ?>

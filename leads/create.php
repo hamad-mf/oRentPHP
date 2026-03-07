@@ -13,6 +13,28 @@ $defaultSource = array_key_exists('phone', $leadSourcesMap) ? 'phone' : (array_k
 // Load staff list for assignment dropdown
 $staffUsers = $pdo->query("SELECT u.id, u.name FROM users u WHERE u.is_active = 1 ORDER BY u.name ASC")->fetchAll();
 
+function lead_has_column(PDO $pdo, string $column): bool
+{
+    static $cache = [];
+    $key = $column;
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+    try {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'leads'
+              AND COLUMN_NAME = ?");
+        $stmt->execute([$column]);
+        $cache[$key] = ((int) $stmt->fetchColumn()) > 0;
+    } catch (Throwable $e) {
+        $cache[$key] = false;
+    }
+
+    return $cache[$key];
+}
+
 function lead_status_ensure_pipeline(PDO $pdo): void
 {
     static $checked = false;
@@ -42,10 +64,12 @@ function lead_status_ensure_pipeline(PDO $pdo): void
 }
 
 lead_status_ensure_pipeline($pdo);
+$supportsAlternativeNumber = lead_has_column($pdo, 'alternative_number');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
+    $alternativeNumber = trim($_POST['alternative_number'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $inquiry = $_POST['inquiry_type'] ?? 'daily';
     $vehicle = trim($_POST['vehicle_interest'] ?? '');
@@ -80,15 +104,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $assignedName = $ns->fetchColumn() ?: null;
         }
 
-        // Try to save with assigned_staff_id (may not exist yet if migration not run)
-        try {
-            $pdo->prepare('INSERT INTO leads (name,phone,email,inquiry_type,vehicle_interest,source,assigned_to,assigned_staff_id,status,notes) VALUES (?,?,?,?,?,?,?,?,?,?)')
-                ->execute([$name, $phone, $email ?: null, $inquiry, $vehicle ?: null, $source, $assignedName ?: null, $assignedStaffId, $status, $notes ?: null]);
-        } catch (Throwable $e) {
-            // Fallback: column may not exist yet
-            $pdo->prepare('INSERT INTO leads (name,phone,email,inquiry_type,vehicle_interest,source,assigned_to,status,notes) VALUES (?,?,?,?,?,?,?,?,?)')
-                ->execute([$name, $phone, $email ?: null, $inquiry, $vehicle ?: null, $source, $assignedName ?: null, $status, $notes ?: null]);
+        $supportsAssignedStaff = lead_has_column($pdo, 'assigned_staff_id');
+        $insertCols = ['name', 'phone'];
+        $insertParams = [$name, $phone];
+        if ($supportsAlternativeNumber) {
+            $insertCols[] = 'alternative_number';
+            $insertParams[] = $alternativeNumber ?: null;
         }
+        $insertCols = array_merge($insertCols, ['email', 'inquiry_type', 'vehicle_interest', 'source', 'assigned_to']);
+        $insertParams = array_merge($insertParams, [$email ?: null, $inquiry, $vehicle ?: null, $source, $assignedName ?: null]);
+        if ($supportsAssignedStaff) {
+            $insertCols[] = 'assigned_staff_id';
+            $insertParams[] = $assignedStaffId;
+        }
+        $insertCols = array_merge($insertCols, ['status', 'notes']);
+        $insertParams = array_merge($insertParams, [$status, $notes ?: null]);
+        $placeholders = implode(',', array_fill(0, count($insertCols), '?'));
+        $pdo->prepare('INSERT INTO leads (' . implode(',', $insertCols) . ') VALUES (' . $placeholders . ')')
+            ->execute($insertParams);
         $newId = (int) $pdo->lastInsertId();
         $pdo->prepare('INSERT INTO lead_activities (lead_id, note) VALUES (?,?)')
             ->execute([$newId, 'Lead created with status: ' . str_replace('_', ' ', $status) . '.']);
@@ -159,6 +192,16 @@ require_once __DIR__ . '/../includes/header.php';
                         </p>
                     <?php endif; ?>
                 </div>
+                <?php if ($supportsAlternativeNumber): ?>
+                    <!-- Alternative Number -->
+                    <div>
+                        <label class="block text-sm text-mb-silver mb-2">Alternative Number <span
+                                class="text-mb-subtle text-xs">(optional)</span></label>
+                        <input type="text" name="alternative_number" value="<?= e($_POST['alternative_number'] ?? '') ?>"
+                            placeholder="+971 52 123 4567"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                    </div>
+                <?php endif; ?>
                 <!-- Email -->
                 <div>
                     <label class="block text-sm text-mb-silver mb-2">Email <span

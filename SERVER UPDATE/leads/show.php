@@ -106,6 +106,10 @@ require_once __DIR__ . '/../includes/header.php';
                     <span>📞
                         <?= e($lead['phone']) ?>
                     </span>
+                    <?php if (!empty($lead['alternative_number'] ?? '')): ?><span>Alt:
+                            <?= e($lead['alternative_number']) ?>
+                        </span>
+                    <?php endif; ?>
                     <?php if ($lead['email']): ?><span>✉️
                             <?= e($lead['email']) ?>
                         </span>

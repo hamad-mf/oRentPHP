@@ -7,11 +7,13 @@ if (!auth_has_perm('do_return')) {
 require_once __DIR__ . '/../includes/voucher_helpers.php';
 require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
 require_once __DIR__ . '/../includes/ledger_helpers.php';
+require_once __DIR__ . '/../includes/settings_helpers.php';
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
 voucher_ensure_schema($pdo);
 reservation_payment_ensure_schema($pdo);
 ledger_ensure_schema($pdo);
+settings_ensure_table($pdo);
 
 $rStmt = $pdo->prepare('SELECT r.*, c.name AS client_name, c.rating AS client_rating_current, c.voucher_balance AS client_voucher_balance, v.brand, v.model, v.license_plate, v.daily_rate FROM reservations r JOIN clients c ON r.client_id=c.id JOIN vehicles v ON r.vehicle_id=v.id WHERE r.id=?');
 $rStmt->execute([$id]);
@@ -50,6 +52,10 @@ if ($delivDiscType_ === 'percent') {
 }
 $baseCollectedAtDelivery = max(0, $delivBase_ - $delivDiscAmt_);
 $clientVoucherBalance = max(0, (float) ($r['client_voucher_balance'] ?? 0));
+$configuredSecurityDepositBankId = ledger_get_active_bank_account_id(
+    $pdo,
+    (int) settings_get($pdo, 'security_deposit_bank_account_id', '0')
+);
 
 
 $parseActualReturnDateTime = static function (string $date, int $hour12, int $minute, string $ampm): DateTime {
@@ -135,12 +141,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $actualReturnMin = (int) ($_POST['actual_return_min'] ?? 0);
     $actualReturnAMPM = $_POST['actual_return_ampm'] ?? 'AM';
     $clientRating = (int) ($_POST['client_rating'] ?? 0);
+    $clientRatingReview = trim($_POST['client_rating_review'] ?? '');
     $returnVoucherRequest = max(0, round((float) ($_POST['return_voucher_amount'] ?? 0), 2));
     $depositReturned = max(0, (float) ($_POST['deposit_returned'] ?? 0));
     $returnPaymentMethod = reservation_payment_method_normalize($_POST['return_payment_method'] ?? null);
     $returnBankAccountId = (int) ($_POST['return_bank_account_id'] ?? 0);
     $returnBankAccountId = $returnBankAccountId > 0 ? $returnBankAccountId : null;
     $returnVoucherApplied = 0.0;
+    $returnPaymentSourceType = trim($_POST['return_payment_source_type'] ?? 'single');
+    $returnMultiCashAmount = max(0, (float) ($_POST['return_multi_cash_amount'] ?? 0));
+    $returnMultiCreditAmount = max(0, (float) ($_POST['return_multi_credit_amount'] ?? 0));
+    $returnMultiBankAmount = max(0, (float) ($_POST['return_multi_bank_amount'] ?? 0));
+    $returnMultiBankAccountId = (int) ($_POST['return_multi_bank_account_id'] ?? 0);
+    $returnMultiBankAccountId = $returnMultiBankAccountId > 0 ? $returnMultiBankAccountId : null;
 
     $actualDt = $parseActualReturnDateTime($actualReturnDate, $actualReturnHour, $actualReturnMin, $actualReturnAMPM);
     $actualEndSave = $actualDt->format('Y-m-d H:i:s');
@@ -174,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $discountAmt = 0;
     if ($discType === 'percent') {
         $discountAmt = round($returnChargesBeforeDiscount * min($discVal, 100) / 100, 2);
-    } elseif ($discType === 'amount') {
+    } elseif ($discType === 'percent') {
         $discountAmt = min($discVal, $returnChargesBeforeDiscount);
     }
     $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
@@ -189,26 +202,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['fuel_level'] = 'Fuel level must be 0–100.';
     if ($miles < 0)
         $errors['mileage'] = 'Mileage must be 0 or more.';
+
+    // All photos are required
+    $requiredPhotos = ['front','back','left','right','interior','odometer','with_customer'];
+    foreach ($requiredPhotos as $photoKey) {
+        if (empty($_FILES['photos']['name'][$photoKey]) || $_FILES['photos']['error'][$photoKey] !== UPLOAD_ERR_OK) {
+            $errors['photo_' . $photoKey] = ucfirst(str_replace('_', ' ', $photoKey)) . ' photo is required.';
+        }
+    }
     if ($additionalChgInput < 0)
         $errors['additional_charge'] = 'Additional charge cannot be negative.';
     $maxDepositCollected = max(0, (float) ($r['deposit_amount'] ?? 0));
     if ($depositReturned > $maxDepositCollected) {
         $errors['deposit_returned'] = 'Deposit returned cannot exceed collected deposit ($' . number_format($maxDepositCollected, 2) . ').';
     }
-    if ($cashDueAtReturn > 0 && $returnPaymentMethod === null)
-        $errors['return_payment_method'] = 'Please select how the return payment was received.';
-    if ($cashDueAtReturn > 0 && $returnPaymentMethod === 'account') {
-        if ($returnBankAccountId === null) {
-            $errors['return_bank_account_id'] = 'Please select the bank account that received this payment.';
+    if ($cashDueAtReturn > 0 && $returnPaymentSourceType === '') {
+        if ($returnPaymentMethod === null)
+            $errors['return_payment_method'] = 'Please select how the return payment was received.';
+        if ($returnPaymentMethod === 'bank') {
+            if ($returnBankAccountId === null) {
+                $errors['return_bank_account_id'] = 'Please select the bank account that received this payment.';
+            } else {
+                $chk = $pdo->prepare("SELECT COUNT(*) FROM bank_accounts WHERE id = ? AND is_active = 1");
+                $chk->execute([$returnBankAccountId]);
+                if ((int) $chk->fetchColumn() === 0) {
+                    $errors['return_bank_account_id'] = 'Selected bank account is invalid or inactive.';
+                }
+            }
         } else {
+            $returnBankAccountId = null;
+        }
+    } elseif ($cashDueAtReturn > 0 && $returnPaymentSourceType === 'single') {
+        $returnMultiTotal = round($returnMultiCashAmount + $returnMultiCreditAmount + $returnMultiBankAmount, 2);
+        if (abs($returnMultiTotal - $cashDueAtReturn) > 0.01) {
+            $errors['return_multi_total'] = 'Split amounts must total exactly $' . number_format($cashDueAtReturn, 2) . '. Current total: $' . number_format($returnMultiTotal, 2);
+        }
+        if ($returnMultiBankAmount > 0 && $returnMultiBankAccountId === null) {
+            $errors['return_multi_bank_account_id'] = 'Please select a bank account for the bank payment portion.';
+        }
+        if ($returnMultiBankAmount > 0 && $returnMultiBankAccountId !== null) {
             $chk = $pdo->prepare("SELECT COUNT(*) FROM bank_accounts WHERE id = ? AND is_active = 1");
-            $chk->execute([$returnBankAccountId]);
+            $chk->execute([$returnMultiBankAccountId]);
             if ((int) $chk->fetchColumn() === 0) {
-                $errors['return_bank_account_id'] = 'Selected bank account is invalid or inactive.';
+                $errors['return_multi_bank_account_id'] = 'Selected bank account is invalid or inactive.';
             }
         }
-    } else {
-        $returnBankAccountId = null;
+        $returnPaymentMethod = 'multi';
     }
     if ($clientRating < 1 || $clientRating > 5)
         $errors['client_rating'] = 'Please rate the client (1 to 5 stars) before completing return.';
@@ -288,7 +327,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $id,
                 ]);
             $pdo->prepare("UPDATE vehicles SET status='available' WHERE id=?")->execute([$r['vehicle_id']]);
-            $pdo->prepare("UPDATE clients SET rating=? WHERE id=?")->execute([$clientRating, $r['client_id']]);
+            $pdo->prepare("UPDATE clients SET rating=?, rating_review=? WHERE id=?")->execute([$clientRating, $clientRatingReview, $r['client_id']]);
 
             $pdo->commit();
         } catch (Throwable $e) {
@@ -334,8 +373,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($discountAmt > 0)
                 $msg .= " | Discount: -$" . number_format($discountAmt, 2);
             app_log('ACTION', "Returned reservation (ID: $id)");
+            $ledgerUserId = (int) ($_SESSION['user']['id'] ?? 0);
             // ── Auto-post income to ledger ──────────────────────────────
-            ledger_post_reservation_event($pdo, $id, 'return', $cashDueAtReturn, $returnPaymentMethodSave, $_SESSION['user']['id'] ?? 0, $returnBankAccountId);
+            if ($returnPaymentSourceType === 'multi' && $cashDueAtReturn > 0) {
+            $splits = [];
+            if ($returnMultiCashAmount > 0)   $splits[] = ['mode' => 'cash',    'amount' => $returnMultiCashAmount,   'bank_id' => null];
+            if ($returnMultiCreditAmount > 0) $splits[] = ['mode' => 'credit',  'amount' => $returnMultiCreditAmount, 'bank_id' => null];
+            if ($returnMultiBankAmount > 0)   $splits[] = ['mode' => 'account', 'amount' => $returnMultiBankAmount,   'bank_id' => $returnMultiBankAccountId];
+            ledger_post_reservation_event_multi($pdo, $id, 'return', $splits, $ledgerUserId);
+        } else {
+            ledger_post_reservation_event($pdo, $id, 'return', $cashDueAtReturn, $returnPaymentMethodSave, $ledgerUserId, $returnBankAccountId);
+        }
+            if ($depositReturned > 0) {
+                $depositBankAccountId = ledger_get_security_deposit_account_id($pdo, $id) ?? $configuredSecurityDepositBankId;
+                if ($depositBankAccountId !== null) {
+                    ledger_post_security_deposit(
+                        $pdo,
+                        $id,
+                        'out',
+                        $depositReturned,
+                        $depositBankAccountId,
+                        $ledgerUserId
+                    );
+                } else {
+                    $msg .= ' | Security deposit return ledger not posted (configure Security Deposit Bank Account in Settings > General)';
+                    app_log('ERROR', 'Security deposit return ledger skipped for reservation #' . $id . ': no bank account available.');
+                }
+            }
             flash('success', $msg);
             // Log staff activity
             require_once __DIR__ . '/../includes/activity_log.php';
@@ -380,6 +444,8 @@ require_once __DIR__ . '/../includes/header.php';
     <form method="POST" enctype="multipart/form-data" class="space-y-8" id="returnForm">
         <input type="hidden" name="client_rating" id="clientRatingInput"
             value="<?= e($_POST['client_rating'] ?? ($r['client_rating_current'] ?? '')) ?>">
+        <input type="hidden" name="client_rating_review" id="clientRatingReviewInput"
+            value="<?= e($_POST['client_rating_review'] ?? '') ?>">
         <!-- Header Info -->
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-lg p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
@@ -540,7 +606,7 @@ require_once __DIR__ . '/../includes/header.php';
                                                 data-cost="<?= e($di['cost']) ?>" onchange="updateSummary()">
                                             <div class="flex-1">
                                                 <p class="text-sm text-white group-hover:text-orange-500 transition-colors">
-                                                    <?= e($di['item_name']) ?>
+ <?= e($di['item_name']) ?>
                                                 </p>
                                                 <p class="text-xs text-mb-subtle">$<?= number_format($di['cost'], 2) ?></p>
                                             </div>
@@ -617,36 +683,92 @@ require_once __DIR__ . '/../includes/header.php';
 
                     <div>
                         <label class="block text-sm text-mb-silver mb-2">Return Payment Method</label>
-                        <select name="return_payment_method" id="returnPaymentMethod" onchange="toggleReturnBankField()"
-                            class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors">
-                            <option value="cash" <?= $returnPaymentMethod === 'cash' ? 'selected' : '' ?>>Cash</option>
-                            <option value="account" <?= $returnPaymentMethod === 'account' ? 'selected' : '' ?>>Account
-                            </option>
-                            <option value="credit" <?= $returnPaymentMethod === 'credit' ? 'selected' : '' ?>>Credit
-                            </option>
-                        </select>
+                        <!-- Payment Source Type Toggle -->
+                        <div class="flex bg-mb-black rounded-lg border border-mb-subtle/20 overflow-hidden mb-3 max-w-xs">
+                            <label class="flex-1 text-center cursor-pointer">
+                                <input type="radio" name="return_payment_source_type" value="single" class="hidden peer" checked onchange="toggleReturnPaymentSourceType()">
+                                <span class="block py-2 text-xs font-medium peer-checked:bg-mb-accent peer-checked:text-white text-mb-subtle transition-colors">Single Source</span>
+                            </label>
+                            <label class="flex-1 text-center cursor-pointer">
+                                <input type="radio" name="return_payment_source_type" value="multi" class="hidden peer" onchange="toggleReturnPaymentSourceType()">
+                                <span class="block py-2 text-xs font-medium peer-checked:bg-mb-accent peer-checked:text-white text-mb-subtle transition-colors">Multi Source</span>
+                            </label>
+                        </div>
+                        <!-- Single Source -->
+                        <div id="returnSingleSourcePanel">
+                            <select name="return_payment_method" id="returnPaymentMethod" onchange="toggleReturnBankField()"
+                                class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors">
+                                <option value="cash" <?= $returnPaymentMethod === 'cash' ? 'selected' : '' ?>>Cash</option>
+                                <option value="account" <?= $returnPaymentMethod === 'account' ? 'selected' : '' ?>>Account</option>
+                                <option value="credit" <?= $returnPaymentMethod === 'credit' ? 'selected' : '' ?>>Credit</option>
+                            </select>
+                            <div id="returnBankWrap" class="mt-2 <?= $returnPaymentMethod === 'account' ? '' : 'hidden' ?>">
+                                <label class="block text-sm text-mb-silver mb-2">Bank Account</label>
+                                <select name="return_bank_account_id" id="returnBankAccount"
+                                    class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors">
+                                    <option value="">Select account</option>
+                                    <?php foreach ($activeBankAccounts as $acc): ?>
+                                        <option value="<?= (int) $acc['id'] ?>" <?= (int) ($returnBankAccountId ?? 0) === (int) $acc['id'] ? 'selected' : '' ?>>
+                                            <?= e($acc['name']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Multi Source -->
+                        <div id="returnMultiSourcePanel" class="hidden space-y-2">
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="text-mb-silver text-sm flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>Cash</span>
+                                <div class="relative w-44">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-mb-subtle text-xs">$</span>
+                                    <input type="number" name="return_multi_cash_amount" id="returnMultiCashAmount" step="0.01" min="0" placeholder="0.00"
+                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-7 pr-3 py-2 text-white focus:outline-none focus:border-green-500 text-sm"
+                                        oninput="validateReturnMultiTotal()">
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="text-mb-silver text-sm flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>Credit</span>
+                                <div class="relative w-44">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-mb-subtle text-xs">$</span>
+                                    <input type="number" name="return_multi_credit_amount" id="returnMultiCreditAmount" step="0.01" min="0" placeholder="0.00"
+                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-7 pr-3 py-2 text-white focus:outline-none focus:border-amber-500 text-sm"
+                                        oninput="validateReturnMultiTotal()">
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="text-mb-silver text-sm flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-400 inline-block"></span>Bank</span>
+                                <div class="relative w-44">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-mb-subtle text-xs">$</span>
+                                    <input type="number" name="return_multi_bank_amount" id="returnMultiBankAmount" step="0.01" min="0" placeholder="0.00"
+                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-7 pr-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm"
+                                        oninput="validateReturnMultiTotal()">
+                                </div>
+                            </div>
+                            <div id="returnMultiBankSelectWrap" class="hidden" style="display:none">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="text-mb-silver text-xs">Select Bank</span>
+                                    <div class="w-44">
+                                        <select name="return_multi_bank_account_id" id="returnMultiBankAccountId"
+                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm">
+                                            <option value="">Select account</option>
+                                            <?php foreach ($activeBankAccounts as $acc): ?>
+                                                <option value="<?= (int) $acc['id'] ?>"><?= e($acc['name']) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="returnMultiTotalValidation" class="hidden text-xs pt-1 font-medium"></div>
+                        </div>
                         <p class="text-xs text-mb-subtle mt-1">Applied only when there is an amount due at return.</p>
                         <?php if (isset($errors['return_payment_method'])): ?>
                             <p class="text-red-400 text-xs mt-1"><?= e($errors['return_payment_method']) ?></p>
                         <?php endif; ?>
-                    </div>
-                    <div id="returnBankWrap"
-                        class="<?= $returnPaymentMethod === 'account' ? '' : 'hidden' ?>">
-                        <label class="block text-sm text-mb-silver mb-2">Bank Account</label>
-                        <select name="return_bank_account_id" id="returnBankAccount"
-                            class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors">
-                            <option value="">Select account</option>
-                            <?php foreach ($activeBankAccounts as $acc): ?>
-                                <option value="<?= (int) $acc['id'] ?>" <?= (int) ($returnBankAccountId ?? 0) === (int) $acc['id'] ? 'selected' : '' ?>>
-                                    <?= e($acc['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <?php if (isset($errors['return_bank_account_id'])): ?>
-                            <p class="text-red-400 text-xs mt-1"><?= e($errors['return_bank_account_id']) ?></p>
+                        <?php if (isset($errors['return_multi_total'])): ?>
+                            <p class="text-red-400 text-xs mt-1"><?= e($errors['return_multi_total']) ?></p>
                         <?php endif; ?>
-                        <?php if (empty($activeBankAccounts)): ?>
-                            <p class="text-red-400 text-xs mt-1">No active bank account found. Go to Accounts and add one for account mode.</p>
+                        <?php if (isset($errors['return_multi_bank_account_id'])): ?>
+                            <p class="text-red-400 text-xs mt-1"><?= e($errors['return_multi_bank_account_id']) ?></p>
                         <?php endif; ?>
                     </div>
 
@@ -755,7 +877,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <div
                         class="bg-mb-black/30 p-4 rounded-lg border border-mb-subtle/10 hover:border-green-500/30 transition-colors">
                         <label class="block text-sm font-medium text-mb-silver mb-2"><?= $areaLabel ?> View</label>
-                        <input type="file" name="photos[<?= $areaKey ?>]" accept="image/*" class="block w-full text-sm text-mb-silver
+                        <input type="file" name="photos[<?= $areaKey ?>]" accept="image/*" required class="block w-full text-sm text-mb-silver
                                    file:mr-4 file:py-2 file:px-4
                                    file:rounded-full file:border-0
                                    file:text-xs file:font-semibold
@@ -793,6 +915,12 @@ require_once __DIR__ . '/../includes/header.php';
                         <span class="text-yellow-400 text-sm"><?= str_repeat('★', $star) ?></span>
                     </label>
                 <?php endfor; ?>
+            </div>
+
+            <div class="space-y-2 mt-4">
+                <label class="block text-xs font-medium text-mb-silver uppercase tracking-wider">Review / Observations (Optional)</label>
+                <textarea id="modalRatingReview" rows="3" placeholder="Enter specific feedback about the client..."
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors resize-none placeholder-mb-subtle/50"></textarea>
             </div>
 
             <p id="ratingError" class="hidden text-red-400 text-sm">Select a client rating to continue.</p>
@@ -869,6 +997,53 @@ function getReturnDueAmount() {
     if (!el) return 0;
     var raw = String(el.textContent || "0").replace(/[^0-9.-]/g, "");
     return parseFloat(raw) || 0;
+}
+
+function toggleReturnPaymentSourceType() {
+    var sourceType = document.querySelector(\'input[name="return_payment_source_type"]:checked\');
+    sourceType = sourceType ? sourceType.value : \'single\';
+    var singlePanel = document.getElementById(\'returnSingleSourcePanel\');
+    var multiPanel = document.getElementById(\'returnMultiSourcePanel\');
+    if (singlePanel) singlePanel.style.display = sourceType === \'single\' ? \'block\' : \'none\';
+    if (multiPanel) multiPanel.classList.toggle(\'hidden\', sourceType !== \'multi\');
+    if (sourceType === \'multi\') validateReturnMultiTotal();
+}
+
+function validateReturnMultiTotal() {
+    var cashEl = document.getElementById(\'returnMultiCashAmount\');
+    var creditEl = document.getElementById(\'returnMultiCreditAmount\');
+    var bankEl = document.getElementById(\'returnMultiBankAmount\');
+    var bankSelectWrap = document.getElementById(\'returnMultiBankSelectWrap\');
+    var validationEl = document.getElementById(\'returnMultiTotalValidation\');
+    if (!cashEl || !creditEl || !bankEl || !validationEl) return;
+
+    var cashAmt = parseFloat(cashEl.value || \'0\') || 0;
+    var creditAmt = parseFloat(creditEl.value || \'0\') || 0;
+    var bankAmt = parseFloat(bankEl.value || \'0\') || 0;
+    var total = Math.round((cashAmt + creditAmt + bankAmt) * 100) / 100;
+    var grandEl = document.getElementById(\'grandTotalDisplay\');
+    var required = 0;
+    if (grandEl) {
+        var raw = String(grandEl.textContent || \'0\').replace(/[^0-9.-]/g, \'\');
+        required = parseFloat(raw) || 0;
+    }
+
+    if (bankSelectWrap) {
+        bankSelectWrap.style.display = bankAmt > 0 ? \'flex\' : \'none\';
+    }
+
+    validationEl.classList.remove(\'hidden\');
+    var diff = Math.round((required - total) * 100) / 100;
+    if (Math.abs(diff) < 0.01) {
+        validationEl.className = \'text-xs pt-1 font-medium text-green-400\';
+        validationEl.textContent = \'Total matches: $\' + total.toFixed(2);
+    } else if (diff > 0) {
+        validationEl.className = \'text-xs pt-1 font-medium text-amber-400\';
+        validationEl.textContent = \'Remaining: $\' + diff.toFixed(2) + \' (Need: $\' + required.toFixed(2) + \')\';
+    } else {
+        validationEl.className = \'text-xs pt-1 font-medium text-red-400\';
+        validationEl.textContent = \'Over by: $\' + Math.abs(diff).toFixed(2) + \' (Max: $\' + required.toFixed(2) + \')\';
+    }
 }
 
 function toggleReturnBankField() {
@@ -1160,6 +1335,8 @@ if(confirmRatingBtn){
             return;
         }
         if(clientRatingInput) clientRatingInput.value = selected.value;
+        const reviewVal = document.getElementById("modalRatingReview") ? document.getElementById("modalRatingReview").value : "";
+        if(document.getElementById("clientRatingReviewInput")) document.getElementById("clientRatingReviewInput").value = reviewVal;
         closeRatingModal();
         if(returnForm){
             if(returnForm.requestSubmit){

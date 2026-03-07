@@ -11,6 +11,32 @@ This file tracks all database changes that need to be applied to **production** 
 
 ## Pending
 
+### 2026-03-08 - Vehicle Insurance Metadata
+**SQL file:** `migrations/releases/2026-03-08_vehicle_insurance_metadata.sql`
+```sql
+-- Adds nullable `insurance_type` and `insurance_expiry_date` to `vehicles`
+-- Uses INFORMATION_SCHEMA guards so it is safe to re-run.
+```
+**Notes:** Supports Insurance Type + Expiry Date in vehicle create/edit and enables insurance risk highlighting on vehicle cards.
+
+### 2026-03-08 - Vehicle Condition Notes
+**SQL file:** `migrations/releases/2026-03-08_vehicle_condition_notes.sql`
+```sql
+-- Adds nullable `condition_notes` TEXT column to `vehicles`
+-- Uses INFORMATION_SCHEMA guards so it is safe to re-run.
+```
+**Notes:** Enables saving optional vehicle condition notes directly from Vehicle Details page.
+
+### 2026-03-07 - Client/Lead Alternative Number
+**SQL file:** `migrations/releases/2026-03-07_client_lead_alternative_numbers.sql`
+```sql
+-- Adds nullable alternative_number columns to:
+-- 1) clients
+-- 2) leads
+-- Uses INFORMATION_SCHEMA guards so it is safe to re-run.
+```
+**Notes:** Enables optional secondary contact number in client forms and lead forms.
+
 ### 2026-03-06 - Vehicle Availability & Delivery Tracking
 **SQL file:** `migrations/releases/2026-03-06_vehicle_availability.sql`
 ```sql

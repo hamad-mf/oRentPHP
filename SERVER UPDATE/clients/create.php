@@ -8,6 +8,7 @@ if (!auth_has_perm('manage_clients')) {
 
 $pdo = db();
 clients_ensure_schema($pdo);
+$supportsAlternativeNumber = clients_has_column($pdo, 'alternative_number');
 
 $errors = [];
 
@@ -15,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
+    $alternativeNumber = trim($_POST['alternative_number'] ?? '');
     $address = trim($_POST['address'] ?? '');
     $notes = trim($_POST['notes'] ?? '');
 
@@ -52,8 +54,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (empty($errors)) {
-            $stmt = $pdo->prepare('INSERT INTO clients (name,email,phone,address,notes,proof_file) VALUES (?,?,?,?,?,?)');
-            $stmt->execute([$name, $email ?: null, $phone, $address, $notes, $proofFile]);
+            if ($supportsAlternativeNumber) {
+                $stmt = $pdo->prepare('INSERT INTO clients (name,email,phone,alternative_number,address,notes,proof_file) VALUES (?,?,?,?,?,?,?)');
+                $stmt->execute([$name, $email ?: null, $phone, $alternativeNumber ?: null, $address, $notes, $proofFile]);
+            } else {
+                $stmt = $pdo->prepare('INSERT INTO clients (name,email,phone,address,notes,proof_file) VALUES (?,?,?,?,?,?)');
+                $stmt->execute([$name, $email ?: null, $phone, $address, $notes, $proofFile]);
+            }
             $id = $pdo->lastInsertId();
             app_log('ACTION', "Created client: $name (ID: $id)");
             flash('success', "Client $name added successfully.");
@@ -104,6 +111,9 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php cf('name', 'Full Name', 'text', $errors, true, 'John Doe'); ?>
                 <?php cf('email', 'Email Address', 'email', $errors, false, 'john@example.com (optional)'); ?>
                 <?php cf('phone', 'Phone Number', 'text', $errors, true, '+1 234 567 8900'); ?>
+                <?php if ($supportsAlternativeNumber): ?>
+                    <?php cf('alternative_number', 'Alternative Number', 'text', $errors, false, '+1 234 567 8901 (optional)'); ?>
+                <?php endif; ?>
             </div>
             <div>
                 <label class="block text-sm text-mb-silver mb-2">Address</label>

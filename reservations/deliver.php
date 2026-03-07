@@ -64,6 +64,10 @@ $suggestedDeposit = round($collectNowAtDelivery * ($depositPct / 100), 2);
 $deliveryBankAccountId = (int) ($_POST['delivery_bank_account_id'] ?? 0);
 $deliveryBankAccountId = $deliveryBankAccountId > 0 ? $deliveryBankAccountId : null;
 $activeBankAccounts = array_values(array_filter(ledger_get_accounts($pdo), fn($a) => (int) ($a['is_active'] ?? 0) === 1));
+$configuredSecurityDepositBankId = ledger_get_active_bank_account_id(
+    $pdo,
+    (int) settings_get($pdo, 'security_deposit_bank_account_id', '0')
+);
 
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -80,6 +84,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $deliveryPaymentMethod = reservation_payment_method_normalize($_POST['delivery_payment_method'] ?? null);
     $deliveryBankAccountId = (int) ($_POST['delivery_bank_account_id'] ?? 0);
     $deliveryBankAccountId = $deliveryBankAccountId > 0 ? $deliveryBankAccountId : null;
+    $paymentSourceType = trim($_POST['payment_source_type'] ?? 'single');
+    $multiCashAmount = max(0, (float) ($_POST['multi_cash_amount'] ?? 0));
+    $multiCreditAmount = max(0, (float) ($_POST['multi_credit_amount'] ?? 0));
+    $multiBankAmount = max(0, (float) ($_POST['multi_bank_amount'] ?? 0));
+    $multiBankAccountId = (int) ($_POST['multi_bank_account_id'] ?? 0);
+    $multiBankAccountId = $multiBankAccountId > 0 ? $multiBankAccountId : null;
     $delivDiscType = in_array($_POST['delivery_discount_type'] ?? '', ['percent', 'amount']) ? $_POST['delivery_discount_type'] : null;
     $delivDiscVal = max(0, (float) ($_POST['delivery_discount_value'] ?? 0));
     if ($deliveryCharge < 0) {
@@ -97,27 +107,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $delivDiscountAmt = min($delivDiscVal, $baseWithCharge);
     }
     $collectNowAtDelivery = max(0, $baseWithCharge - $delivDiscountAmt);
-    if ($collectNowAtDelivery > 0 && $deliveryPaymentMethod === null) {
-        $errors['delivery_payment_method'] = 'Please select how this delivery payment was received.';
-    }
-    if ($collectNowAtDelivery > 0 && $deliveryPaymentMethod === 'account') {
-        if ($deliveryBankAccountId === null) {
-            $errors['delivery_bank_account_id'] = 'Please select the bank account that received this payment.';
+    if ($collectNowAtDelivery > 0 && $paymentSourceType === 'single') {
+        if ($deliveryPaymentMethod === null) {
+            $errors['delivery_payment_method'] = 'Please select how this delivery payment was received.';
+        }
+        if ($deliveryPaymentMethod === 'account') {
+            if ($deliveryBankAccountId === null) {
+                $errors['delivery_bank_account_id'] = 'Please select the bank account that received this payment.';
+            } else {
+                $chk = $pdo->prepare("SELECT COUNT(*) FROM bank_accounts WHERE id = ? AND is_active = 1");
+                $chk->execute([$deliveryBankAccountId]);
+                if ((int) $chk->fetchColumn() === 0) {
+                    $errors['delivery_bank_account_id'] = 'Selected bank account is invalid or inactive.';
+                }
+            }
         } else {
+            $deliveryBankAccountId = null;
+        }
+    } elseif ($collectNowAtDelivery > 0 && $paymentSourceType === 'multi') {
+        $multiTotal = round($multiCashAmount + $multiCreditAmount + $multiBankAmount, 2);
+        if (abs($multiTotal - $collectNowAtDelivery) > 0.01) {
+            $errors['multi_total'] = 'Split amounts must total exactly $' . number_format($collectNowAtDelivery, 2) . '. Current total: $' . number_format($multiTotal, 2);
+        }
+        if ($multiBankAmount > 0 && $multiBankAccountId === null) {
+            $errors['multi_bank_account_id'] = 'Please select a bank account for the bank payment portion.';
+        }
+        if ($multiBankAmount > 0 && $multiBankAccountId !== null) {
             $chk = $pdo->prepare("SELECT COUNT(*) FROM bank_accounts WHERE id = ? AND is_active = 1");
-            $chk->execute([$deliveryBankAccountId]);
+            $chk->execute([$multiBankAccountId]);
             if ((int) $chk->fetchColumn() === 0) {
-                $errors['delivery_bank_account_id'] = 'Selected bank account is invalid or inactive.';
+                $errors['multi_bank_account_id'] = 'Selected bank account is invalid or inactive.';
             }
         }
-    } else {
-        $deliveryBankAccountId = null;
+        $deliveryPaymentMethod = 'multi';
     }
 
     if ($fuel < 0 || $fuel > 100)
         $errors['fuel_level'] = 'Fuel level must be 0–100.';
     if ($miles < 0)
         $errors['mileage'] = 'Mileage must be a positive number.';
+
+    // KM limit is required
+    if ($kmLimit === null || $kmLimit <= 0)
+        $errors['km_limit'] = 'KM limit is required.';
+    if (($extraKmPrice === null || $extraKmPrice <= 0) && $kmLimit !== null && $kmLimit > 0)
+        $errors['extra_km_price'] = 'Extra price per KM is required when KM limit is set.';
+
+    // All photos are required
+    $requiredPhotos = ['front','back','left','right','interior','odometer','with_customer'];
+    foreach ($requiredPhotos as $photoKey) {
+        if (empty($_FILES['photos']['name'][$photoKey]) || $_FILES['photos']['error'][$photoKey] !== UPLOAD_ERR_OK) {
+            $errors['photo_' . $photoKey] = ucfirst(str_replace('_', ' ', $photoKey)) . ' photo is required.';
+        }
+    }
 
     if (empty($errors)) {
         $iStmt = $pdo->prepare('INSERT INTO vehicle_inspections (reservation_id,type,fuel_level,mileage,notes) VALUES (?,?,?,?,?)');
@@ -142,8 +184,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $deliveryPaymentMethodSave = $collectNowAtDelivery > 0 ? $deliveryPaymentMethod : null;
-        $pdo->prepare("UPDATE reservations SET status='active', delivered_at=" . app_now_sql() . ", km_limit=?, extra_km_price=?, deposit_amount=?, delivery_charge=?, delivery_manual_amount=?, delivery_payment_method=?, delivery_paid_amount=?, delivery_discount_type=?, delivery_discount_value=?, delivery_location=? WHERE id=?")
-            ->execute([$kmLimit, $extraKmPrice, $depositAmt, $deliveryCharge, $deliveryManualAmount, $deliveryPaymentMethodSave, $collectNowAtDelivery, $delivDiscType ?: null, $delivDiscVal, $deliveryLocation !== '' ? $deliveryLocation : null, $id]);
+        $nowSql = app_now_sql();
+        $pdo->prepare("UPDATE reservations
+    SET status='active',
+        delivered_at=?,
+        km_limit=?,
+        extra_km_price=?,
+        deposit_amount=?,
+        delivery_charge=?,
+        delivery_manual_amount=?,
+        delivery_payment_method=?,
+        delivery_paid_amount=?,
+        delivery_discount_type=?,
+        delivery_discount_value=?,
+        delivery_location=?
+    WHERE id=?")
+            ->execute([
+    $nowSql,
+    $kmLimit,
+    $extraKmPrice,
+    $depositAmt,
+    $deliveryCharge,
+    $deliveryManualAmount,
+    $deliveryPaymentMethodSave,
+    $collectNowAtDelivery,
+    $delivDiscType ?: null,
+    $delivDiscVal,
+    $deliveryLocation !== '' ? $deliveryLocation : null,
+    $id
+]);
         $pdo->prepare("UPDATE vehicles SET status='rented' WHERE id=?")->execute([$r['vehicle_id']]);
         $msg = 'Vehicle delivered. Amount collected at delivery: $' . number_format($collectNowAtDelivery, 2) . '.';
         if ($collectNowAtDelivery > 0) {
@@ -160,14 +229,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $msg .= ' Reservation is now active.';
         app_log('ACTION', "Delivered reservation (ID: $id)");
+        $ledgerUserId = (int) ($_SESSION['user']['id'] ?? 0);
         // ── Auto-post income to ledger ──────────────────────────────────
-        ledger_post_reservation_event($pdo, $id, 'delivery', $collectNowAtDelivery, $deliveryPaymentMethodSave, $_SESSION['user']['id'] ?? 0, $deliveryBankAccountId);
+        if ($paymentSourceType === 'multi' && $collectNowAtDelivery > 0) {
+            $splits = [];
+            if ($multiCashAmount > 0)   $splits[] = ['mode' => 'cash',    'amount' => $multiCashAmount,   'bank_id' => null];
+            if ($multiCreditAmount > 0) $splits[] = ['mode' => 'credit',  'amount' => $multiCreditAmount, 'bank_id' => null];
+            if ($multiBankAmount > 0)   $splits[] = ['mode' => 'account', 'amount' => $multiBankAmount,   'bank_id' => $multiBankAccountId];
+            ledger_post_reservation_event_multi($pdo, $id, 'delivery', $splits, $ledgerUserId);
+        } else {
+            ledger_post_reservation_event($pdo, $id, 'delivery', $collectNowAtDelivery, $deliveryPaymentMethodSave, $ledgerUserId, $deliveryBankAccountId);
+        }
+        if ($depositAmt > 0) {
+            if ($configuredSecurityDepositBankId !== null) {
+                ledger_post_security_deposit(
+                    $pdo,
+                    $id,
+                    'in',
+                    $depositAmt,
+                    $configuredSecurityDepositBankId,
+                    $ledgerUserId
+                );
+            } else {
+                $msg .= ' Security deposit ledger not posted (configure Security Deposit Bank Account in Settings > General).';
+                app_log('ERROR', 'Security deposit ledger skipped for reservation #' . $id . ': no active configured bank account.');
+            }
+        }
         // Auto-create GPS tracking entry with delivery location
         try {
             require_once __DIR__ . '/../includes/gps_helpers.php';
             gps_tracking_ensure_schema($pdo);
-            $gpsStmt = $pdo->prepare("INSERT INTO gps_tracking (reservation_id, vehicle_id, last_location, tracking_active, notes, last_seen, updated_by, updated_at) VALUES (?, ?, ?, 1, 'Initial delivery', " . app_now_sql() . ", ?, " . app_now_sql() . ")");
-            $gpsStmt->execute([$id, (int)$r['vehicle_id'], $deliveryLocation !== '' ? $deliveryLocation : null, $_SESSION['user']['id'] ?? null]);
+          $gpsStmt = $pdo->prepare("INSERT INTO gps_tracking
+    (reservation_id, vehicle_id, last_location, tracking_active, notes, last_seen, updated_by, updated_at)
+    VALUES (?, ?, ?, 1, 'Initial delivery', ?, ?, ?)");
+$gpsStmt->execute([
+    $id,
+    (int) $r['vehicle_id'],
+    $deliveryLocation !== '' ? $deliveryLocation : null,
+    $nowSql,
+    $_SESSION['user']['id'] ?? null,
+    $nowSql
+]);
+
         } catch (Throwable $e) {
             app_log('ERROR', 'Auto GPS entry failed for reservation #' . $id . ': ' . $e->getMessage());
         }
@@ -229,7 +332,7 @@ require_once __DIR__ . '/../includes/header.php';
             <p class="text-xs text-mb-subtle mb-3">Where is the vehicle being delivered? This will be used for GPS tracking.</p>
             <input type="text" name="delivery_location" id="delivery_location"
                 value="<?= e($_POST['delivery_location'] ?? '') ?>"
-                placeholder="e.g. Client's office, Airport parking lot B3..."
+                placeholder="e.g. Client's office, Airport parking lot B3..." required
                 class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white placeholder-mb-subtle focus:outline-none focus:border-mb-accent transition-colors"
                 maxlength="255">
         </div>
@@ -300,33 +403,91 @@ require_once __DIR__ . '/../includes/header.php';
                     <span
                         id="delivDiscountAmt"><?= $delivDiscountAmt > 0 ? '-$' . number_format($delivDiscountAmt, 2) : '' ?></span>
                 </div>
+                <!-- Payment Source Type Toggle -->
                 <div class="flex items-center justify-between text-mb-silver gap-3">
-                    <span>Payment Method</span>
-                    <div class="w-44">
-                        <select name="delivery_payment_method" id="deliveryPaymentMethod" onchange="toggleDeliveryBankField()"
-                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
-                            <option value="cash" <?= $deliveryPaymentMethod === 'cash' ? 'selected' : '' ?>>Cash</option>
-                            <option value="account" <?= $deliveryPaymentMethod === 'account' ? 'selected' : '' ?>>Account
-                            </option>
-                            <option value="credit" <?= $deliveryPaymentMethod === 'credit' ? 'selected' : '' ?>>Credit
-                            </option>
-                        </select>
+                    <span>Payment Source</span>
+                    <div class="flex bg-mb-black rounded-lg border border-mb-subtle/20 overflow-hidden w-44">
+                        <label class="flex-1 text-center cursor-pointer">
+                            <input type="radio" name="payment_source_type" value="single" class="hidden peer" checked onchange="togglePaymentSourceType()">
+                            <span class="block py-2 text-xs font-medium peer-checked:bg-mb-accent peer-checked:text-white text-mb-subtle transition-colors">Single</span>
+                        </label>
+                        <label class="flex-1 text-center cursor-pointer">
+                            <input type="radio" name="payment_source_type" value="multi" class="hidden peer" onchange="togglePaymentSourceType()">
+                            <span class="block py-2 text-xs font-medium peer-checked:bg-mb-accent peer-checked:text-white text-mb-subtle transition-colors">Multi</span>
+                        </label>
                     </div>
                 </div>
-                <div id="deliveryBankWrap"
-                    class="items-center justify-between text-mb-silver gap-3 <?= $deliveryPaymentMethod === 'account' ? 'flex' : 'hidden' ?>">
-                    <span>Bank Account</span>
-                    <div class="w-44">
-                        <select name="delivery_bank_account_id" id="deliveryBankAccount"
-                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
-                            <option value="">Select account</option>
-                            <?php foreach ($activeBankAccounts as $acc): ?>
-                                <option value="<?= (int) $acc['id'] ?>" <?= (int) ($deliveryBankAccountId ?? 0) === (int) $acc['id'] ? 'selected' : '' ?>>
-                                    <?= e($acc['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                <!-- Single Source Panel -->
+                <div id="singleSourcePanel">
+                    <div class="flex items-center justify-between text-mb-silver gap-3">
+                        <span>Payment Method</span>
+                        <div class="w-44">
+                            <select name="delivery_payment_method" id="deliveryPaymentMethod" onchange="toggleDeliveryBankField()"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
+                                <option value="cash" <?= $deliveryPaymentMethod === 'cash' ? 'selected' : '' ?>>Cash</option>
+                                <option value="account" <?= $deliveryPaymentMethod === 'account' ? 'selected' : '' ?>>Account</option>
+                                <option value="credit" <?= $deliveryPaymentMethod === 'credit' ? 'selected' : '' ?>>Credit</option>
+                            </select>
+                        </div>
                     </div>
+                    <div id="deliveryBankWrap"
+                        class="items-center justify-between text-mb-silver gap-3 mt-2 <?= $deliveryPaymentMethod === 'account' ? 'flex' : 'hidden' ?>">
+                        <span>Bank Account</span>
+                        <div class="w-44">
+                            <select name="delivery_bank_account_id" id="deliveryBankAccount"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
+                                <option value="">Select account</option>
+                                <?php foreach ($activeBankAccounts as $acc): ?>
+                                    <option value="<?= (int) $acc['id'] ?>" <?= (int) ($deliveryBankAccountId ?? 0) === (int) $acc['id'] ? 'selected' : '' ?>>
+                                        <?= e($acc['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <!-- Multi Source Panel -->
+                <div id="multiSourcePanel" class="hidden space-y-2">
+                    <div class="flex items-center justify-between text-mb-silver gap-3">
+                        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>Cash</span>
+                        <div class="relative w-44">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-mb-subtle text-xs">$</span>
+                            <input type="number" name="multi_cash_amount" id="multiCashAmount" step="0.01" min="0" placeholder="0.00"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-7 pr-3 py-2 text-white focus:outline-none focus:border-green-500 text-sm"
+                                oninput="validateMultiTotal()">
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between text-mb-silver gap-3">
+                        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>Credit</span>
+                        <div class="relative w-44">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-mb-subtle text-xs">$</span>
+                            <input type="number" name="multi_credit_amount" id="multiCreditAmount" step="0.01" min="0" placeholder="0.00"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-7 pr-3 py-2 text-white focus:outline-none focus:border-amber-500 text-sm"
+                                oninput="validateMultiTotal()">
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between text-mb-silver gap-3">
+                        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-400 inline-block"></span>Bank Account</span>
+                        <div class="relative w-44">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-mb-subtle text-xs">$</span>
+                            <input type="number" name="multi_bank_amount" id="multiBankAmount" step="0.01" min="0" placeholder="0.00"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-7 pr-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm"
+                                oninput="validateMultiTotal()">
+                        </div>
+                    </div>
+                    <div id="multiBankSelectWrap" class="hidden flex items-center justify-between text-mb-silver gap-3">
+                        <span class="text-xs">Select Bank</span>
+                        <div class="w-44">
+                            <select name="multi_bank_account_id" id="multiBankAccountId"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm">
+                                <option value="">Select account</option>
+                                <?php foreach ($activeBankAccounts as $acc): ?>
+                                    <option value="<?= (int) $acc['id'] ?>"><?= e($acc['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="multiTotalValidation" class="hidden text-xs pt-1 font-medium"></div>
                 </div>
                 <div class="flex justify-between text-white font-semibold pt-1 border-t border-green-500/20">
                     <span>Collect Now</span>
@@ -415,13 +576,13 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm text-mb-silver mb-2">KM Limit</label>
-                            <input type="number" name="km_limit" min="0" placeholder="e.g. 500 (blank = unlimited)"
+                            <input type="number" name="km_limit" min="0" placeholder="e.g. 500" required
                                 value="<?= e($_POST['km_limit'] ?? '') ?>"
                                 class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500/50 transition-colors">
                         </div>
                         <div>
                             <label class="block text-sm text-mb-silver mb-2">Extra Price / KM ($)</label>
-                            <input type="number" name="extra_km_price" min="0" step="0.01" placeholder="e.g. 0.50"
+                            <input type="number" name="extra_km_price" min="0" step="0.01" placeholder="e.g. 0.50" required
                                 value="<?= e($_POST['extra_km_price'] ?? '') ?>"
                                 class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500/50 transition-colors">
                         </div>
@@ -448,7 +609,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <div
                         class="bg-mb-black/30 p-4 rounded-lg border border-mb-subtle/10 hover:border-mb-accent/30 transition-colors">
                         <label class="block text-sm font-medium text-mb-silver mb-2"><?= $areaLabel ?> View</label>
-                        <input type="file" name="photos[<?= $areaKey ?>]" accept="image/*" class="block w-full text-sm text-mb-silver
+                        <input type="file" name="photos[<?= $areaKey ?>]" accept="image/*" required class="block w-full text-sm text-mb-silver
                                    file:mr-4 file:py-2 file:px-4
                                    file:rounded-full file:border-0
                                    file:text-xs file:font-semibold
@@ -595,6 +756,48 @@ if (deliveryPaymentMethodEl) {
 updateFuel(slider.value);
 updateDeliveryCollectNow();
 toggleDeliveryBankField();
+// Multi-source payment logic
+function togglePaymentSourceType() {
+    const sourceType = document.querySelector('input[name="payment_source_type"]:checked')?.value || 'single';
+    const singlePanel = document.getElementById('singleSourcePanel');
+    const multiPanel = document.getElementById('multiSourcePanel');
+    if (singlePanel) singlePanel.style.display = sourceType === 'single' ? 'block' : 'none';
+    if (multiPanel) multiPanel.classList.toggle('hidden', sourceType !== 'multi');
+    if (sourceType === 'multi') validateMultiTotal();
+}
+
+function validateMultiTotal() {
+    const cashEl = document.getElementById('multiCashAmount');
+    const creditEl = document.getElementById('multiCreditAmount');
+    const bankEl = document.getElementById('multiBankAmount');
+    const bankSelectWrap = document.getElementById('multiBankSelectWrap');
+    const validationEl = document.getElementById('multiTotalValidation');
+    if (!cashEl || !creditEl || !bankEl || !validationEl) return;
+
+    const cashAmt = parseFloat(cashEl.value || '0') || 0;
+    const creditAmt = parseFloat(creditEl.value || '0') || 0;
+    const bankAmt = parseFloat(bankEl.value || '0') || 0;
+    const total = Math.round((cashAmt + creditAmt + bankAmt) * 100) / 100;
+    const required = getCollectNowAmount();
+
+    // Show/hide bank account selector
+    if (bankSelectWrap) {
+        bankSelectWrap.style.display = bankAmt > 0 ? 'flex' : 'none';
+    }
+
+    validationEl.classList.remove('hidden');
+    const diff = Math.round((required - total) * 100) / 100;
+    if (Math.abs(diff) < 0.01) {
+        validationEl.className = 'text-xs pt-1 font-medium text-green-400';
+        validationEl.textContent = 'Total matches: $' + total.toFixed(2);
+    } else if (diff > 0) {
+        validationEl.className = 'text-xs pt-1 font-medium text-amber-400';
+        validationEl.textContent = 'Remaining: $' + diff.toFixed(2) + ' (Need: $' + required.toFixed(2) + ')';
+    } else {
+        validationEl.className = 'text-xs pt-1 font-medium text-red-400';
+        validationEl.textContent = 'Over by: $' + Math.abs(diff).toFixed(2) + ' (Max: $' + required.toFixed(2) + ')';
+    }
+}
 </script>
 JS;
 require_once __DIR__ . '/../includes/footer.php';

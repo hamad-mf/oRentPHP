@@ -8,6 +8,7 @@ if (!auth_has_perm('manage_clients')) {
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
 clients_ensure_schema($pdo);
+$supportsAlternativeNumber = clients_has_column($pdo, 'alternative_number');
 $cStmt = $pdo->prepare('SELECT * FROM clients WHERE id=?');
 $cStmt->execute([$id]);
 $c = $cStmt->fetch();
@@ -21,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
+    $alternativeNumber = trim($_POST['alternative_number'] ?? '');
     $address = trim($_POST['address'] ?? '');
     $notes = trim($_POST['notes'] ?? '');
     if (!$name)
@@ -54,8 +56,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         if (empty($errors)) {
-            $pdo->prepare('UPDATE clients SET name=?,email=?,phone=?,address=?,notes=?,proof_file=? WHERE id=?')
-                ->execute([$name, $email ?: null, $phone, $address, $notes, $proofFile, $id]);
+            if ($supportsAlternativeNumber) {
+                $pdo->prepare('UPDATE clients SET name=?,email=?,phone=?,alternative_number=?,address=?,notes=?,proof_file=? WHERE id=?')
+                    ->execute([$name, $email ?: null, $phone, $alternativeNumber ?: null, $address, $notes, $proofFile, $id]);
+            } else {
+                $pdo->prepare('UPDATE clients SET name=?,email=?,phone=?,address=?,notes=?,proof_file=? WHERE id=?')
+                    ->execute([$name, $email ?: null, $phone, $address, $notes, $proofFile, $id]);
+            }
             app_log('ACTION', "Updated client: $name (ID: $id)");
             flash('success', 'Client updated successfully.');
             redirect("show.php?id=$id");
@@ -92,7 +99,16 @@ require_once __DIR__ . '/../includes/header.php';
     <form method="POST" enctype="multipart/form-data" class="space-y-6">
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-5">
             <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Client Information</h3>
-            <?php foreach ([['name', 'Full Name', 'text', true], ['email', 'Email (optional)', 'email', false], ['phone', 'Phone', 'text', true]] as [$n, $l, $t, $r]):
+            <?php
+            $clientFormFields = [
+                ['name', 'Full Name', 'text', true],
+                ['email', 'Email (optional)', 'email', false],
+                ['phone', 'Phone', 'text', true],
+            ];
+            if ($supportsAlternativeNumber) {
+                $clientFormFields[] = ['alternative_number', 'Alternative Number', 'text', false];
+            }
+            foreach ($clientFormFields as [$n, $l, $t, $r]):
                 $val = htmlspecialchars($c[$n] ?? '', ENT_QUOTES);
                 $err = $errors[$n] ?? ''; ?>
                 <div><label class="block text-sm text-mb-silver mb-2">

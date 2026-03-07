@@ -57,6 +57,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rate15 = (isset($_POST['rate_15day']) && $_POST['rate_15day'] !== '') ? (float) $_POST['rate_15day'] : null;
     $rate30 = (isset($_POST['rate_30day']) && $_POST['rate_30day'] !== '') ? (float) $_POST['rate_30day'] : null;
     $image = trim($_POST['image_url'] ?? '');
+    $insuranceType = strtolower(trim((string) ($_POST['insurance_type'] ?? '')));
+    $insuranceType = $insuranceType !== '' ? $insuranceType : null;
+    if ($insuranceType === 'thrid class') {
+        $insuranceType = 'third class';
+    } elseif ($insuranceType === 'bumber to bumber') {
+        $insuranceType = 'bumper to bumper';
+    }
+    $insuranceExpiryDate = trim((string) ($_POST['insurance_expiry_date'] ?? ''));
+    $insuranceExpiryDate = $insuranceExpiryDate !== '' ? $insuranceExpiryDate : null;
 
     if (!$brand)
         $errors['brand'] = 'Brand is required.';
@@ -70,6 +79,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['daily_rate'] = 'Daily rate must be greater than 0.';
     if (!in_array($status, ['available', 'rented', 'maintenance'], true))
         $errors['status'] = 'Invalid status.';
+    if ($insuranceType !== null && !in_array($insuranceType, ['third class', 'first class', 'bumper to bumper'], true)) {
+        $errors['insurance_type'] = 'Invalid insurance type.';
+    }
+    if ($insuranceExpiryDate !== null) {
+        $dateObj = DateTime::createFromFormat('Y-m-d', $insuranceExpiryDate);
+        if (!$dateObj || $dateObj->format('Y-m-d') !== $insuranceExpiryDate) {
+            $errors['insurance_expiry_date'] = 'Invalid insurance expiry date.';
+        }
+    }
 
     // Unique plate check (exclude current)
     if (!isset($errors['license_plate'])) {
@@ -108,24 +126,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                               WHERE id=?');
         $upd->execute([$brand, $model, $year, $plate, $color, $vin, $status, $isEnteringMaintenance, $nowSql, $isMaintenance, $nowSql, $maintenanceExpectedReturn, $maintenanceWorkshopName, $daily, $monthly, $rate1, $rate7, $rate15, $rate30, $image, $id]);
 
-        // Additional docs (images only)
-        if (!empty($_FILES['documents']['name'][0])) {
-            $uploadDir = __DIR__ . '/../uploads/documents/';
-            if (!is_dir($uploadDir))
-                mkdir($uploadDir, 0777, true);
-            foreach ($_FILES['documents']['tmp_name'] as $i => $tmp) {
-                if ($_FILES['documents']['error'][$i] === UPLOAD_ERR_OK) {
-                    $origName = basename($_FILES['documents']['name'][$i]);
-                    $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-                    if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
-                        $name = uniqid() . '.' . $ext;
-                        move_uploaded_file($tmp, $uploadDir . $name);
-                        $doc = $pdo->prepare('INSERT INTO documents (vehicle_id,title,type,file_path) VALUES (?,?,?,?)');
-                        $doc->execute([$id, $origName, $ext, 'uploads/documents/' . $name]);
-                    }
-                }
-            }
+        try {
+            $metaStmt = $pdo->prepare('UPDATE vehicles SET insurance_type = ?, insurance_expiry_date = ? WHERE id = ?');
+            $metaStmt->execute([$insuranceType, $insuranceExpiryDate, $id]);
+        } catch (Throwable $e) {
+            app_log('ERROR', 'Vehicle edit insurance metadata save failed - ' . $e->getMessage(), [
+                'file' => $e->getFile() . ':' . $e->getLine(),
+                'screen' => 'vehicles/edit.php',
+                'vehicle_id' => $id,
+            ]);
         }
+
+        $saveVehicleDocs = static function (string $inputKey, int $max, ?string $titlePrefix = null) use ($id, $pdo): void {
+            if (empty($_FILES[$inputKey]['name'][0])) {
+                return;
+            }
+
+            $uploadDir = __DIR__ . '/../uploads/documents/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+
+            $saved = 0;
+            foreach ($_FILES[$inputKey]['tmp_name'] as $i => $tmp) {
+                if ($saved >= $max) {
+                    break;
+                }
+                if (($_FILES[$inputKey]['error'][$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                    continue;
+                }
+
+                $origName = basename((string) $_FILES[$inputKey]['name'][$i]);
+                $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+                if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+                    continue;
+                }
+
+                $name = uniqid('doc_', true) . '.' . $ext;
+                if (!move_uploaded_file($tmp, $uploadDir . $name)) {
+                    continue;
+                }
+
+                $title = $titlePrefix !== null ? ($titlePrefix . ' - ' . $origName) : $origName;
+                $doc = $pdo->prepare('INSERT INTO documents (vehicle_id,title,type,file_path) VALUES (?,?,?,?)');
+                $doc->execute([$id, $title, $ext, 'uploads/documents/' . $name]);
+                $saved++;
+            }
+        };
+
+        $saveVehicleDocs('documents', 5);
+        $saveVehicleDocs('insurance_docs', 5, 'Insurance');
+        $saveVehicleDocs('pollution_docs', 5, 'Pollution');
 
         // Auto-migrate vehicle_images
         try {
@@ -372,6 +423,90 @@ require_once __DIR__ . '/../includes/header.php';
                 <div id="file-list" style="display:none" class="space-y-1"></div>
             </div>
 
+            <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-4">
+                <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Insurance Docs <span
+                        class="text-sm text-mb-subtle font-normal">- optional, up to 5</span></h3>
+                <p class="text-mb-subtle text-sm">Upload insurance document images for this vehicle.</p>
+                <?php
+                $insuranceTypeValue = strtolower(trim((string) ($v['insurance_type'] ?? '')));
+                if ($insuranceTypeValue === 'thrid class') {
+                    $insuranceTypeValue = 'third class';
+                } elseif ($insuranceTypeValue === 'bumber to bumber') {
+                    $insuranceTypeValue = 'bumper to bumper';
+                }
+                ?>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-mb-silver mb-2">Insurance Type <span
+                                class="text-mb-subtle text-xs">(optional)</span></label>
+                        <select name="insurance_type"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                            <option value="">Select type</option>
+                            <option value="third class" <?= $insuranceTypeValue === 'third class' ? 'selected' : '' ?>>Third Class</option>
+                            <option value="first class" <?= $insuranceTypeValue === 'first class' ? 'selected' : '' ?>>First Class</option>
+                            <option value="bumper to bumper" <?= $insuranceTypeValue === 'bumper to bumper' ? 'selected' : '' ?>>Bumper to Bumper</option>
+                        </select>
+                        <?php if (!empty($errors['insurance_type'])): ?>
+                            <p class="text-red-400 text-xs mt-1"><?= e($errors['insurance_type']) ?></p>
+                        <?php endif; ?>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-mb-silver mb-2">Insurance Expiry Date <span
+                                class="text-mb-subtle text-xs">(optional)</span></label>
+                        <input type="date" name="insurance_expiry_date"
+                            value="<?= e($v['insurance_expiry_date'] ?? '') ?>"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                        <?php if (!empty($errors['insurance_expiry_date'])): ?>
+                            <p class="text-red-400 text-xs mt-1"><?= e($errors['insurance_expiry_date']) ?></p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div class="bg-mb-black/50 border-2 border-dashed border-mb-subtle/30 rounded-lg p-8 text-center hover:border-mb-accent/50 transition-colors cursor-pointer"
+                    onclick="document.getElementById('insurance_docs').click()"
+                    ondragover="event.preventDefault();this.classList.add('border-mb-accent')"
+                    ondragleave="this.classList.remove('border-mb-accent')"
+                    ondrop="event.preventDefault();event.currentTarget.classList.remove('border-mb-accent');addInsuranceDocs(event.dataTransfer.files)">
+                    <svg class="mx-auto h-10 w-10 text-mb-subtle/40 mb-3" stroke="currentColor" fill="none"
+                        viewBox="0 0 48 48">
+                        <path
+                            d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <p class="text-mb-silver text-sm"><span class="text-mb-accent font-medium">Click to upload</span> or
+                        drag &amp; drop</p>
+                    <p class="text-mb-subtle/60 text-xs mt-2">JPG, PNG, WEBP - up to 5 insurance photos</p>
+                    <input id="insurance_docs" name="insurance_docs[]" type="file" class="sr-only" multiple
+                        accept="image/jpeg,image/png,image/webp">
+                </div>
+                <p id="insurance-doc-count" class="text-xs text-mb-subtle" style="display:none"></p>
+                <div id="insurance-file-list" style="display:none" class="space-y-1"></div>
+            </div>
+
+            <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-4">
+                <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Pollution Docs <span
+                        class="text-sm text-mb-subtle font-normal">- optional, up to 5</span></h3>
+                <p class="text-mb-subtle text-sm">Upload pollution certificate images for this vehicle.</p>
+                <div class="bg-mb-black/50 border-2 border-dashed border-mb-subtle/30 rounded-lg p-8 text-center hover:border-mb-accent/50 transition-colors cursor-pointer"
+                    onclick="document.getElementById('pollution_docs').click()"
+                    ondragover="event.preventDefault();this.classList.add('border-mb-accent')"
+                    ondragleave="this.classList.remove('border-mb-accent')"
+                    ondrop="event.preventDefault();event.currentTarget.classList.remove('border-mb-accent');addPollutionDocs(event.dataTransfer.files)">
+                    <svg class="mx-auto h-10 w-10 text-mb-subtle/40 mb-3" stroke="currentColor" fill="none"
+                        viewBox="0 0 48 48">
+                        <path
+                            d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <p class="text-mb-silver text-sm"><span class="text-mb-accent font-medium">Click to upload</span> or
+                        drag &amp; drop</p>
+                    <p class="text-mb-subtle/60 text-xs mt-2">JPG, PNG, WEBP - up to 5 pollution photos</p>
+                    <input id="pollution_docs" name="pollution_docs[]" type="file" class="sr-only" multiple
+                        accept="image/jpeg,image/png,image/webp">
+                </div>
+                <p id="pollution-doc-count" class="text-xs text-mb-subtle" style="display:none"></p>
+                <div id="pollution-file-list" style="display:none" class="space-y-1"></div>
+            </div>
+
             <div class="flex items-center justify-end gap-4">
                 <a href="show.php?id=<?= $id ?>"
                     class="text-mb-silver hover:text-white transition-colors text-sm">Cancel</a>
@@ -500,6 +635,86 @@ require_once __DIR__ . '/../includes/header.php';
         });
     }
     document.getElementById("documents")?.addEventListener("change", function () { addDocs(this.files); });
+
+    let insuranceFiles = [];
+    const INSURANCE_MAX = 5;
+    function addInsuranceDocs(files) {
+        const slots = INSURANCE_MAX - insuranceFiles.length;
+        if (slots <= 0) return;
+        insuranceFiles = [...insuranceFiles, ...Array.from(files).slice(0, slots)];
+        renderInsuranceDocPreview();
+    }
+    function removeInsuranceDoc(idx) { insuranceFiles.splice(idx, 1); renderInsuranceDocPreview(); }
+    function renderInsuranceDocPreview() {
+        const list = document.getElementById("insurance-file-list");
+        const cnt = document.getElementById("insurance-doc-count");
+        const inp = document.getElementById("insurance_docs");
+        if (!list) return;
+        const dt = new DataTransfer();
+        insuranceFiles.forEach(f => dt.items.add(f));
+        if (inp) inp.files = dt.files;
+        list.innerHTML = "";
+        if (!insuranceFiles.length) {
+            list.style.display = "none";
+            if (cnt) cnt.style.display = "none";
+            return;
+        }
+        list.style.display = "block";
+        if (cnt) {
+            cnt.style.display = "block";
+            cnt.textContent = insuranceFiles.length + "/" + INSURANCE_MAX + " insurance file" + (insuranceFiles.length > 1 ? "s" : "") + " selected";
+            cnt.style.color = insuranceFiles.length >= INSURANCE_MAX ? "#f87171" : "";
+        }
+        insuranceFiles.forEach((f, i) => {
+            const row = document.createElement("div");
+            row.className = "flex items-center justify-between gap-2 bg-mb-surface border border-mb-subtle/20 rounded px-3 py-2";
+            row.innerHTML = `<span class="text-xs text-mb-silver flex items-center gap-2 truncate min-w-0"><span>&#x1F4C4;</span><span class="truncate">${f.name}</span></span>
+            <button type="button" onclick="removeInsuranceDoc(${i})" title="Remove"
+                class="flex-shrink-0 text-mb-subtle hover:text-red-400 transition-colors text-sm">&#x2715;</button>`;
+            list.appendChild(row);
+        });
+    }
+    document.getElementById("insurance_docs")?.addEventListener("change", function () { addInsuranceDocs(this.files); });
+
+    let pollutionFiles = [];
+    const POLLUTION_MAX = 5;
+    function addPollutionDocs(files) {
+        const slots = POLLUTION_MAX - pollutionFiles.length;
+        if (slots <= 0) return;
+        pollutionFiles = [...pollutionFiles, ...Array.from(files).slice(0, slots)];
+        renderPollutionDocPreview();
+    }
+    function removePollutionDoc(idx) { pollutionFiles.splice(idx, 1); renderPollutionDocPreview(); }
+    function renderPollutionDocPreview() {
+        const list = document.getElementById("pollution-file-list");
+        const cnt = document.getElementById("pollution-doc-count");
+        const inp = document.getElementById("pollution_docs");
+        if (!list) return;
+        const dt = new DataTransfer();
+        pollutionFiles.forEach(f => dt.items.add(f));
+        if (inp) inp.files = dt.files;
+        list.innerHTML = "";
+        if (!pollutionFiles.length) {
+            list.style.display = "none";
+            if (cnt) cnt.style.display = "none";
+            return;
+        }
+        list.style.display = "block";
+        if (cnt) {
+            cnt.style.display = "block";
+            cnt.textContent = pollutionFiles.length + "/" + POLLUTION_MAX + " pollution file" + (pollutionFiles.length > 1 ? "s" : "") + " selected";
+            cnt.style.color = pollutionFiles.length >= POLLUTION_MAX ? "#f87171" : "";
+        }
+        pollutionFiles.forEach((f, i) => {
+            const row = document.createElement("div");
+            row.className = "flex items-center justify-between gap-2 bg-mb-surface border border-mb-subtle/20 rounded px-3 py-2";
+            row.innerHTML = `<span class="text-xs text-mb-silver flex items-center gap-2 truncate min-w-0"><span>&#x1F4C4;</span><span class="truncate">${f.name}</span></span>
+            <button type="button" onclick="removePollutionDoc(${i})" title="Remove"
+                class="flex-shrink-0 text-mb-subtle hover:text-red-400 transition-colors text-sm">&#x2715;</button>`;
+            list.appendChild(row);
+        });
+    }
+    document.getElementById("pollution_docs")?.addEventListener("change", function () { addPollutionDocs(this.files); });
 
     //  Tab / URL Preview 
     function switchTab(tab) {

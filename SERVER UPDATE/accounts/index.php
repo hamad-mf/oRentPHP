@@ -321,7 +321,6 @@ require_once __DIR__ . '/../includes/header.php';
              
                 </div>
             </div>
-        </div>
 
         <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
@@ -419,14 +418,18 @@ require_once __DIR__ . '/../includes/header.php';
         <?php if (!empty($entries)): ?>
             <div class="flex justify-end gap-8 px-6 py-4 border-t border-mb-subtle/10 text-sm">
                 <span class="text-green-400">Income: +$
-                    <?= number_format(array_sum(array_map(fn($r) => $r['txn_type'] === 'income' ? (float) $r['amount'] : 0, $entries)), 2) ?>
+                    <?= number_format(array_sum(array_map(fn($r) => ($r['txn_type'] === 'income' && !ledger_is_security_deposit_event($r['source_event'] ?? null)) ? (float) $r['amount'] : 0, $entries)), 2) ?>
                 </span>
                 <span class="text-red-400">Expenses: -$
-                    <?= number_format(array_sum(array_map(fn($r) => $r['txn_type'] === 'expense' ? (float) $r['amount'] : 0, $entries)), 2) ?>
+                    <?= number_format(array_sum(array_map(fn($r) => ($r['txn_type'] === 'expense' && !ledger_is_security_deposit_event($r['source_event'] ?? null)) ? (float) $r['amount'] : 0, $entries)), 2) ?>
                 </span>
             </div>
         <?php endif; ?>
     </div>
+    <?php
+    $_aqp = array_filter(['type'=>$fType,'account'=>($fAccount?:null),'date_from'=>$fDateFrom,'date_to'=>$fDateTo,'source'=>$fSource], fn($v)=>$v!==null&&$v!=='');
+    echo render_pagination($_pgLedger, $_aqp);
+    ?>
 </div>
 
 <!--  ”  ”  Add Income/Expense Modal  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
@@ -693,8 +696,4 @@ var transferAccountsData = <?php
 ?>;
 </script>
 
-<?php
-$_aqp = array_filter(['type'=>$fType,'account'=>($fAccount?:null),'date_from'=>$fDateFrom,'date_to'=>$fDateTo,'source'=>$fSource], fn($v)=>$v!==null&&$v!=='');
-echo render_pagination($_pgLedger, $_aqp);
-?>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

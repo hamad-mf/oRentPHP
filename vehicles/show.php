@@ -1,8 +1,43 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/ledger_helpers.php';
 
-$id = (int) ($_GET['id'] ?? 0);
+$id = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
 $pdo = db();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') === 'save_condition') {
+    if ($id <= 0) {
+        flash('error', 'Invalid vehicle request.');
+        redirect('index.php');
+    }
+
+    if (!auth_has_perm('add_vehicles')) {
+        flash('error', 'You do not have permission to update vehicle condition notes.');
+        redirect("show.php?id=$id");
+    }
+
+    $conditionNotes = trim((string) ($_POST['condition_notes'] ?? ''));
+    if (mb_strlen($conditionNotes) > 5000) {
+        flash('error', 'Condition notes are too long (max 5000 characters).');
+        redirect("show.php?id=$id");
+    }
+
+    try {
+        $upd = $pdo->prepare('UPDATE vehicles SET condition_notes = ? WHERE id = ?');
+        $upd->execute([$conditionNotes !== '' ? $conditionNotes : null, $id]);
+        app_log('ACTION', "Updated vehicle condition notes (ID: $id)");
+        flash('success', $conditionNotes === '' ? 'Vehicle condition notes cleared.' : 'Vehicle condition notes updated.');
+    } catch (Throwable $e) {
+        app_log('ERROR', 'Vehicle condition notes update failed - ' . $e->getMessage(), [
+            'file' => $e->getFile() . ':' . $e->getLine(),
+            'screen' => 'vehicles/show.php',
+            'vehicle_id' => $id,
+        ]);
+        flash('error', 'Unable to save condition notes. Please apply latest vehicle migration and try again.');
+    }
+
+    redirect("show.php?id=$id");
+}
 
 $vStmt = $pdo->prepare('SELECT * FROM vehicles WHERE id = ?');
 $vStmt->execute([$id]);
@@ -39,6 +74,16 @@ $resStmt->execute([$id]);
 $reservations = $resStmt->fetchAll();
 
 $totalRevenue = array_sum(array_column($reservations, 'total_price'));
+
+// Vehicle expenses from ledger
+$expStmt = $pdo->prepare("SELECT le.*, u.name AS created_by_name FROM ledger_entries le LEFT JOIN users u ON u.id = le.created_by WHERE le.source_type = 'vehicle_expense' AND le.source_id = ? ORDER BY le.posted_at DESC");
+$expStmt->execute([$id]);
+$vehicleExpenses = $expStmt->fetchAll();
+$totalExpenses = array_sum(array_column($vehicleExpenses, 'amount'));
+
+// Bank accounts for expense form
+ledger_ensure_schema($pdo);
+$bankAccounts = $pdo->query("SELECT id, name FROM bank_accounts WHERE is_active=1 ORDER BY name")->fetchAll();
 $activeReservation = array_filter($reservations, fn($r) => $r['status'] === 'active');
 $activeReservation = reset($activeReservation) ?: null;
 
@@ -55,6 +100,50 @@ require_once __DIR__ . '/../includes/header.php';
 
 $badge = ['available' => 'bg-green-500/10 text-green-400 border-green-500/30', 'rented' => 'bg-sky-500/10 text-sky-400 border-sky-500/30', 'maintenance' => 'bg-red-500/10 text-red-400 border-red-500/30'];
 $badgeCls = $badge[$v['status']] ?? 'bg-gray-500/10 text-gray-400';
+$canEditCondition = auth_has_perm('add_vehicles');
+$conditionNotes = (string) ($v['condition_notes'] ?? '');
+$insuranceTypeRaw = strtolower(trim((string) ($v['insurance_type'] ?? '')));
+if ($insuranceTypeRaw === 'thrid class') {
+    $insuranceTypeRaw = 'third class';
+} elseif ($insuranceTypeRaw === 'bumber to bumber') {
+    $insuranceTypeRaw = 'bumper to bumper';
+}
+$insuranceTypeLabel = 'Not set';
+if ($insuranceTypeRaw !== '') {
+    if ($insuranceTypeRaw === 'third class') {
+        $insuranceTypeLabel = 'Third Class';
+    } elseif ($insuranceTypeRaw === 'first class') {
+        $insuranceTypeLabel = 'First Class';
+    } elseif ($insuranceTypeRaw === 'bumper to bumper') {
+        $insuranceTypeLabel = 'Bumper to Bumper';
+    } else {
+        $insuranceTypeLabel = ucwords($insuranceTypeRaw);
+    }
+}
+$insuranceExpiryRaw = trim((string) ($v['insurance_expiry_date'] ?? ''));
+$insuranceExpiryLabel = 'Not set';
+$insuranceExpired = false;
+if ($insuranceExpiryRaw !== '') {
+    $expiryDateObj = DateTime::createFromFormat('Y-m-d', $insuranceExpiryRaw);
+    if ($expiryDateObj && $expiryDateObj->format('Y-m-d') === $insuranceExpiryRaw) {
+        $insuranceExpiryLabel = date('d M Y', strtotime($insuranceExpiryRaw));
+        $insuranceExpired = $insuranceExpiryRaw < date('Y-m-d');
+    }
+}
+$isThirdClassInsurance = ($insuranceTypeRaw === 'third class');
+$insuranceRisk = $insuranceExpired || $isThirdClassInsurance;
+$insuranceStatusLabel = 'Not set';
+$insuranceStatusClass = 'text-mb-subtle';
+if ($insuranceExpired) {
+    $insuranceStatusLabel = 'Expired';
+    $insuranceStatusClass = 'text-red-400';
+} elseif ($isThirdClassInsurance) {
+    $insuranceStatusLabel = 'Third Class Risk';
+    $insuranceStatusClass = 'text-red-300';
+} elseif ($insuranceTypeRaw !== '' || $insuranceExpiryRaw !== '') {
+    $insuranceStatusLabel = 'Active';
+    $insuranceStatusClass = 'text-green-400';
+}
 $maintenanceSinceLabel = '';
 if (($v['status'] ?? '') === 'maintenance') {
     $maintenanceStartRaw = (string) ($v['maintenance_started_at'] ?? '');
@@ -76,6 +165,15 @@ if (($v['status'] ?? '') === 'maintenance') {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
             <?= e($success) ?>
+        </div>
+    <?php endif; ?>
+    <?php if ($error): ?>
+        <div
+            class="flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-5 py-3 text-sm">
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <?= e($error) ?>
         </div>
     <?php endif; ?>
 
@@ -172,9 +270,31 @@ if (($v['status'] ?? '') === 'maintenance') {
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
+                <div class="rounded-xl border p-4 <?= $insuranceRisk ? 'bg-red-500/10 border-red-500/40' : 'bg-mb-black/30 border-mb-subtle/20' ?>">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-sm text-white">Insurance Details</p>
+                        <?php if ($insuranceRisk): ?>
+                            <span class="text-[10px] uppercase tracking-wide text-red-300">Attention</span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div>
+                            <p class="text-mb-subtle uppercase">Type</p>
+                            <p class="text-white mt-0.5"><?= e($insuranceTypeLabel) ?></p>
+                        </div>
+                        <div>
+                            <p class="text-mb-subtle uppercase">Expiry</p>
+                            <p class="text-white mt-0.5"><?= e($insuranceExpiryLabel) ?></p>
+                        </div>
+                        <div>
+                            <p class="text-mb-subtle uppercase">Status</p>
+                            <p class="mt-0.5 font-medium <?= e($insuranceStatusClass) ?>"><?= e($insuranceStatusLabel) ?></p>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Stats -->
-                <div class="grid grid-cols-3 gap-4 text-center">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                     <div class="bg-mb-black/40 rounded-xl p-4">
                         <p class="text-mb-subtle text-xs uppercase">Daily Rate</p>
                         <p class="text-mb-accent text-2xl font-light mt-1">$
@@ -193,6 +313,12 @@ if (($v['status'] ?? '') === 'maintenance') {
                             <?= number_format($totalRevenue, 0) ?>
                         </p>
                     </div>
+                    <div class="bg-mb-black/40 rounded-xl p-4">
+                        <p class="text-mb-subtle text-xs uppercase">Total Expenses</p>
+                        <p class="text-red-400 text-2xl font-light mt-1">$
+                            <?= number_format($totalExpenses, 0) ?>
+                        </p>
+                    </div>
                 </div>
 
                 <!-- Actions -->
@@ -203,6 +329,8 @@ if (($v['status'] ?? '') === 'maintenance') {
                     <button type="button" onclick="document.getElementById('vehicleShareModal').classList.remove('hidden')"
                         class="border border-mb-subtle/30 text-mb-silver px-5 py-2 rounded-full hover:border-white/30 hover:text-white transition-all text-sm font-medium">Share
                         Vehicle Catalog</button>
+                    <button type="button" onclick="document.getElementById('addExpenseModal').classList.remove('hidden')"
+                        class="border border-amber-500/30 text-amber-400 px-5 py-2 rounded-full hover:bg-amber-500/10 transition-colors text-sm font-medium">Add Expense</button>
                     <?php if ($v['status'] !== 'rented'): ?>
                         <a href="delete.php?id=<?= $v['id'] ?>"
                             onclick="return confirm('Remove this vehicle from the fleet?')"
@@ -210,6 +338,42 @@ if (($v['status'] ?? '') === 'maintenance') {
                     <?php endif; ?>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-mb-subtle/10 flex items-center justify-between">
+            <h3 class="text-white font-light">Vehicle Condition Notes</h3>
+            <span class="text-xs text-mb-subtle">Optional</span>
+        </div>
+        <div class="p-6">
+            <?php if ($canEditCondition): ?>
+                <form method="POST" class="space-y-3">
+                    <input type="hidden" name="action" value="save_condition">
+                    <input type="hidden" name="id" value="<?= (int) $id ?>">
+                    <textarea name="condition_notes" rows="5" maxlength="5000"
+                        placeholder="Add notes about scratches, dents, tire condition, interior state, etc."
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white placeholder-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm"><?= e($conditionNotes) ?></textarea>
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-xs text-mb-subtle">Use this note as the latest condition snapshot for this vehicle.</p>
+                        <div class="flex items-center gap-2">
+                            <?php if ($conditionNotes !== ''): ?>
+                                <button type="submit" name="condition_notes" value=""
+                                    class="px-4 py-2 rounded-full border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors text-xs">Clear</button>
+                            <?php endif; ?>
+                            <button type="submit"
+                                class="px-5 py-2 rounded-full bg-mb-accent text-white hover:bg-mb-accent/80 transition-colors text-xs font-medium">Save
+                                Notes</button>
+                        </div>
+                    </div>
+                </form>
+            <?php else: ?>
+                <?php if ($conditionNotes !== ''): ?>
+                    <p class="text-sm text-mb-silver whitespace-pre-line"><?= e($conditionNotes) ?></p>
+                <?php else: ?>
+                    <p class="text-sm text-mb-subtle italic">No condition notes added yet.</p>
+                <?php endif; ?>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -567,5 +731,119 @@ function nativeShareVehicleCatalog() {
     }
 }
 </script>
+
+<!-- Vehicle Expenses -->
+<div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden mt-6">
+    <div class="px-6 py-4 border-b border-mb-subtle/10 flex items-center justify-between">
+        <h3 class="text-white font-light">Vehicle Expenses <span class="text-mb-subtle text-sm ml-2"><?= count($vehicleExpenses) ?> entries &bull; Total: $<?= number_format($totalExpenses, 0) ?></span></h3>
+        <button type="button" onclick="document.getElementById('addExpenseModal').classList.remove('hidden')"
+            class="text-mb-accent hover:text-mb-accent/80 text-sm">+ Add Expense</button>
+    </div>
+    <?php if (empty($vehicleExpenses)): ?>
+        <p class="py-10 text-center text-mb-subtle text-sm italic">No expenses recorded yet.</p>
+    <?php else: ?>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="border-b border-mb-subtle/10">
+                    <tr class="text-mb-subtle text-xs uppercase">
+                        <th class="px-6 py-3 text-left">Date</th>
+                        <th class="px-6 py-3 text-left">Category</th>
+                        <th class="px-6 py-3 text-left">Description</th>
+                        <th class="px-6 py-3 text-left">Payment</th>
+                        <th class="px-6 py-3 text-right">Amount</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-mb-subtle/10">
+                    <?php foreach ($vehicleExpenses as $exp): ?>
+                        <tr class="hover:bg-mb-black/30 transition-colors">
+                            <td class="px-6 py-3 text-mb-silver text-xs"><?= date('d M Y', strtotime($exp['posted_at'])) ?></td>
+                            <td class="px-6 py-3 text-white"><?= e($exp['source_event'] ?? '') ?></td>
+                            <td class="px-6 py-3 text-mb-subtle text-xs"><?= e($exp['description'] ?? '-') ?></td>
+                            <td class="px-6 py-3">
+                                <span class="text-xs px-2 py-0.5 rounded-full <?= ($exp['payment_mode'] === 'cash') ? 'bg-green-500/10 text-green-400' : (($exp['payment_mode'] === 'credit') ? 'bg-amber-500/10 text-amber-400' : 'bg-mb-accent/10 text-mb-accent') ?>"><?= ucfirst($exp['payment_mode'] ?? 'N/A') ?></span>
+                            </td>
+                            <td class="px-6 py-3 text-right text-red-400 font-medium">$ <?= number_format($exp['amount'], 2) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+</div>
+
+<!-- Add Expense Modal -->
+<div id="addExpenseModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+    onclick="if(event.target===this)this.classList.add('hidden')">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+    <div class="relative bg-mb-surface border border-mb-subtle/20 rounded-2xl p-6 w-full max-w-md shadow-2xl shadow-black/50">
+        <div class="flex items-start justify-between mb-5">
+            <div>
+                <h3 class="text-white font-semibold text-lg">Add Vehicle Expense</h3>
+                <p class="text-mb-subtle text-sm mt-0.5"><?= e($v['brand'] . ' ' . $v['model']) ?> &bull; <?= e($v['license_plate']) ?></p>
+            </div>
+            <button type="button" onclick="document.getElementById('addExpenseModal').classList.add('hidden')"
+                class="text-mb-subtle hover:text-white transition-colors ml-4 flex-shrink-0 p-1 rounded hover:bg-white/5">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <form method="POST" action="add_expense.php" class="space-y-4">
+            <input type="hidden" name="vehicle_id" value="<?= $v['id'] ?>">
+            <div>
+                <label class="block text-sm text-mb-subtle mb-1.5">Category <span class="text-red-400">*</span></label>
+                <select name="category" required class="w-full bg-mb-black border border-mb-subtle/30 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-mb-accent">
+                    <option value="">Select category...</option>
+                    <option value="Fuel">Fuel</option>
+                    <option value="Service">Service / Repair</option>
+                    <option value="Insurance">Insurance</option>
+                    <option value="Tyre">Tyre</option>
+                    <option value="Washing">Washing</option>
+                    <option value="Spare Parts">Spare Parts</option>
+                    <option value="Toll/Parking">Toll / Parking</option>
+                    <option value="RTO/Tax">RTO / Tax</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm text-mb-subtle mb-1.5">Amount <span class="text-red-400">*</span></label>
+                <input type="number" name="amount" step="0.01" min="0.01" required placeholder="0.00"
+                    class="w-full bg-mb-black border border-mb-subtle/30 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-mb-accent">
+            </div>
+            <div>
+                <label class="block text-sm text-mb-subtle mb-1.5">Payment Mode <span class="text-red-400">*</span></label>
+                <select name="payment_mode" id="expPaymentMode" required onchange="document.getElementById('expBankSelect').style.display = this.value==='account' ? 'block' : 'none'"
+                    class="w-full bg-mb-black border border-mb-subtle/30 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-mb-accent">
+                    <option value="cash">Cash</option>
+                    <option value="credit">Credit</option>
+                    <option value="account">Bank Account</option>
+                </select>
+            </div>
+            <div id="expBankSelect" style="display:none">
+                <label class="block text-sm text-mb-subtle mb-1.5">Bank Account</label>
+                <select name="bank_account_id" class="w-full bg-mb-black border border-mb-subtle/30 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-mb-accent">
+                    <option value="">Select account...</option>
+                    <?php foreach ($bankAccounts as $ba): ?>
+                        <option value="<?= $ba['id'] ?>"><?= e($ba['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm text-mb-subtle mb-1.5">Description</label>
+                <input type="text" name="description" placeholder="Optional notes..."
+                    class="w-full bg-mb-black border border-mb-subtle/30 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-mb-accent">
+            </div>
+            <div>
+                <label class="block text-sm text-mb-subtle mb-1.5">Date</label>
+                <input type="date" name="expense_date" value="<?= date('Y-m-d') ?>"
+                    class="w-full bg-mb-black border border-mb-subtle/30 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-mb-accent">
+            </div>
+            <button type="submit"
+                class="w-full bg-mb-accent hover:bg-mb-accent/80 text-white font-medium py-2.5 rounded-full transition-colors text-sm">
+                Add Expense
+            </button>
+        </form>
+    </div>
+</div>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
