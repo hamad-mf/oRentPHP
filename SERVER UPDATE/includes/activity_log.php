@@ -33,6 +33,10 @@ function log_activity(
             $description ?: null,
         ]);
     } catch (Throwable $e) {
+        app_log('ERROR', 'Activity log insert failed - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
         // Silently fail — logging should never break the main workflow
     }
 }

@@ -33,6 +33,11 @@ try {
     app_log('ACTION', "Deleted staff: {$staff['name']} (ID: $id)");
 flash('success', "Staff member '{$staff['name']}' deleted.");
 } catch (Throwable $e) {
+    app_log('ERROR', 'Staff delete failed (ID: ' . $id . ') - ' . $e->getMessage(), [
+    'staff_name' => $staff['name'] ?? null,
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
     $pdo->rollBack();
     flash('error', 'Delete failed: ' . $e->getMessage());
 }

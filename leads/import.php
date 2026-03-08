@@ -461,6 +461,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $stage === 'prepare') {
     try {
         $parsedRows = lead_import_parse_file_rows($tmpPath, $ext);
     } catch (Throwable $e) {
+        app_log('ERROR', 'Lead import: file parse failed - ' . $e->getMessage(), [
+    'uploaded_file' => $originalName,
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
         flash('error', 'Could not read file: ' . $e->getMessage());
         redirect('pipeline.php');
     }
@@ -703,6 +708,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $stage === 'import') {
                 $existingEmails[$email] = true;
             }
         } catch (Throwable $e) {
+            app_log('ERROR', 'Lead import: row insert failed - ' . $e->getMessage(), [
+    'row_number' => $rowNumber,
+    'name' => $name,
+    'phone' => $phone,
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
             $failedCount++;
             if (count($failedEntries) < LEAD_IMPORT_MAX_FAILED_PREVIEW) {
                 $failedEntries[] = [

@@ -47,7 +47,12 @@ try {
         WHERE TABLE_SCHEMA = DATABASE()
           AND TABLE_NAME = 'users'
     ")->fetchColumn() > 0;
-} catch (Throwable $e) {}
+} catch (Throwable $e) {
+    app_log('ERROR', 'GPS history: users table check failed - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
+}
 
 $updatedBySelect = $hasUsersTable
     ? ", u.name AS updated_by_name"

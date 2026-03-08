@@ -11,54 +11,6 @@ This file tracks all database changes that need to be applied to **production** 
 
 ## Pending
 
-### 2026-03-08 - Vehicle Insurance Metadata
-**SQL file:** `migrations/releases/2026-03-08_vehicle_insurance_metadata.sql`
-```sql
--- Adds nullable `insurance_type` and `insurance_expiry_date` to `vehicles`
--- Uses INFORMATION_SCHEMA guards so it is safe to re-run.
-```
-**Notes:** Supports Insurance Type + Expiry Date in vehicle create/edit and enables insurance risk highlighting on vehicle cards.
-
-### 2026-03-08 - Vehicle Condition Notes
-**SQL file:** `migrations/releases/2026-03-08_vehicle_condition_notes.sql`
-```sql
--- Adds nullable `condition_notes` TEXT column to `vehicles`
--- Uses INFORMATION_SCHEMA guards so it is safe to re-run.
-```
-**Notes:** Enables saving optional vehicle condition notes directly from Vehicle Details page.
-
-### 2026-03-07 - Client/Lead Alternative Number
-**SQL file:** `migrations/releases/2026-03-07_client_lead_alternative_numbers.sql`
-```sql
--- Adds nullable alternative_number columns to:
--- 1) clients
--- 2) leads
--- Uses INFORMATION_SCHEMA guards so it is safe to re-run.
-```
-**Notes:** Enables optional secondary contact number in client forms and lead forms.
-
-### 2026-03-06 - Vehicle Availability & Delivery Tracking
-**SQL file:** `migrations/releases/2026-03-06_vehicle_availability.sql`
-```sql
-ALTER TABLE reservations ADD COLUMN delivered_at DATETIME DEFAULT NULL;
-```
-**Notes:** Adds `delivered_at` to track exact delivery time. Used by Vehicle Availability page to distinguish reserved vs delivered vehicles.
-
-### 2026-03-06 - GPS Delivery Location
-**SQL file:** `migrations/releases/2026-03-06_delivery_location.sql`
-```sql
-ALTER TABLE reservations ADD COLUMN delivery_location VARCHAR(255) DEFAULT NULL;
-```
-**Notes:** Adds a field to store where the vehicle was delivered. Used by GPS tracking page and delivery form.
-
-### 2026-03-06 - Payroll Staff Advances
-**SQL file:** `migrations/releases/2026-03-06_payroll_staff_advances.sql`
-```sql
--- Creates payroll_advances table and adds payroll.advance_deducted + payroll.payable_salary
--- Uses guarded ALTER logic via information_schema, so it is safe to re-run.
-```
-**Notes:** Enables staff advance tracking and payroll-time deduction with clear net/advance/payable breakdown.
-
 ### 2026-03-06 - Lead Auto-Close After Follow-ups (No DB change needed)
 **SQL file:** `None`
 **Notes:** Auto-close lead to Lost after X follow-ups. Uses existing `system_settings` table. Configure in Settings > General.
@@ -70,3 +22,12 @@ ALTER TABLE reservations ADD COLUMN delivery_location VARCHAR(255) DEFAULT NULL;
 | Date | Release ID | SQL File | Notes |
 |------|------------|----------|-------|
 | 2026-03-06 | vehicle_collation_hotfix | `migrations/releases/2026-03-06_vehicle_collation_hotfix.sql` | Applied manually in production phpMyAdmin to align `vehicles`, `vehicle_images`, and `vehicle_requests` collations to `utf8mb4_unicode_ci`. Safe to rerun if needed. |
+| 2026-03-06 | vehicle_availability | `migrations/releases/2026-03-06_vehicle_availability.sql` | Added `delivered_at` to track exact delivery time. Used by Vehicle Availability page. |
+| 2026-03-06 | delivery_location | `migrations/releases/2026-03-06_delivery_location.sql` | Added `delivery_location` to store where the vehicle was delivered. |
+| 2026-03-06 | payroll_staff_advances | `migrations/releases/2026-03-06_payroll_staff_advances.sql` | Created `payroll_advances` table and added payroll columns for deduction. |
+| 2026-03-07 | client_lead_alternative_numbers | `migrations/releases/2026-03-07_client_lead_alternative_numbers.sql` | Added `alternative_number` to clients and leads. |
+| 2026-03-08 | client_reviews_table | `migrations/releases/2026-03-08_client_reviews_table.sql` | Created `client_reviews` table for history. |
+| 2026-03-08 | client_reviews_add_created_by | `migrations/releases/2026-03-08_client_reviews_add_created_by.sql` | Added `created_by` tracking to reviews. |
+| 2026-03-08 | vehicle_insurance_metadata | `migrations/releases/2026-03-08_vehicle_insurance_metadata.sql` | Added insurance type and expiry date to vehicles. |
+| 2026-03-08 | vehicle_condition_notes | `migrations/releases/2026-03-08_vehicle_condition_notes.sql` | Added condition notes field to vehicles. |
+| 2026-03-08 | client_rating_review | `migrations/releases/2026-03-08_client_rating_review.sql` | Added `rating_review` cache column to clients table. |

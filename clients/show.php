@@ -50,6 +50,14 @@ if (!$c) {
 $resStmt = $pdo->prepare('SELECT r.*, v.brand, v.model, v.license_plate FROM reservations r JOIN vehicles v ON r.vehicle_id = v.id WHERE r.client_id = ? ORDER BY r.created_at DESC');
 $resStmt->execute([$id]);
 $reservations = $resStmt->fetchAll();
+// Fetch per-reservation review history
+try {
+    $reviewsStmt = $pdo->prepare('SELECT cr.*, cr.reservation_id AS res_id, u.name AS reviewer_name FROM client_reviews cr LEFT JOIN users u ON cr.created_by = u.id WHERE cr.client_id = ? ORDER BY cr.created_at DESC');
+    $reviewsStmt->execute([$id]);
+    $clientReviews = $reviewsStmt->fetchAll();
+} catch (Exception $e) {
+    $clientReviews = [];
+}
 
 $totalSpent = array_sum(array_column($reservations, 'total_price'));
 $activeRentals = count(array_filter($reservations, fn($r) => $r['status'] === 'active'));
@@ -355,4 +363,37 @@ require_once __DIR__ . '/../includes/header.php';
         });
     });
 </script>
+
+<!-- Client Review History -->
+<div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-4 mt-6">
+    <h3 class="text-white font-light border-l-2 border-mb-accent pl-3">Review History</h3>
+    <?php if (empty($clientReviews)): ?>
+        <p class="text-mb-subtle text-sm italic">No reviews recorded yet.</p>
+    <?php else: ?>
+        <div class="space-y-3">
+        <?php foreach ($clientReviews as $rev): ?>
+            <div class="bg-mb-black/40 border border-mb-subtle/10 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-3">
+                        <span class="text-yellow-400 text-sm"><?= str_repeat('★', (int)$rev['rating']) . str_repeat('☆', 5 - (int)$rev['rating']) ?></span>
+                        <a href="../reservations/show.php?id=<?= $rev['res_id'] ?>" class="text-xs text-mb-accent hover:underline">#<?= $rev['res_id'] ?></a>
+                    </div>
+                    <div class="flex flex-col items-end">
+                        <span class="text-xs text-mb-subtle"><?= date('d M Y', strtotime($rev['created_at'])) ?></span>
+                        <?php if (!empty($rev['reviewer_name'])): ?>
+                            <span class="text-xs text-mb-accent/70 mt-0.5">by <?= e($rev['reviewer_name']) ?></span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php if ($rev['review']): ?>
+                    <p class="text-sm text-mb-silver mt-1"><?= e($rev['review']) ?></p>
+                <?php else: ?>
+                    <p class="text-xs text-mb-subtle italic">No written review for this rental.</p>
+                <?php endif; ?>
+            </div>
+        <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+</div>
+
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

@@ -35,6 +35,11 @@ try {
         $pdo->exec("ALTER TABLE reservations ADD COLUMN delivery_location VARCHAR(255) DEFAULT NULL");
     }
 } catch (Throwable $e) {
+    app_log('ERROR', 'Reservation deliver: runtime schema check failed - ' . $e->getMessage(), [
+    'reservation_id' => $id,
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
 }
 
 require_once __DIR__ . '/../includes/settings_helpers.php';

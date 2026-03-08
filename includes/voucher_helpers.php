@@ -44,6 +44,10 @@ function voucher_ensure_schema(PDO $pdo): void
                 $pdo->exec($sql);
             }
         } catch (Throwable $e) {
+           app_log('ERROR', "Voucher helper: reservations.{$column} ensure failed - " . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+ 
             // Ignore if migration is handled manually.
         }
     }

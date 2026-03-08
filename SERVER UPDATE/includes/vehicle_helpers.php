@@ -37,6 +37,10 @@ function vehicle_ensure_schema(PDO $pdo): void
         ");
         $stmt->execute([$nowSql]);
     } catch (Throwable $e) {
+        app_log('ERROR', 'Vehicle helper: maintenance_started_at backfill failed - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
         // Ignore if migration is handled manually.
     }
 }

@@ -36,6 +36,10 @@ try {
         $pdo->exec("ALTER TABLE vehicle_requests ADD COLUMN people_count INT NOT NULL DEFAULT 1 AFTER vehicle_model");
     }
 } catch (Throwable $e) {
+    app_log('ERROR', 'Vehicle requests: people_count migration check failed - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
 }
 
 // Fetch clients for dropdown

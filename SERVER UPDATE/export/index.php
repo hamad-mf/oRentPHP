@@ -18,6 +18,10 @@ function safeCount(PDO $pdo, string $table): int
     try {
         return (int) $pdo->query("SELECT COUNT(*) FROM `$table`")->fetchColumn();
     } catch (Throwable $e) {
+        app_log('ERROR', 'Export index: safeCount failed for table `' . $table . '` - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
         return 0;
     }
 }

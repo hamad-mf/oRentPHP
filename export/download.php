@@ -171,6 +171,10 @@ function safeFetch(PDO $pdo, string $sql, array $params = []): array
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Throwable $e) {
+        app_log('ERROR', 'Export download: safeFetch failed - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
         return [];
     }
 }

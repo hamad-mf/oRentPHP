@@ -24,6 +24,10 @@ function clients_ensure_schema(PDO $pdo): void
         }
     } catch (Throwable $e) {
         // Ignore if schema changes are managed manually on the target server.
+        app_log('ERROR', 'Client helper: ensure email nullable failed - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
     }
 }
 
@@ -46,6 +50,10 @@ function clients_has_column(PDO $pdo, string $column): bool
         $stmt->execute([$column]);
         $cache[$key] = ((int) $stmt->fetchColumn()) > 0;
     } catch (Throwable $e) {
+        app_log('ERROR', "Client helper: column check failed for clients.{$column} - " . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
         $cache[$key] = false;
     }
 

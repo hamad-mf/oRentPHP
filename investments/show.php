@@ -96,6 +96,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->commit();
             flash('success', "EMI #{$row['installment_no']} marked as pending.");
         } catch (Throwable $e) {
+            app_log('ERROR', 'Investment unmark EMI failed (investment ID: ' . $id . ', schedule ID: ' . $scheduleId . ') - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
             $pdo->rollBack();
             flash('error', 'Unmark failed: ' . $e->getMessage());
         }

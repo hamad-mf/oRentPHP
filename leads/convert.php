@@ -34,6 +34,10 @@ function leads_has_column(PDO $pdo, string $column): bool
         $stmt->execute([$column]);
         $cache[$key] = ((int) $stmt->fetchColumn()) > 0;
     } catch (Throwable $e) {
+        app_log('ERROR', "Lead convert: column check failed for leads.{$column} - " . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
         $cache[$key] = false;
     }
 
@@ -137,6 +141,10 @@ try {
     flash('success', $message);
     redirect("../clients/show.php?id=$clientId");
 } catch (Throwable $e) {
+    app_log('ERROR', 'Lead conversion failed for lead #' . $id . ' - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }

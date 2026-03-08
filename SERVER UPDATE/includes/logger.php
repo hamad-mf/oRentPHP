@@ -79,6 +79,8 @@ function app_log(string $level, string $message, array $context = []): void
         @file_put_contents($logFile, $line . PHP_EOL, FILE_APPEND | LOCK_EX);
 
     } catch (Throwable $e) {
+        @error_log('[app_log fallback] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+
         // Logger itself should never crash the app
     }
 }

@@ -104,7 +104,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 flash('success', "Staff member '$name' added successfully.");
             redirect('index.php');
         } catch (Throwable $e) {
+            app_log('ERROR', 'Staff create failed - ' . $e->getMessage(), [
+    'username' => $username,
+    'name' => $name,
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
             $pdo->rollBack();
+
             $errors[] = 'Database error: ' . $e->getMessage();
         }
     }

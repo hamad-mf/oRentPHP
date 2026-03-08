@@ -22,6 +22,10 @@ try {
         }
     }
 } catch (Throwable $e) {
+    app_log('ERROR', 'Lead pipeline: status enum alignment failed - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
 }
 
 // Fetch all leads grouped by status

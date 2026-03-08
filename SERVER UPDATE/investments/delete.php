@@ -42,6 +42,10 @@ try {
     $pdo->prepare("DELETE FROM emi_investments WHERE id=?")->execute([$id]);
     flash('success', "Investment \"{$inv['title']}\" deleted.");
 } catch (Throwable $e) {
+    app_log('ERROR', 'Investment delete failed (ID: ' . $id . ') - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
     flash('error', 'Delete failed: ' . $e->getMessage());
 }
 redirect('index.php');

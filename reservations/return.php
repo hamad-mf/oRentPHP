@@ -328,6 +328,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             $pdo->prepare("UPDATE vehicles SET status='available' WHERE id=?")->execute([$r['vehicle_id']]);
             $pdo->prepare("UPDATE clients SET rating=?, rating_review=? WHERE id=?")->execute([$clientRating, $clientRatingReview, $r['client_id']]);
+            // Save per-reservation review history (history preserved per return)
+            $pdo->prepare("
+                INSERT INTO client_reviews (client_id, reservation_id, rating, review, created_by)
+                VALUES (?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE rating=VALUES(rating), review=VALUES(review), created_by=VALUES(created_by)
+            ")->execute([$r['client_id'], $id, $clientRating, $clientRatingReview ?: null, $_SESSION['user']['id'] ?? null]);
 
             $pdo->commit();
         } catch (Throwable $e) {

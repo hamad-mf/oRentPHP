@@ -34,6 +34,10 @@ function lead_status_ensure_pipeline(PDO $pdo): void
             }
         }
     } catch (Throwable $e) {
+        app_log('ERROR', 'Lead edit: status pipeline ensure failed - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
     }
 }
 
@@ -53,6 +57,10 @@ function lead_has_column(PDO $pdo, string $column): bool
         $stmt->execute([$column]);
         $cache[$key] = ((int) $stmt->fetchColumn()) > 0;
     } catch (Throwable $e) {
+        app_log('ERROR', "Lead edit: column check failed for leads.{$column} - " . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
         $cache[$key] = false;
     }
 
@@ -66,6 +74,10 @@ $supportsAlternativeNumber = lead_has_column($pdo, 'alternative_number');
 try {
     $pdo->query("SELECT closed_at FROM leads LIMIT 0");
 } catch (Throwable $_) {
+    app_log('ERROR', 'Lead edit: closed_at probe failed - ' . $_->getMessage(), [
+    'file' => $_->getFile() . ':' . $_->getLine(),
+]);
+
     $pdo->exec("ALTER TABLE leads ADD COLUMN closed_at DATETIME NULL DEFAULT NULL AFTER updated_at");
 }
 

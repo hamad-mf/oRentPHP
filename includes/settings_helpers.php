@@ -132,6 +132,10 @@ function lead_sources_ensure_storage_column(PDO $pdo): void
             $pdo->exec("ALTER TABLE leads MODIFY COLUMN source VARCHAR(100) NOT NULL DEFAULT 'phone'");
         }
     } catch (Throwable $e) {
+        app_log('ERROR', 'Settings helper: lead source column migration check failed - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
         // Ignore if leads table is not present yet.
     }
 }

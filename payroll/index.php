@@ -23,6 +23,10 @@ try {
     $hasPayableSalary = (bool) $pdo->query("SHOW COLUMNS FROM payroll LIKE 'payable_salary'")->fetchColumn();
     $advanceSchemaReady = $hasAdvanceTable && $hasAdvanceDeducted && $hasPayableSalary;
 } catch (Throwable $e) {
+    app_log('ERROR', 'Payroll: advance schema readiness check failed - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
     $advanceSchemaError = $e->getMessage();
 }
 
@@ -193,8 +197,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'give_advance') {
     $pr->execute([$payrollId]);
     $pay = $pr->fetch();
 
-    if (!$pay || $pay['status'] !== 'Pending') {
-        flash('error', 'Advance can only be added for pending payroll records.');
+    if (!$pay) {
+        flash('error', 'Payroll record not found.');
         redirect('index.php');
     }
     if ($advanceAmount <= 0) {
@@ -219,8 +223,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'give_advance') {
         $prLock = $pdo->prepare("SELECT p.*, u.name AS staff_name FROM payroll p JOIN users u ON u.id = p.user_id WHERE p.id = ? FOR UPDATE");
         $prLock->execute([$payrollId]);
         $payLocked = $prLock->fetch();
-        if (!$payLocked || $payLocked['status'] !== 'Pending') {
-            throw new RuntimeException('Advance can only be added for pending payroll records.');
+        if (!$payLocked) {
+            throw new RuntimeException('Payroll record not found.');
         }
         $pay = $payLocked;
 
@@ -331,12 +335,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'pay') {
                 SELECT id, remaining_amount
                 FROM payroll_advances
                 WHERE user_id = ?
+                  AND month = ?
+                  AND year = ?
                   AND remaining_amount > 0
                   AND status IN ('pending', 'partially_recovered')
                 ORDER BY given_at ASC, id ASC
                 FOR UPDATE
             ");
-            $advStmt->execute([(int) $pay['user_id']]);
+            $advStmt->execute([(int) $pay['user_id'], (int) $pay['month'], (int) $pay['year']]);
             $advRows = $advStmt->fetchAll();
 
             foreach ($advRows as $adv) {
@@ -787,13 +793,7 @@ require_once __DIR__ . '/../includes/header.php';
                                     <td class="px-6 py-4">
                                         <?php if ($row['status'] === 'Pending'): ?>
                                             <div class="flex flex-wrap items-center gap-2">
-                                                <?php if ($advanceSchemaReady): ?>
-                                                    <button type="button"
-                                                        onclick="openAdvanceModal(<?= (int) $row['id'] ?>, '<?= addslashes($row['staff_name']) ?>', <?= (float) ($row['display_outstanding_advance'] ?? 0) ?>, <?= (float) ($row['display_payable_salary'] ?? 0) ?>)"
-                                                        class="text-xs bg-orange-500/15 text-orange-300 border border-orange-500/30 px-3 py-1.5 rounded-full hover:bg-orange-500/25 transition-colors">
-                                                        Give Advance
-                                                    </button>
-                                                <?php endif; ?>
+
                                                 <button type="button"
                                                     onclick="openPayModal(<?= (int) $row['id'] ?>, '<?= addslashes($row['staff_name']) ?>', <?= (float) $row['net_salary'] ?>, <?= (float) ($row['display_advance_deducted'] ?? 0) ?>, <?= (float) ($row['display_payable_salary'] ?? $row['net_salary']) ?>)"
                                                     class="text-xs bg-mb-accent/15 text-mb-accent border border-mb-accent/30 px-3 py-1.5 rounded-full hover:bg-mb-accent/25 transition-colors">
@@ -927,66 +927,11 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<!-- Payroll Advance Modal -->
-<div id="advanceModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl shadow-2xl w-full max-w-sm">
-        <div class="flex items-center justify-between p-5 border-b border-mb-subtle/10">
-            <h2 class="text-white font-medium">Give Staff Advance</h2>
-            <button onclick="document.getElementById('advanceModal').classList.add('hidden')"
-                class="text-mb-subtle hover:text-white transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-        </div>
-        <form method="POST" class="p-5 space-y-4">
-            <input type="hidden" name="action" value="give_advance">
-            <input type="hidden" name="payroll_id" id="advanceModalPayrollId">
-            <div class="bg-mb-black/40 rounded-lg px-4 py-3">
-                <p class="text-xs text-mb-subtle mb-0.5">Giving advance to</p>
-                <p class="text-white font-medium" id="advanceModalName"></p>
-                <p class="text-xs text-mb-subtle mt-1" id="advanceModalOutstanding"></p>
-            </div>
-            <div>
-                <label class="block text-sm text-mb-silver mb-1.5">Advance Amount <span class="text-red-400">*</span></label>
-                <input type="number" id="advanceModalAmount" name="advance_amount" min="0.01" step="0.01" required
-                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent"
-                    placeholder="0.00">
-                <p id="advanceModalLimit" class="text-xs text-mb-subtle mt-1"></p>
-            </div>
-            <div>
-                <label class="block text-sm text-mb-silver mb-1.5">Pay From Bank Account <span class="text-red-400">*</span></label>
-                <select name="bank_account_id" required
-                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent">
-                    <option value=""> -- Select account --</option>
-                    <?php foreach ($bankAccounts as $ba): ?>
-                        <option value="<?= $ba['id'] ?>">
-                            <?= e($ba['name']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm text-mb-silver mb-1.5">Note</label>
-                <input type="text" name="advance_note" maxlength="255"
-                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent"
-                    placeholder="Optional note">
-            </div>
-            <div class="flex items-center justify-end gap-3">
-                <button type="button" onclick="document.getElementById('advanceModal').classList.add('hidden')"
-                    class="text-mb-subtle hover:text-white text-sm transition-colors px-3 py-2">Cancel</button>
-                <button type="submit" id="advanceModalSubmit"
-                    class="bg-orange-600 hover:bg-orange-500 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
-                    Confirm Advance
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
+<!-- Advance modal removed: give advances from Staff Profile -->
 
 <script>
     // Backdrop close
-    ['generateModal', 'payModal', 'advanceModal'].forEach(id => {
+    ['generateModal', 'payModal'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('click', function (e) { if (e.target === this) this.classList.add('hidden'); });
     });
@@ -1009,45 +954,13 @@ require_once __DIR__ . '/../includes/header.php';
         if (bankSelect) {
             bankSelect.required = needsBank;
             bankSelect.disabled = !needsBank;
-            if (!needsBank) {
-                bankSelect.value = '';
-            }
+            if (!needsBank) { bankSelect.value = ''; }
         }
-        if (bankHint) {
-            bankHint.classList.toggle('hidden', needsBank);
-        }
+        if (bankHint) { bankHint.classList.toggle('hidden', needsBank); }
         document.getElementById('payModal').classList.remove('hidden');
     }
 
-    // Advance modal
-    function openAdvanceModal(id, name, outstanding, payableLimit) {
-        document.getElementById('advanceModalPayrollId').value = id;
-        document.getElementById('advanceModalName').textContent = name;
-        document.getElementById('advanceModalOutstanding').textContent = outstanding > 0
-            ? ('Current outstanding advance: ' + formatMoney(outstanding))
-            : 'No outstanding advance currently. New amount will be added.';
-
-        const allowedNow = Math.max(0, parseFloat(payableLimit) || 0);
-        const amountInput = document.getElementById('advanceModalAmount');
-        const limitHint = document.getElementById('advanceModalLimit');
-        const submitBtn = document.getElementById('advanceModalSubmit');
-
-        if (amountInput) {
-            amountInput.value = '';
-            amountInput.max = allowedNow.toFixed(2);
-        }
-        if (limitHint) {
-            limitHint.textContent = 'Max allowed now: ' + formatMoney(allowedNow);
-        }
-        if (submitBtn) {
-            submitBtn.disabled = allowedNow <= 0;
-            submitBtn.classList.toggle('opacity-50', allowedNow <= 0);
-            submitBtn.classList.toggle('cursor-not-allowed', allowedNow <= 0);
-            submitBtn.textContent = allowedNow <= 0 ? 'No Advance Allowed' : 'Confirm Advance';
-        }
-
-        document.getElementById('advanceModal').classList.remove('hidden');
-    }
+    // Give Advance: use Staff Profile page
 
     // Batch: update single row net
     // data-basic = basic salary | data-auto = lead auto incentive (pre-computed)

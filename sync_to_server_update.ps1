@@ -60,7 +60,9 @@ $allFiles = Get-ChildItem -Path $src -File -Recurse | Where-Object {
         'database.sql',
         'compare_schema_vs_wipe.php',
         'audit_columns.php',
-        'ACCOUNT_IMPLEMENTATION.md'
+        'ACCOUNT_IMPLEMENTATION.md',
+        'UPDATE_SESSION_RULES.md',
+        'PRODUCTION_DB_STEPS.md'
         
     )
     if ($rel -in $skipFiles) { return $false }

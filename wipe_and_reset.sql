@@ -48,6 +48,7 @@ DROP TABLE IF EXISTS papers;
 DROP TABLE IF EXISTS gps_tracking;
 DROP TABLE IF EXISTS vehicle_requests;
 DROP TABLE IF EXISTS leads;
+DROP TABLE IF EXISTS client_reviews;
 DROP TABLE IF EXISTS clients;
 DROP TABLE IF EXISTS vehicles;
 DROP TABLE IF EXISTS expenses;
@@ -165,6 +166,18 @@ CREATE TABLE clients (
     voucher_balance DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE client_reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    client_id INT NOT NULL,
+    reservation_id INT NOT NULL,
+    rating TINYINT NOT NULL,
+    review TEXT DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    FOREIGN KEY (reservation_id) REFERENCES reservations(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_reservation_review (reservation_id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE reservations (

@@ -29,6 +29,10 @@ function lead_has_column(PDO $pdo, string $column): bool
         $stmt->execute([$column]);
         $cache[$key] = ((int) $stmt->fetchColumn()) > 0;
     } catch (Throwable $e) {
+        app_log('ERROR', "Lead create: column check failed for leads.{$column} - " . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
         $cache[$key] = false;
     }
 
@@ -60,6 +64,10 @@ function lead_status_ensure_pipeline(PDO $pdo): void
             }
         }
     } catch (Throwable $e) {
+        app_log('ERROR', 'Lead create: status pipeline ensure failed - ' . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
     }
 }
 

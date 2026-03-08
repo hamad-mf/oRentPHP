@@ -31,6 +31,10 @@ function reservation_payment_ensure_schema(PDO $pdo): void
                 $pdo->exec($sql);
             }
         } catch (Throwable $e) {
+            app_log('ERROR', "Reservation payment helper: schema ensure failed for reservations.{$column} - " . $e->getMessage(), [
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
             // Ignore if migration is handled manually.
         }
     }

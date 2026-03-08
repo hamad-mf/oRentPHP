@@ -114,6 +114,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 flash('success', "Staff member '$name' updated successfully.");
             redirect('show.php?id=' . $id);
         } catch (Throwable $e) {
+            app_log('ERROR', 'Staff edit failed (ID: ' . $id . ') - ' . $e->getMessage(), [
+    'username' => $username,
+    'name' => $name,
+    'file' => $e->getFile() . ':' . $e->getLine(),
+]);
+
             $pdo->rollBack();
             $errors[] = 'Database error: ' . $e->getMessage();
         }
