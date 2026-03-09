@@ -10,6 +10,7 @@ vehicle_ensure_schema($pdo);
 $search = trim($_GET['search'] ?? '');
 $status = $_GET['status'] ?? '';
 $rentedDate = trim($_GET['rented_date'] ?? '');
+$overdueOnly = ((int) ($_GET['overdue'] ?? 0)) === 1;
 
 $where = ['1=1'];
 $params = [];
@@ -30,6 +31,11 @@ if ($rentedDate !== '') {
     } else {
         $rentedDate = '';
     }
+}
+if ($overdueOnly) {
+    $where[] = "v.status = 'rented'";
+    $where[] = "ar.end_date IS NOT NULL";
+    $where[] = "ar.end_date < NOW()";
 }
 
 $baseFrom = 'FROM vehicles v
@@ -83,6 +89,16 @@ $totalCount = $pdo->query('SELECT COUNT(*) FROM vehicles')->fetchColumn();
 $available = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='available'")->fetchColumn();
 $rented = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='rented'")->fetchColumn();
 $maintenance = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='maintenance'")->fetchColumn();
+$overdueCount = (int) $pdo->query("SELECT COUNT(*)
+    FROM reservations r1
+    INNER JOIN (
+        SELECT vehicle_id, MAX(id) AS max_id
+        FROM reservations
+        WHERE status = 'active'
+        GROUP BY vehicle_id
+    ) latest ON latest.max_id = r1.id
+    WHERE r1.end_date IS NOT NULL
+      AND r1.end_date < NOW()")->fetchColumn();
 
 $success = getFlash('success');
 $error = getFlash('error');
@@ -130,31 +146,41 @@ require_once __DIR__ . '/../includes/header.php';
     <?php endif; ?>
 
     <!-- Fleet Status Bar -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <?php
         $statusCards = [
-            ['label' => 'Total Fleet', 'count' => $totalCount, 'color' => 'text-white', 'filter' => '', 'active' => $status === ''],
-            ['label' => 'Available', 'count' => $available, 'color' => 'text-green-400', 'filter' => 'available', 'active' => $status === 'available'],
-            ['label' => 'Rented', 'count' => $rented, 'color' => 'text-mb-accent', 'filter' => 'rented', 'active' => $status === 'rented'],
-            ['label' => 'Workshop', 'count' => $maintenance, 'color' => 'text-red-400', 'filter' => 'maintenance', 'active' => $status === 'maintenance'],
+            ['label' => 'Total Fleet', 'count' => $totalCount, 'color' => 'text-white', 'filter' => '', 'overdue' => 0, 'active' => ($status === '' && !$overdueOnly)],
+            ['label' => 'Available', 'count' => $available, 'color' => 'text-green-400', 'filter' => 'available', 'overdue' => 0, 'active' => ($status === 'available' && !$overdueOnly)],
+            ['label' => 'Rented', 'count' => $rented, 'color' => 'text-mb-accent', 'filter' => 'rented', 'overdue' => 0, 'active' => ($status === 'rented' && !$overdueOnly)],
+            ['label' => 'Workshop', 'count' => $maintenance, 'color' => 'text-red-400', 'filter' => 'maintenance', 'overdue' => 0, 'active' => ($status === 'maintenance' && !$overdueOnly)],
+            ['label' => 'Overdue', 'count' => $overdueCount, 'color' => $overdueCount > 0 ? 'text-red-400' : 'text-white', 'filter' => '', 'overdue' => 1, 'active' => $overdueOnly],
         ];
-        $borderActive = ['' => 'border-white/30', 'available' => 'border-green-500/50', 'rented' => 'border-mb-accent/50', 'maintenance' => 'border-red-500/50'];
+        $borderActive = ['' => 'border-white/30', 'available' => 'border-green-500/50', 'rented' => 'border-mb-accent/50', 'maintenance' => 'border-red-500/50', 'overdue' => 'border-red-500/50'];
         foreach ($statusCards as $card):
+            $isOverdueCard = !empty($card['overdue']);
             $href = '?' . http_build_query(array_filter([
                 'status' => $card['filter'],
                 'search' => $search,
-                'rented_date' => $rentedDate,
+                'rented_date' => $isOverdueCard ? null : $rentedDate,
+                'overdue' => $isOverdueCard ? 1 : null,
             ], static fn($v) => $v !== null && $v !== ''));
-            $activeBorder = $card['active'] ? ($borderActive[$card['filter']] ?? 'border-white/20') : '';
+            $activeKey = $isOverdueCard ? 'overdue' : $card['filter'];
+            $activeBorder = $card['active'] ? ($borderActive[$activeKey] ?? 'border-white/20') : '';
+            $warningClasses = ($isOverdueCard && (int) $card['count'] > 0) ? 'bg-red-500/5 border-red-500/40 hover:border-red-500/70' : '';
             ?>
             <a href="<?= $href ?>"
-                class="bg-mb-surface border border-mb-subtle/20 rounded-lg p-4 text-center hover:border-white/20 transition-all <?= $activeBorder ?>">
+                class="bg-mb-surface border border-mb-subtle/20 rounded-lg p-4 text-center hover:border-white/20 transition-all <?= $activeBorder ?> <?= $warningClasses ?>">
                 <p class="text-3xl font-light <?= $card['color'] ?>">
                     <?= $card['count'] ?>
                 </p>
                 <p class="text-mb-silver text-xs uppercase mt-1">
                     <?= $card['label'] ?>
                 </p>
+                <?php if ($isOverdueCard): ?>
+                    <p class="text-[10px] mt-1 <?= (int) $card['count'] > 0 ? 'text-red-400/70 animate-pulse' : 'text-mb-subtle' ?>">
+                        <?= (int) $card['count'] > 0 ? 'Action needed' : 'No overdue returns' ?>
+                    </p>
+                <?php endif; ?>
             </a>
         <?php endforeach; ?>
     </div>
@@ -163,6 +189,8 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <form method="GET" class="flex flex-wrap items-center gap-3 flex-1">
             <?php if ($status): ?><input type="hidden" name="status" value="<?= e($status) ?>">
+            <?php endif; ?>
+            <?php if ($overdueOnly): ?><input type="hidden" name="overdue" value="1">
             <?php endif; ?>
             <div class="relative flex-1 max-w-sm">
                 <input type="text" name="search" value="<?= e($search) ?>" placeholder="Search brand, model or plate..."
@@ -177,7 +205,7 @@ require_once __DIR__ . '/../includes/header.php';
                 class="bg-mb-surface border border-mb-subtle/20 rounded-full py-2 px-4 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors"
                 title="Filter by rented start date">
             <button type="submit" class="text-mb-silver hover:text-white text-sm transition-colors">Search</button>
-            <?php if ($search || $status || $rentedDate): ?><a href="index.php"
+            <?php if ($search || $status || $rentedDate || $overdueOnly): ?><a href="index.php"
                     class="text-mb-subtle hover:text-white text-sm transition-colors">Clear</a>
             <?php endif; ?>
         </form>
@@ -561,7 +589,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 
 <?php
-$_vqp = array_filter(['search' => $search, 'status' => $status, 'rented_date' => $rentedDate], fn($v) => $v !== null && $v !== '');
+$_vqp = array_filter(['search' => $search, 'status' => $status, 'rented_date' => $rentedDate, 'overdue' => $overdueOnly ? 1 : null], fn($v) => $v !== null && $v !== '');
 echo render_pagination($pgResult, $_vqp);
 ?>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

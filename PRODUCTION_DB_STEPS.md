@@ -11,6 +11,10 @@ This file tracks all database changes that need to be applied to **production** 
 
 ## Pending
 
+### 2026-03-09 - Configurable Expense Categories (No DB change needed)
+**SQL file:** `None`
+**Notes:** Expense categories are now managed in Settings > Expense Categories and stored in existing `system_settings` table (`expense_categories` key).
+
 ### 2026-03-06 - Lead Auto-Close After Follow-ups (No DB change needed)
 **SQL file:** `None`
 **Notes:** Auto-close lead to Lost after X follow-ups. Uses existing `system_settings` table. Configure in Settings > General.

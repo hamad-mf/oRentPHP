@@ -386,6 +386,12 @@ function ledger_post_manual(
 ): ?int {
     ledger_ensure_schema($pdo);
 
+    $txnType = strtolower(trim($txnType));
+    $category = trim($category);
+    if ($category === '') {
+        $category = $txnType === 'expense' ? 'Manual Expense' : 'Manual Income';
+    }
+
     $bankId = ledger_resolve_bank_account_id($pdo, $paymentMode, $bankAccountId);
 
     return ledger_post(
@@ -552,6 +558,14 @@ function ledger_get_entries(PDO $pdo, array $f = []): array
     if (!empty($f['account_id'])) {
         $where[] = "le.bank_account_id = ?";
         $params[] = (int) $f['account_id'];
+    } elseif (isset($f['account']) && $f['account'] !== null && $f['account'] !== '') {
+        if (is_numeric($f['account'])) {
+            $where[] = "le.bank_account_id = ?";
+            $params[] = (int) $f['account'];
+        } elseif (in_array($f['account'], ['cash', 'credit'], true)) {
+            $where[] = "le.payment_mode = ?";
+            $params[] = $f['account'];
+        }
     }
     if (!empty($f['date_from'])) {
         $where[] = "DATE(le.posted_at) >= ?";
@@ -564,6 +578,10 @@ function ledger_get_entries(PDO $pdo, array $f = []): array
     if (!empty($f['source'])) {
         $where[] = "le.source_type = ?";
         $params[] = $f['source'];
+    }
+    if (!empty($f['category'])) {
+        $where[] = "le.category = ?";
+        $params[] = $f['category'];
     }
 
     $sql = "SELECT le.*, ba.name AS account_name, u.name AS posted_by_name
@@ -583,10 +601,22 @@ function ledger_build_query(array $f = []): array {
     $where = ['1=1'];
     $params = [];
     if (!empty($f['type']))       { $where[] = "le.txn_type = ?";         $params[] = $f['type']; }
-    if (!empty($f['account_id'])) { $where[] = "le.bank_account_id = ?";  $params[] = (int)$f['account_id']; }
+    if (!empty($f['account_id'])) {
+        $where[] = "le.bank_account_id = ?";
+        $params[] = (int) $f['account_id'];
+    } elseif (isset($f['account']) && $f['account'] !== null && $f['account'] !== '') {
+        if (is_numeric($f['account'])) {
+            $where[] = "le.bank_account_id = ?";
+            $params[] = (int) $f['account'];
+        } elseif (in_array($f['account'], ['cash', 'credit'], true)) {
+            $where[] = "le.payment_mode = ?";
+            $params[] = $f['account'];
+        }
+    }
     if (!empty($f['date_from']))  { $where[] = "DATE(le.posted_at) >= ?"; $params[] = $f['date_from']; }
     if (!empty($f['date_to']))    { $where[] = "DATE(le.posted_at) <= ?"; $params[] = $f['date_to']; }
     if (!empty($f['source']))     { $where[] = "le.source_type = ?";      $params[] = $f['source']; }
+    if (!empty($f['category']))   { $where[] = "le.category = ?";         $params[] = $f['category']; }
     $base = "FROM ledger_entries le LEFT JOIN bank_accounts ba ON ba.id=le.bank_account_id LEFT JOIN users u ON u.id=le.created_by WHERE " . implode(' AND ', $where);
     return [
         'select' => "SELECT le.*, ba.name AS account_name, u.name AS posted_by_name ",

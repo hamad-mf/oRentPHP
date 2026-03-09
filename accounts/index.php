@@ -17,6 +17,7 @@ ledger_ensure_schema($pdo);
 
 $isAdmin = ($_currentUser['role'] ?? '') === 'admin';
 $userId = (int) ($_currentUser['id'] ?? 0);
+$configuredExpenseCategories = expense_categories_get_list($pdo);
 
 //  ”  ”  Handle POST actions  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -26,6 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (in_array($action, ['add_income', 'add_expense'], true)) {
         $txnType = $action === 'add_income' ? 'income' : 'expense';
         $category = trim($_POST['category'] ?? '');
+        if ($action === 'add_expense' && $category === '') {
+            $category = $configuredExpenseCategories[0] ?? 'Manual Expense';
+        }
         $amount = (float) ($_POST['amount'] ?? 0);
         $mode = trim($_POST['payment_mode'] ?? 'cash');
         $bankAccountId = (int) ($_POST['bank_account_id'] ?? 0);
@@ -113,21 +117,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
 $fType = $_GET['type'] ?? '';
-$fAccount = (int) ($_GET['account'] ?? 0);
+$fAccount = trim((string) ($_GET['account'] ?? ''));
 $fDateFrom = $_GET['date_from'] ?? date('Y-m-01');
 $fDateTo = $_GET['date_to'] ?? date('Y-m-d');
 $fSource = $_GET['source'] ?? '';
+$fCategory = trim($_GET['category'] ?? '');
+
+$accountFilter = null;
+if ($fAccount === 'cash' || $fAccount === 'credit') {
+    $accountFilter = $fAccount;
+} elseif (ctype_digit($fAccount) && (int) $fAccount > 0) {
+    $fAccount = (string) ((int) $fAccount);
+    $accountFilter = (int) $fAccount;
+}
 
 $filters = [
     'type' => $fType,
-    'account_id' => $fAccount ?: null,
+    'account' => $accountFilter,
     'date_from' => $fDateFrom,
     'date_to' => $fDateTo,
     'source' => $fSource,
+    'category' => $fCategory,
 ];
 
 $accounts = ledger_get_accounts($pdo);
 $activeAccounts = array_values(array_filter($accounts, fn($a) => (int) ($a['is_active'] ?? 0) === 1));
+$systemExpenseCategories = [
+    'Vehicle Expense',
+    'Staff Advance',
+    'Salary',
+    'Reservation Cancellation Refund',
+    'Security Deposit Returned',
+    'Investment Down Payment',
+    'EMI Payment',
+    'Transfer Out',
+];
+$existingExpenseCategoriesStmt = $pdo->query("SELECT DISTINCT category FROM ledger_entries WHERE txn_type = 'expense' ORDER BY category ASC");
+$existingExpenseCategories = $existingExpenseCategoriesStmt ? array_map(static function ($row) {
+    return trim((string) ($row['category'] ?? ''));
+}, $existingExpenseCategoriesStmt->fetchAll()) : [];
+$expenseCategoryOptions = array_values(array_filter(array_unique(array_merge($configuredExpenseCategories, $systemExpenseCategories, $existingExpenseCategories)), static function ($category) {
+    return $category !== '';
+}));
 $_lq = ledger_build_query($filters);
 $_pgLedger = paginate_query($pdo, $_lq['select'] . $_lq['base'] . $_lq['order'], $_lq['count'] . $_lq['base'], $_lq['params'], $page, $perPage);
 $entries  = $_pgLedger['rows'];
@@ -295,6 +326,15 @@ require_once __DIR__ . '/../includes/header.php';
                         <option value="reservation" <?= $fSource === 'reservation' ? 'selected' : '' ?>>Reservations</option>
                         <option value="manual" <?= $fSource === 'manual' ? 'selected' : '' ?>>Manual</option>
                     </select>
+                    <select name="category" onchange="this.form.submit()"
+                        class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
+                        <option value="">All Categories</option>
+                        <?php foreach ($expenseCategoryOptions as $categoryOption): ?>
+                            <option value="<?= e($categoryOption) ?>" <?= $fCategory === $categoryOption ? 'selected' : '' ?>>
+                                <?= e($categoryOption) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                     <input type="date" name="date_from" value="<?= e($fDateFrom) ?>"
                         class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
                     <input type="date" name="date_to" value="<?= e($fDateTo) ?>"
@@ -302,8 +342,14 @@ require_once __DIR__ . '/../includes/header.php';
                     <select name="account" onchange="this.form.submit()"
                         class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
                         <option value="">All Accounts</option>
+                        <option value="cash" <?= $fAccount === 'cash' ? 'selected' : '' ?>>
+                            Cash Account
+                        </option>
+                        <option value="credit" <?= $fAccount === 'credit' ? 'selected' : '' ?>>
+                            Credit Account
+                        </option>
                         <?php foreach ($accounts as $acc): ?>
-                            <option value="<?= $acc['id'] ?>" <?= $fAccount == $acc['id'] ? 'selected' : '' ?>>
+                            <option value="<?= (int) $acc['id'] ?>" <?= $fAccount === (string) ((int) $acc['id']) ? 'selected' : '' ?>>
                                 <?= e($acc['name']) ?>
                             </option>
                         <?php endforeach; ?>
@@ -427,7 +473,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php endif; ?>
     </div>
     <?php
-    $_aqp = array_filter(['type'=>$fType,'account'=>($fAccount?:null),'date_from'=>$fDateFrom,'date_to'=>$fDateTo,'source'=>$fSource], fn($v)=>$v!==null&&$v!=='');
+    $_aqp = array_filter(['type'=>$fType,'account'=>($fAccount!==''?$fAccount:null),'date_from'=>$fDateFrom,'date_to'=>$fDateTo,'source'=>$fSource,'category'=>$fCategory], fn($v)=>$v!==null&&$v!=='');
     echo render_pagination($_pgLedger, $_aqp);
     ?>
 </div>
@@ -440,8 +486,19 @@ require_once __DIR__ . '/../includes/header.php';
             <input type="hidden" name="action" id="entryAction" value="add_income">
             <div>
                 <label class="block text-sm text-mb-silver mb-1.5">Category <span class="text-red-400">*</span></label>
-                <input type="text" name="category" required placeholder="e.g. Fuel, Rent, Salary ¦"
+                <input type="text" id="entryCategoryText" name="category" required placeholder="e.g. Sales, Rent, Misc income"
                     class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-mb-accent text-sm">
+                <select id="entryCategorySelect" name="category" disabled
+                    class="hidden w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-mb-accent text-sm">
+                    <?php foreach ($configuredExpenseCategories as $categoryOption): ?>
+                        <option value="<?= e($categoryOption) ?>">
+                            <?= e($categoryOption) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <p id="entryCategoryHelp" class="hidden text-xs text-mb-subtle mt-1">
+                    Configure this list in Settings > Expense Categories.
+                </p>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
@@ -554,16 +611,45 @@ require_once __DIR__ . '/../includes/header.php';
         const title = document.getElementById('entryModalTitle');
         const action = document.getElementById('entryAction');
         const btn = document.getElementById('entrySubmitBtn');
+        const categoryText = document.getElementById('entryCategoryText');
+        const categorySelect = document.getElementById('entryCategorySelect');
+        const categoryHelp = document.getElementById('entryCategoryHelp');
         if (type === 'income') {
             title.textContent = 'Add Income';
             title.className = 'text-white text-lg font-light border-l-2 border-green-500 pl-3';
             action.value = 'add_income';
             btn.className = 'bg-green-600 text-white px-6 py-2 rounded-full hover:bg-green-500 transition-colors text-sm font-medium';
+            if (categoryText && categorySelect && categoryHelp) {
+                categoryText.classList.remove('hidden');
+                categoryText.disabled = false;
+                categoryText.required = true;
+                categoryText.placeholder = 'e.g. Sales, Rent, Misc income';
+
+                categorySelect.classList.add('hidden');
+                categorySelect.disabled = true;
+                categorySelect.required = false;
+
+                categoryHelp.classList.add('hidden');
+            }
         } else {
             title.textContent = 'Add Expense';
             title.className = 'text-white text-lg font-light border-l-2 border-red-500 pl-3';
             action.value = 'add_expense';
             btn.className = 'bg-red-600 text-white px-6 py-2 rounded-full hover:bg-red-500 transition-colors text-sm font-medium';
+            if (categoryText && categorySelect && categoryHelp) {
+                categoryText.classList.add('hidden');
+                categoryText.disabled = true;
+                categoryText.required = false;
+
+                categorySelect.classList.remove('hidden');
+                categorySelect.disabled = false;
+                categorySelect.required = true;
+                if (!categorySelect.value && categorySelect.options.length > 0) {
+                    categorySelect.selectedIndex = 0;
+                }
+
+                categoryHelp.classList.remove('hidden');
+            }
         }
         const modeEl = document.getElementById('entryPaymentMode');
         if (modeEl) {

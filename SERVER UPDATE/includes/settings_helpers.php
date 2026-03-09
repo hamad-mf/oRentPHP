@@ -98,6 +98,121 @@ function lead_sources_decode_map(string $encoded): array
     return $map;
 }
 
+function expense_categories_default_list(): array
+{
+    return [
+        'Manual Expense',
+        'Fuel',
+        'Rent',
+        'Salary',
+        'Maintenance',
+        'Utilities',
+        'Office Expense',
+        'Marketing',
+        'Miscellaneous',
+    ];
+}
+
+function expense_category_normalize_label(string $label): string
+{
+    $label = preg_replace('/\s+/', ' ', trim($label)) ?? '';
+    return trim($label);
+}
+
+function expense_categories_decode_list(string $encoded): array
+{
+    $rawItems = [];
+    $decoded = json_decode($encoded, true);
+    if (is_array($decoded)) {
+        foreach ($decoded as $item) {
+            if (is_string($item)) {
+                $rawItems[] = $item;
+            } elseif (is_array($item) && isset($item['label'])) {
+                $rawItems[] = (string) $item['label'];
+            }
+        }
+    } else {
+        $rawItems = preg_split('/\r\n|\r|\n/', $encoded) ?: [];
+    }
+
+    $list = [];
+    $seen = [];
+    foreach ($rawItems as $item) {
+        $label = expense_category_normalize_label((string) $item);
+        if ($label === '') {
+            continue;
+        }
+        $key = strtolower($label);
+        if (isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        $list[] = $label;
+    }
+
+    return empty($list) ? expense_categories_default_list() : $list;
+}
+
+function expense_categories_encode_list(array $list): string
+{
+    $clean = [];
+    $seen = [];
+
+    foreach ($list as $item) {
+        $label = expense_category_normalize_label((string) $item);
+        if ($label === '') {
+            continue;
+        }
+        $key = strtolower($label);
+        if (isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        $clean[] = $label;
+    }
+
+    if (empty($clean)) {
+        $clean = expense_categories_default_list();
+    }
+
+    return json_encode(array_values($clean), JSON_UNESCAPED_UNICODE) ?: '[]';
+}
+
+function expense_categories_get_list(PDO $pdo): array
+{
+    $defaults = expense_categories_default_list();
+    $defaultEncoded = expense_categories_encode_list($defaults);
+
+    settings_ensure_table($pdo);
+    $stmt = $pdo->prepare("INSERT IGNORE INTO system_settings (`key`, `value`) VALUES ('expense_categories', ?)");
+    $stmt->execute([$defaultEncoded]);
+
+    $stored = settings_get($pdo, 'expense_categories', $defaultEncoded);
+    return expense_categories_decode_list($stored);
+}
+
+function expense_categories_parse_textarea(string $input): array
+{
+    $lines = preg_split('/\r\n|\r|\n/', $input) ?: [];
+    $list = [];
+    $seen = [];
+
+    foreach ($lines as $line) {
+        $label = expense_category_normalize_label($line);
+        if ($label === '') {
+            continue;
+        }
+        $key = strtolower($label);
+        if (isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        $list[] = $label;
+    }
+
+    return $list;
+}
+
 function lead_sources_encode_map(array $map): string
 {
     $rows = [];

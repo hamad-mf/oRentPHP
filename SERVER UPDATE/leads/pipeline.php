@@ -71,9 +71,23 @@ $filterStaff = $isStaffScopeLocked ? $currentUserId : $requestedStaffFilter;
 $filterDateFrom = trim($_GET['date_from'] ?? '');
 $filterDateTo = trim($_GET['date_to'] ?? '');
 $filterSource = trim($_GET['source_filter'] ?? '');
+$filterStatus = trim((string) ($_GET['status_filter'] ?? ''));
+if ($filterStatus !== '' && !in_array($filterStatus, $stages, true)) {
+    $filterStatus = '';
+}
+$sortOrder = trim((string) ($_GET['sort'] ?? 'newest'));
+if (!in_array($sortOrder, ['newest', 'oldest'], true)) {
+    $sortOrder = 'newest';
+}
+$orderSql = $sortOrder === 'oldest' ? 'ASC' : 'DESC';
+$viewMode = trim((string) ($_GET['view'] ?? 'kanban'));
+if (!in_array($viewMode, ['kanban', 'list'], true)) {
+    $viewMode = 'kanban';
+}
 $perPage = get_per_page($pdo);
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $pipelinePaginationEnabled = settings_get($pdo, 'pipeline_pagination_enabled', '1') !== '0';
+$shouldPaginate = $viewMode === 'list' || $pipelinePaginationEnabled;
 
 // Fetch all users for the staff filter dropdown
 $allStaffUsers = [];
@@ -105,15 +119,19 @@ if ($filterSource !== '') {
     $where[] = 'l.source = ?';
     $params[] = $filterSource;
 }
+if ($filterStatus !== '') {
+    $where[] = 'l.status = ?';
+    $params[] = $filterStatus;
+}
 
 $whereSql = implode(' AND ', $where);
 $baseFrom = 'FROM leads l
         LEFT JOIN users u ON l.assigned_staff_id = u.id
         WHERE ' . $whereSql;
-$sql = 'SELECT l.*, u.name AS assigned_user_name ' . $baseFrom . ' ORDER BY l.created_at DESC';
+$sql = 'SELECT l.*, u.name AS assigned_user_name ' . $baseFrom . " ORDER BY l.created_at $orderSql, l.id $orderSql";
 $countSql = 'SELECT COUNT(*) FROM leads l WHERE ' . $whereSql;
 $pgLeads = null;
-if ($pipelinePaginationEnabled) {
+if ($shouldPaginate) {
     $pgLeads = paginate_query($pdo, $sql, $countSql, $params, $page, $perPage);
     $allLeads = $pgLeads['rows'];
 } else {
@@ -157,6 +175,60 @@ $activeCountStmt = $pdo->prepare($activeCountSql);
 $activeCountStmt->execute($params);
 $activeLeadCount = (int) $activeCountStmt->fetchColumn();
 
+$viewStateParams = array_filter(
+    [
+        'staff_filter' => (!$isStaffScopeLocked && $filterStaff > 0) ? $filterStaff : null,
+        'date_from' => $filterDateFrom,
+        'date_to' => $filterDateTo,
+        'source_filter' => $filterSource,
+        'status_filter' => $filterStatus,
+        'sort' => $sortOrder !== 'newest' ? $sortOrder : null,
+        'page' => $page > 1 ? $page : null,
+    ],
+    static fn($v) => $v !== null && $v !== ''
+);
+$kanbanViewUrl = 'pipeline.php?' . http_build_query(array_merge($viewStateParams, ['view' => 'kanban']));
+$listViewUrl = 'pipeline.php?' . http_build_query(array_merge($viewStateParams, ['view' => 'list']));
+
+$formatDateTime = static function (?string $dateTime): string {
+    if (!$dateTime) {
+        return '-';
+    }
+    $ts = strtotime($dateTime);
+    if ($ts === false) {
+        return (string) $dateTime;
+    }
+    return date('d M Y, h:i A', $ts);
+};
+$timeAgo = static function (?string $dateTime): string {
+    if (!$dateTime) {
+        return '-';
+    }
+    try {
+        $from = new DateTime($dateTime);
+    } catch (Throwable $e) {
+        return (string) $dateTime;
+    }
+    $to = new DateTime('now');
+    $diff = $from->diff($to);
+    if ($diff->y > 0) {
+        return $diff->y . ' year' . ($diff->y === 1 ? '' : 's') . ' ago';
+    }
+    if ($diff->m > 0) {
+        return $diff->m . ' month' . ($diff->m === 1 ? '' : 's') . ' ago';
+    }
+    if ($diff->d > 0) {
+        return $diff->d . ' day' . ($diff->d === 1 ? '' : 's') . ' ago';
+    }
+    if ($diff->h > 0) {
+        return $diff->h . ' hour' . ($diff->h === 1 ? '' : 's') . ' ago';
+    }
+    if ($diff->i > 0) {
+        return $diff->i . ' min' . ($diff->i === 1 ? '' : 's') . ' ago';
+    }
+    return 'Just now';
+};
+
 $pageTitle = 'Pipeline';
 require_once __DIR__ . '/../includes/header.php';
 ?>
@@ -169,7 +241,17 @@ require_once __DIR__ . '/../includes/header.php';
                 <?= $activeLeadCount ?> active lead<?= $activeLeadCount !== 1 ? 's' : '' ?>
             </p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 flex-wrap justify-end">
+            <div class="flex items-center bg-mb-surface border border-mb-subtle/20 rounded-full p-1">
+                <a href="<?= e($kanbanViewUrl) ?>"
+                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors <?= $viewMode === 'kanban' ? 'bg-mb-accent text-white' : 'text-mb-silver hover:text-white' ?>">
+                    Kanban
+                </a>
+                <a href="<?= e($listViewUrl) ?>"
+                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors <?= $viewMode === 'list' ? 'bg-mb-accent text-white' : 'text-mb-silver hover:text-white' ?>">
+                    List
+                </a>
+            </div>
             <?php if ($isAdmin): ?>
                 <button type="button" id="openLeadImportModal"
                     class="bg-mb-black border border-mb-subtle/20 text-mb-silver px-5 py-2 rounded-full hover:border-mb-accent/40 hover:text-white transition-colors text-sm font-medium">
@@ -260,10 +342,17 @@ require_once __DIR__ . '/../includes/header.php';
             <?php endif; ?>
         </div>
     <?php endif;
-    $activeFilters = (int) ((!$isStaffScopeLocked) && ($filterStaff > 0)) + (int) ($filterDateFrom !== '') + (int) ($filterDateTo !== '') + (int) ($filterSource !== '');
+    $activeFilters = (int) ((!$isStaffScopeLocked) && ($filterStaff > 0))
+        + (int) ($filterDateFrom !== '')
+        + (int) ($filterDateTo !== '')
+        + (int) ($filterSource !== '')
+        + (int) ($filterStatus !== '')
+        + (int) ($sortOrder !== 'newest');
+    $clearFiltersUrl = 'pipeline.php' . ($viewMode === 'list' ? '?view=list' : '');
     ?>
     <form method="GET" id="pipelineFilters"
         class="flex flex-wrap items-center gap-3 bg-mb-surface border border-mb-subtle/20 rounded-xl px-4 py-3">
+        <input type="hidden" name="view" value="<?= e($viewMode) ?>">
 
         <!-- Staff Filter -->
         <div class="flex items-center gap-2">
@@ -310,6 +399,38 @@ require_once __DIR__ . '/../includes/header.php';
 
         <div class="w-px h-5 bg-mb-subtle/20"></div>
 
+        <!-- Status Filter -->
+        <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-mb-subtle flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V9m-9 6h6" />
+            </svg>
+            <select name="status_filter" onchange="document.getElementById('pipelineFilters').submit()"
+                class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors cursor-pointer">
+                <option value="">All Statuses</option>
+                <?php foreach ($stages as $statusKey): ?>
+                    <option value="<?= e($statusKey) ?>" <?= $filterStatus === $statusKey ? 'selected' : '' ?>>
+                        <?= e($stageLabels[$statusKey]) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <div class="w-px h-5 bg-mb-subtle/20"></div>
+
+        <!-- Sort -->
+        <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-mb-subtle flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M3 4h13M3 10h9M3 16h5m11-9v13m0 0l-3-3m3 3l3-3" />
+            </svg>
+            <select name="sort" onchange="document.getElementById('pipelineFilters').submit()"
+                class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors cursor-pointer">
+                <option value="newest" <?= $sortOrder === 'newest' ? 'selected' : '' ?>>Newest First</option>
+                <option value="oldest" <?= $sortOrder === 'oldest' ? 'selected' : '' ?>>Oldest First</option>
+            </select>
+        </div>
+
 
         <!-- Date From -->
         <div class="flex items-center gap-2">
@@ -344,7 +465,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <span class="text-xs bg-mb-accent/20 text-mb-accent border border-mb-accent/30 px-2 py-0.5 rounded-full">
                     <?= $activeFilters ?> filter<?= $activeFilters > 1 ? 's' : '' ?> active
                 </span>
-                <a href="pipeline.php"
+                <a href="<?= e($clearFiltersUrl) ?>"
                     class="text-xs text-mb-subtle hover:text-white transition-colors flex items-center gap-1">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -357,6 +478,111 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </form>
 
+    <?php if ($viewMode === 'list'): ?>
+        <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[980px] text-left">
+                    <thead class="bg-mb-black text-mb-silver uppercase text-xs tracking-wider">
+                        <tr>
+                            <th class="px-5 py-3 font-medium">Name</th>
+                            <th class="px-5 py-3 font-medium">Contact</th>
+                            <th class="px-5 py-3 font-medium">Interest</th>
+                            <th class="px-5 py-3 font-medium">Status</th>
+                            <th class="px-5 py-3 font-medium">Assigned To</th>
+                            <th class="px-5 py-3 font-medium">Added</th>
+                            <th class="px-5 py-3 font-medium">Last Updated</th>
+                            <th class="px-5 py-3 font-medium text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-mb-subtle/10 text-sm">
+                        <?php if (empty($allLeads)): ?>
+                            <tr>
+                                <td colspan="8" class="px-5 py-12 text-center text-mb-subtle italic">No leads found.</td>
+                            </tr>
+                        <?php endif; ?>
+
+                        <?php foreach ($allLeads as $l):
+                            $normalizedStatus = ($l['status'] ?? '') === 'negotiation' ? 'interested' : ($l['status'] ?? '');
+                            $statusClass = $stageBadge[$normalizedStatus] ?? 'bg-mb-subtle/20 text-mb-silver';
+                            $sourceLabel = $leadSourcesMap[$l['source']] ?? lead_source_guess_label((string) $l['source']);
+                            $primaryPhone = trim((string) ($l['phone'] ?? ''));
+                            $altPhone = trim((string) ($l['alternative_number'] ?? ''));
+                            $contactPhone = $primaryPhone !== '' ? $primaryPhone : $altPhone;
+                            $phoneDigits = preg_replace('/\D/', '', $contactPhone);
+                            $phoneDial = preg_replace('/[^0-9+]/', '', $contactPhone);
+                            if ($phoneDial === '') {
+                                $phoneDial = $phoneDigits;
+                            }
+                            $assignedTo = trim((string) ($l['assigned_user_name'] ?? $l['assigned_to'] ?? ''));
+                            $addedAt = (string) ($l['created_at'] ?? '');
+                            $updatedAt = (string) ($l['updated_at'] ?? '');
+                            $updatedAt = $updatedAt !== '' ? $updatedAt : $addedAt;
+                            ?>
+                            <tr class="hover:bg-mb-black/20 transition-colors">
+                                <td class="px-5 py-4">
+                                    <a href="show.php?id=<?= (int) $l['id'] ?>" class="text-white font-medium hover:text-mb-accent transition-colors">
+                                        <?= e($l['name']) ?>
+                                    </a>
+                                    <p class="text-mb-subtle text-xs mt-0.5">#<?= (int) $l['id'] ?></p>
+                                </td>
+                                <td class="px-5 py-4">
+                                    <?php if ($contactPhone !== ''): ?>
+                                        <p class="text-white"><?= e($contactPhone) ?></p>
+                                    <?php else: ?>
+                                        <p class="text-mb-subtle italic">No phone</p>
+                                    <?php endif; ?>
+                                    <?php if ($altPhone !== '' && $altPhone !== $contactPhone): ?>
+                                        <p class="text-mb-subtle text-xs mt-0.5">Alt: <?= e($altPhone) ?></p>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-5 py-4">
+                                    <p class="text-white"><?= e($l['vehicle_interest'] ?: '-') ?></p>
+                                    <p class="text-mb-subtle text-xs mt-0.5">
+                                        <?= e(ucwords(str_replace('_', ' ', (string) $l['inquiry_type']))) ?> | <?= e($sourceLabel) ?>
+                                    </p>
+                                </td>
+                                <td class="px-5 py-4">
+                                    <span class="<?= $statusClass ?> text-xs px-2.5 py-1 rounded-full font-medium">
+                                        <?= e($stageLabels[$normalizedStatus] ?? ucwords(str_replace('_', ' ', $normalizedStatus))) ?>
+                                    </span>
+                                </td>
+                                <td class="px-5 py-4 text-mb-silver">
+                                    <?= $assignedTo !== '' ? e($assignedTo) : '<span class="text-mb-subtle italic">Unassigned</span>' ?>
+                                </td>
+                                <td class="px-5 py-4">
+                                    <p class="text-white text-xs"><?= e($timeAgo($addedAt)) ?></p>
+                                    <p class="text-mb-subtle text-[11px] mt-0.5"><?= e($formatDateTime($addedAt)) ?></p>
+                                </td>
+                                <td class="px-5 py-4">
+                                    <p class="text-white text-xs"><?= e($timeAgo($updatedAt)) ?></p>
+                                    <p class="text-mb-subtle text-[11px] mt-0.5"><?= e($formatDateTime($updatedAt)) ?></p>
+                                </td>
+                                <td class="px-5 py-4 text-right">
+                                    <div class="inline-flex items-center gap-2">
+                                        <?php if ($contactPhone !== ''): ?>
+                                            <button type="button" title="Contact options" data-dial="<?= e($phoneDial) ?>"
+                                                data-wa="<?= e($phoneDigits) ?>" onclick="openContactChoice(this);"
+                                                class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-mb-accent/15 text-mb-accent border border-mb-accent/25 hover:bg-mb-accent/25 hover:text-white transition-colors">
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                                                    class="w-3.5 h-3.5">
+                                                    <path
+                                                        d="M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.36 11.36 0 003.56.57 1 1 0 011 1V20a1 1 0 01-1 1C10.07 21 3 13.93 3 5a1 1 0 011-1h3.49a1 1 0 011 1 11.36 11.36 0 00.57 3.56 1 1 0 01-.24 1.01l-2.2 2.22z" />
+                                                </svg>
+                                            </button>
+                                        <?php endif; ?>
+                                        <a href="show.php?id=<?= (int) $l['id'] ?>"
+                                            class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg border border-mb-subtle/20 text-white hover:border-mb-accent/40 transition-colors text-xs">
+                                            View
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    <?php else: ?>
     <div class="flex gap-4 overflow-x-auto pb-4" style="min-height:70vh">
         <?php foreach ($stages as $stage):
             $cards = $grouped[$stage];
@@ -513,15 +739,19 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         <?php endforeach; ?>
     </div>
+    <?php endif; ?>
 </div>
-<?php if ($pipelinePaginationEnabled && is_array($pgLeads)): ?>
+<?php if ($shouldPaginate && is_array($pgLeads)): ?>
     <?php
     $_pqp = array_filter(
         [
+            'view' => $viewMode !== 'kanban' ? $viewMode : null,
             'staff_filter' => (!$isStaffScopeLocked && $filterStaff > 0) ? $filterStaff : null,
             'date_from' => $filterDateFrom,
             'date_to' => $filterDateTo,
             'source_filter' => $filterSource,
+            'status_filter' => $filterStatus,
+            'sort' => $sortOrder !== 'newest' ? $sortOrder : null,
         ],
         static fn($v) => $v !== null && $v !== ''
     );

@@ -22,6 +22,16 @@ $totalCars       = $pdo->query("SELECT COUNT(*) FROM vehicles")->fetchColumn();
 $availableCars   = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='available'")->fetchColumn();
 $rentedCars      = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='rented'")->fetchColumn();
 $maintenanceCars = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='maintenance'")->fetchColumn();
+$overdueVehicles = (int) $pdo->query("SELECT COUNT(*)
+    FROM reservations r1
+    INNER JOIN (
+        SELECT vehicle_id, MAX(id) AS max_id
+        FROM reservations
+        WHERE status='active'
+        GROUP BY vehicle_id
+    ) latest ON latest.max_id = r1.id
+    WHERE r1.end_date IS NOT NULL
+      AND r1.end_date < NOW()")->fetchColumn();
 $tr = $pdo->prepare("SELECT COUNT(*) FROM reservations WHERE status='active' AND DATE(end_date)=?");
 $tr->execute([$istToday]);
 $todayReturns = (int) $tr->fetchColumn();
@@ -99,6 +109,9 @@ if ($isAdmin) {
 // Staff-only data
 $staffAttRec=null; $staffOpenBreak=null; $staffBreakCount=0;
 $staffReservations=[]; $staffTasks=[];
+$staffAdvanceSchemaReady=false;
+$staffAdvanceMonthCount=0; $staffAdvanceMonthTotal=0.0; $staffAdvanceMonthOutstanding=0.0;
+$staffAdvancePastCount=0; $staffAdvanceMonthLabel=$istNow->format('F Y');
 if (!$isAdmin) {
     // Attendance
     try{
@@ -139,6 +152,31 @@ if (!$isAdmin) {
             'user_id' => (int)($_cuMe['id'] ?? 0),
         ]);
     }
+    // Payroll advance snapshot (current month + past count)
+    try {
+        $staffAdvanceSchemaReady = (bool) $pdo->query("SHOW TABLES LIKE 'payroll_advances'")->fetchColumn();
+        if ($staffAdvanceSchemaReady) {
+            $advMonth = (int) $istNow->format('n');
+            $advYear = (int) $istNow->format('Y');
+
+            $advNowStmt = $pdo->prepare("SELECT COUNT(*) AS item_count, COALESCE(SUM(amount),0) AS total_amount, COALESCE(SUM(remaining_amount),0) AS total_remaining FROM payroll_advances WHERE user_id = ? AND month = ? AND year = ?");
+            $advNowStmt->execute([$_cuMe['id'], $advMonth, $advYear]);
+            $advNow = $advNowStmt->fetch() ?: [];
+            $staffAdvanceMonthCount = (int) ($advNow['item_count'] ?? 0);
+            $staffAdvanceMonthTotal = (float) ($advNow['total_amount'] ?? 0);
+            $staffAdvanceMonthOutstanding = (float) ($advNow['total_remaining'] ?? 0);
+
+            $advPastStmt = $pdo->prepare("SELECT COUNT(*) FROM payroll_advances WHERE user_id = ? AND (year < ? OR (year = ? AND month < ?))");
+            $advPastStmt->execute([$_cuMe['id'], $advYear, $advYear, $advMonth]);
+            $staffAdvancePastCount = (int) $advPastStmt->fetchColumn();
+        }
+    } catch (Throwable $e) {
+        app_log('ERROR', 'Dashboard (staff): payroll advance widget query failed - ' . $e->getMessage(), [
+            'file' => $e->getFile() . ':' . $e->getLine(),
+            'screen' => 'index.php',
+            'user_id' => (int)($_cuMe['id'] ?? 0),
+        ]);
+    }
 }
 
 $pageTitle='Dashboard';
@@ -156,11 +194,12 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
 
     <section>
         <h3 class="text-white text-lg font-light mb-4 uppercase tracking-wider border-l-2 border-mb-accent pl-2">Fleet Status</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <a href="vehicles/index.php" class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg hover:border-white/20 transition-all group cursor-pointer"><p class="text-mb-silver text-sm uppercase mb-1">Total Cars</p><div class="flex items-end justify-between"><span class="text-4xl font-light text-white"><?= $totalCars ?></span><svg class="w-6 h-6 text-mb-silver/30 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg></div></a>
             <a href="vehicles/index.php?status=available" class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg hover:border-green-500/50 transition-all group cursor-pointer"><p class="text-mb-silver text-sm uppercase mb-1">Available</p><div class="flex items-end justify-between"><span class="text-4xl font-light text-green-400"><?= $availableCars ?></span><div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div></div></a>
             <a href="vehicles/index.php?status=rented" class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg hover:border-mb-accent/50 transition-all group cursor-pointer"><p class="text-mb-silver text-sm uppercase mb-1">Running / Rented</p><div class="flex items-end justify-between"><span class="text-4xl font-light text-mb-accent"><?= $rentedCars ?></span><svg class="w-6 h-6 text-mb-accent/30 group-hover:text-mb-accent transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div></a>
             <a href="vehicles/index.php?status=maintenance" class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg hover:border-red-500/50 transition-all group cursor-pointer"><p class="text-mb-silver text-sm uppercase mb-1">Workshop</p><div class="flex items-end justify-between"><span class="text-4xl font-light text-red-400"><?= $maintenanceCars ?></span><svg class="w-6 h-6 text-red-500/30 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div></a>
+            <a href="vehicles/index.php?overdue=1" class="bg-mb-surface border <?= $overdueVehicles>0?'border-red-500/40 bg-red-500/5':'border-mb-subtle/20' ?> p-5 rounded-lg hover:border-red-500/50 transition-all group cursor-pointer"><p class="text-mb-silver text-sm uppercase mb-1">Overdue Vehicles</p><div class="flex items-end justify-between"><span class="text-4xl font-light <?= $overdueVehicles>0?'text-red-400':'text-white' ?>"><?= $overdueVehicles ?></span><div class="w-10 h-10 rounded-full <?= $overdueVehicles>0?'bg-red-500/10 text-red-400':'bg-mb-subtle/10 text-mb-silver' ?> flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4h.01M10.29 3.86l-8 14A1 1 0 003.14 19h16a1 1 0 00.85-1.5l-8-14a1 1 0 00-1.7 0z"/></svg></div></div><?php if($overdueVehicles>0):?><p class="text-xs text-red-400/70 mt-1 animate-pulse">Warning: delayed returns</p><?php else:?><p class="text-xs text-mb-subtle mt-1">No overdue rentals</p><?php endif;?></a>
         </div>
     </section>
 
@@ -264,7 +303,44 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
         </div>
     </section>
 
-    <!-- Assigned Tasks — highlighted -->
+    <!-- Payroll Advance -->
+    <section>
+        <h3 class="text-white text-base font-light mb-3 uppercase tracking-wider border-l-2 border-mb-accent pl-2">My Payroll Advance</h3>
+        <div class="bg-mb-surface border <?= $staffAdvanceMonthCount>0?'border-orange-500/30':'border-mb-subtle/20' ?> rounded-xl p-5">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <p class="text-mb-subtle text-xs uppercase tracking-wider mb-2"><?= e($staffAdvanceMonthLabel) ?></p>
+                    <?php if(!$staffAdvanceSchemaReady):?>
+                        <p class="text-mb-subtle text-sm">Advance tracking is not enabled yet.</p>
+                    <?php elseif($staffAdvanceMonthCount>0):?>
+                        <p class="text-white text-2xl font-light">$<?= number_format($staffAdvanceMonthTotal,2) ?></p>
+                        <p class="text-mb-subtle text-xs mt-1"><?= $staffAdvanceMonthCount ?> advance<?= $staffAdvanceMonthCount>1?'s':'' ?> this month</p>
+                    <?php else:?>
+                        <p class="text-white text-lg font-light">No advance this month</p>
+                        <p class="text-mb-subtle text-xs mt-1">You can still check previous records.</p>
+                    <?php endif;?>
+                </div>
+                <?php if($staffAdvanceSchemaReady):?>
+                <a href="staff/advance_history.php" class="inline-flex items-center gap-2 bg-mb-black border border-mb-subtle/30 text-mb-silver hover:text-white hover:border-mb-accent/40 transition-colors px-4 py-2 rounded-lg text-xs uppercase tracking-wider">
+                    View History
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5l7 7-7 7"/></svg>
+                </a>
+                <?php endif;?>
+            </div>
+            <?php if($staffAdvanceSchemaReady && $staffAdvanceMonthCount>0):?>
+                <div class="mt-4 pt-3 border-t border-mb-subtle/15 text-xs text-mb-subtle flex items-center justify-between flex-wrap gap-2">
+                    <span>Outstanding</span>
+                    <span class="<?= $staffAdvanceMonthOutstanding>0?'text-orange-300':'text-green-400' ?>">
+                        $<?= number_format($staffAdvanceMonthOutstanding,2) ?>
+                    </span>
+                </div>
+            <?php elseif($staffAdvanceSchemaReady && $staffAdvancePastCount>0):?>
+                <p class="text-xs text-mb-subtle mt-4 pt-3 border-t border-mb-subtle/15">Past advances available: <?= $staffAdvancePastCount ?></p>
+            <?php endif;?>
+        </div>
+    </section>
+
+    <!-- Assigned Tasks -->
     <?php if (!empty($staffTasks)): ?>
     <section id="tasks-section">
         <h3 class="text-white text-base font-light mb-3 uppercase tracking-wider border-l-2 border-red-400 pl-2">
@@ -338,6 +414,7 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
             if($showR)  $sl[]=["GPS Tracking","gps/index.php"];
             if($showC)  $sl[]=["Clients","clients/index.php"];
             if($showL)  $sl[]=["Pipeline","leads/pipeline.php"];
+            if($staffAdvanceSchemaReady) $sl[]=["Advance History","staff/advance_history.php"];
             $sl[]=["Settings","settings/general.php"];
             foreach($sl as [$n,$h]):?><a href="<?= $h ?>" class="bg-mb-surface border border-mb-subtle/20 p-4 rounded-lg hover:bg-mb-black hover:border-mb-accent/30 transition-all group duration-300 transform hover:-translate-y-1"><p class="text-mb-silver group-hover:text-white transition-colors text-sm uppercase tracking-wide"><?= $n ?></p></a><?php endforeach;?>
         </div>

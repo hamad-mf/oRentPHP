@@ -429,21 +429,23 @@ $_notifs = notif_all($pdo);
                 echo navLink("{$root}accounts/targets.php", 'Targets', $targetIcon, $currentDir === 'accounts' && $currentPage === 'targets.php');
             }
             if ($isAdmin || in_array('manage_staff', $cuPerms, true)) {
-                $sActive = $currentDir === 'staff';
-                $sCls = $sActive
-                    ? 'bg-mb-black text-white border-l-2 border-mb-accent'
-                    : 'text-mb-silver hover:bg-mb-black hover:text-white';
-                echo '<div onclick="toggleSubmenu(\'staff\')" class="flex items-center gap-4 px-4 py-3 transition-all rounded-md group cursor-pointer ' . $sCls . '">
-                    ' . $icons['staff'] . '
-                    <span class="font-light flex-1">Staff</span>
-                    <svg class="w-4 h-4 opacity-50 sidebar-chevron ' . ($sActive ? 'expanded' : '') . '" id="chevron-staff" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                </div>';
-            if ($isAdmin) {
-                echo '<div id="submenu-staff" class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1 sidebar-submenu ' . ($sActive ? 'open' : '') . '">';
-                echo '<a href="' . $root . 'staff/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'staff' && $currentPage !== 'tasks.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Staff List</a>';
-                echo '<a href="' . $root . 'staff/tasks.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'tasks.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Staff Tasks</a>';
-                echo '</div>';
-            }
+                if ($isAdmin) {
+                    $sActive = $currentDir === 'staff';
+                    $sCls = $sActive
+                        ? 'bg-mb-black text-white border-l-2 border-mb-accent'
+                        : 'text-mb-silver hover:bg-mb-black hover:text-white';
+                    echo '<div onclick="toggleSubmenu(\'staff\')" class="flex items-center gap-4 px-4 py-3 transition-all rounded-md group cursor-pointer ' . $sCls . '">
+                        ' . $icons['staff'] . '
+                        <span class="font-light flex-1">Staff</span>
+                        <svg class="w-4 h-4 opacity-50 sidebar-chevron ' . ($sActive ? 'expanded' : '') . '" id="chevron-staff" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </div>';
+                    echo '<div id="submenu-staff" class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1 sidebar-submenu ' . ($sActive ? 'open' : '') . '">';
+                    echo '<a href="' . $root . 'staff/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'staff' && $currentPage !== 'tasks.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Staff List</a>';
+                    echo '<a href="' . $root . 'staff/tasks.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'tasks.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Staff Tasks</a>';
+                    echo '</div>';
+                } else {
+                    echo navLink("{$root}staff/index.php", 'Staff', $icons['staff'], $currentDir === 'staff');
+                }
             }
             if ($isAdmin) {
                 $attendanceIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>';

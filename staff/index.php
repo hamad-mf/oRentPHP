@@ -123,7 +123,7 @@ $s = getFlash('success');
                             <?php if ($m['user_role'] === 'admin'): ?>
                                 <span
                                     class="inline-flex items-center gap-1 text-xs bg-mb-accent/10 text-mb-accent px-2 py-0.5 rounded-full">
-                                     ˜… Admin
+                                       Admin
                                 </span>
                             <?php elseif ($m['user_id']): ?>
                                 <span

@@ -86,3 +86,4 @@ Add one row per release.
 | 2026-03-08 | security_deposit_ledger_tracking | Yes | None | N/A | Added configurable bank account for security deposit tracking. |
 | 2026-03-08 | client_reviews_table | Yes | `migrations/releases/2026-03-08_client_reviews_table.sql` | Applied (phpMyAdmin) | Added `client_reviews` table for history. |
 | 2026-03-08 | pre_payroll_advance | Yes | None | N/A | Refined pre-payroll advances (month/year specific). |
+| 2026-03-09 | configurable_expense_categories | Yes | None | N/A | Added Settings > Expense Categories and wired Accounts expense entry + category filter to use configured categories. |
