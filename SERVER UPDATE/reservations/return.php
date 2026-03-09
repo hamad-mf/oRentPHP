@@ -34,6 +34,7 @@ $damageItems = $pdo->query("SELECT * FROM damage_costs ORDER BY item_name ASC")-
 $pdo->exec("CREATE TABLE IF NOT EXISTS system_settings (`key` VARCHAR(100) NOT NULL PRIMARY KEY, `value` TEXT DEFAULT NULL) ENGINE=InnoDB");
 $pdo->exec("INSERT IGNORE INTO system_settings (`key`, `value`) VALUES ('late_return_rate_per_hour', '0')");
 $lateRatePerHour = (float) $pdo->query("SELECT `value` FROM system_settings WHERE `key`='late_return_rate_per_hour'")->fetchColumn();
+$returnPickupChargeDefault = (float) settings_get($pdo, 'return_pickup_charge_default', '0');
 
 $startDt = new DateTime($r['start_date']);
 $scheduledEndDt = new DateTime($r['end_date']);
@@ -117,11 +118,16 @@ $initialOverdue = $calculateOverdue($scheduledEndDt, $initialActualDt, (float) $
 $overdueDays = (int) ($initialOverdue['days'] ?? 0);
 $overdueAmt = (float) ($initialOverdue['amount'] ?? 0);
 $initialEarlyVoucherCredit = $calculateEarlyReturnCredit($startDt, $scheduledEndDt, $initialActualDt, (float) $r['total_price']);
-$additionalChg = max(0, (float) ($_POST['additional_charge'] ?? ($r['additional_charge'] ?? 0)));
+$existingAdditionalChg = max(0, (float) ($r['additional_charge'] ?? 0));
+$additionalChg = max(0, (float) ($_POST['additional_charge'] ?? ($existingAdditionalChg > 0 ? $existingAdditionalChg : $returnPickupChargeDefault)));
 $chellanAmt = max(0, (float) ($_POST['chellan_amount'] ?? ($r['chellan_amount'] ?? 0)));
 $returnPaymentMethod = reservation_payment_method_normalize($_POST['return_payment_method'] ?? ($r['return_payment_method'] ?? 'cash')) ?? 'cash';
 $returnBankAccountId = (int) ($_POST['return_bank_account_id'] ?? 0);
 $returnBankAccountId = $returnBankAccountId > 0 ? $returnBankAccountId : null;
+$returnPaymentSourceType = trim((string) ($_POST['return_payment_source_type'] ?? 'single'));
+if (!in_array($returnPaymentSourceType, ['single', 'multi'], true)) {
+    $returnPaymentSourceType = 'single';
+}
 $activeBankAccounts = array_values(array_filter(ledger_get_accounts($pdo), fn($a) => (int) ($a['is_active'] ?? 0) === 1));
 
 $errors = [];
@@ -148,7 +154,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $returnBankAccountId = (int) ($_POST['return_bank_account_id'] ?? 0);
     $returnBankAccountId = $returnBankAccountId > 0 ? $returnBankAccountId : null;
     $returnVoucherApplied = 0.0;
-    $returnPaymentSourceType = trim($_POST['return_payment_source_type'] ?? 'single');
+    $returnPaymentSourceType = trim((string) ($_POST['return_payment_source_type'] ?? 'single'));
+    if (!in_array($returnPaymentSourceType, ['single', 'multi'], true)) {
+        $returnPaymentSourceType = 'single';
+    }
     $returnMultiCashAmount = max(0, (float) ($_POST['return_multi_cash_amount'] ?? 0));
     $returnMultiCreditAmount = max(0, (float) ($_POST['return_multi_credit_amount'] ?? 0));
     $returnMultiBankAmount = max(0, (float) ($_POST['return_multi_bank_amount'] ?? 0));
@@ -187,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $discountAmt = 0;
     if ($discType === 'percent') {
         $discountAmt = round($returnChargesBeforeDiscount * min($discVal, 100) / 100, 2);
-    } elseif ($discType === 'percent') {
+    } elseif ($discType === 'amount') {
         $discountAmt = min($discVal, $returnChargesBeforeDiscount);
     }
     $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
@@ -211,15 +220,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     if ($additionalChgInput < 0)
-        $errors['additional_charge'] = 'Additional charge cannot be negative.';
+        $errors['additional_charge'] = 'Return pickup charge cannot be negative.';
     $maxDepositCollected = max(0, (float) ($r['deposit_amount'] ?? 0));
     if ($depositReturned > $maxDepositCollected) {
         $errors['deposit_returned'] = 'Deposit returned cannot exceed collected deposit ($' . number_format($maxDepositCollected, 2) . ').';
     }
-    if ($cashDueAtReturn > 0 && $returnPaymentSourceType === '') {
+    if ($cashDueAtReturn > 0 && $returnPaymentSourceType === 'single') {
         if ($returnPaymentMethod === null)
             $errors['return_payment_method'] = 'Please select how the return payment was received.';
-        if ($returnPaymentMethod === 'bank') {
+        if ($returnPaymentMethod === 'account') {
             if ($returnBankAccountId === null) {
                 $errors['return_bank_account_id'] = 'Please select the bank account that received this payment.';
             } else {
@@ -232,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $returnBankAccountId = null;
         }
-    } elseif ($cashDueAtReturn > 0 && $returnPaymentSourceType === 'single') {
+    } elseif ($cashDueAtReturn > 0 && $returnPaymentSourceType === 'multi') {
         $returnMultiTotal = round($returnMultiCashAmount + $returnMultiCreditAmount + $returnMultiBankAmount, 2);
         if (abs($returnMultiTotal - $cashDueAtReturn) > 0.01) {
             $errors['return_multi_total'] = 'Split amounts must total exactly $' . number_format($cashDueAtReturn, 2) . '. Current total: $' . number_format($returnMultiTotal, 2);
@@ -247,7 +256,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errors['return_multi_bank_account_id'] = 'Selected bank account is invalid or inactive.';
             }
         }
-        $returnPaymentMethod = 'multi';
+        $returnPaymentMethod = null;
+        $returnBankAccountId = null;
     }
     if ($clientRating < 1 || $clientRating > 5)
         $errors['client_rating'] = 'Please rate the client (1 to 5 stars) before completing return.';
@@ -304,7 +314,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
             }
 
-            $returnPaymentMethodSave = $cashDueAtReturn > 0 ? $returnPaymentMethod : null;
+            $returnPaymentMethodSave = ($cashDueAtReturn > 0 && $returnPaymentSourceType === 'single') ? $returnPaymentMethod : null;
             $pdo->prepare("UPDATE reservations SET status='completed', actual_end_date=?, overdue_amount=?,
                 km_driven=?, km_overage_charge=?, damage_charge=?, additional_charge=?, chellan_amount=?, discount_type=?, discount_value=?,
                 return_voucher_applied=?, return_payment_method=?, return_paid_amount=?, early_return_credit=?, voucher_credit_issued=?, deposit_returned=? WHERE id=?")
@@ -346,8 +356,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($errors)) {
             $msg = 'Vehicle returned. Amount due at return: $' . number_format($cashDueAtReturn, 2);
-            if ($cashDueAtReturn > 0) {
+            if ($cashDueAtReturn > 0 && $returnPaymentSourceType === 'single' && $returnPaymentMethodSave !== null) {
                 $msg .= ' | Method: ' . reservation_payment_method_label($returnPaymentMethodSave);
+            } elseif ($cashDueAtReturn > 0 && $returnPaymentSourceType === 'multi') {
+                $msg .= ' | Method: Multi Source';
             }
             $msg .= ' | Base collected at delivery: $' . number_format($baseCollectedAtDelivery, 2);
             if ($r['deposit_amount'] > 0) {
@@ -569,9 +581,9 @@ require_once __DIR__ . '/../includes/header.php';
                         placeholder="Any new damage or issues found?"><?= e($_POST['notes'] ?? '') ?></textarea>
                 </div>
 
-                <!-- Additional Charges & Discount -->
+                <!-- Return Charges & Discount -->
                 <div class="pt-4 border-t border-mb-subtle/10 space-y-5">
-                    <h3 class="text-white text-lg font-light border-l-2 border-orange-500 pl-3">Additional Charges &amp;
+                    <h3 class="text-white text-lg font-light border-l-2 border-orange-500 pl-3">Return Charges &amp;
                         Discount</h3>
 
                     <?php if (!empty($r['km_limit'])): ?>
@@ -625,10 +637,10 @@ require_once __DIR__ . '/../includes/header.php';
                     </div>
 
                     <div>
-                        <label class="block text-sm text-mb-silver mb-2">Manual Additional Charge</label>
+                        <label class="block text-sm text-mb-silver mb-2">Return Pickup Charge</label>
                         <input type="number" name="additional_charge" id="additionalCharge" min="0" step="0.01"
                             placeholder="0.00"
-                            value="<?= e($_POST['additional_charge'] ?? ($r['additional_charge'] ?? '0')) ?>"
+                            value="<?= e($_POST['additional_charge'] ?? ($existingAdditionalChg > 0 ? (string) $existingAdditionalChg : (string) $returnPickupChargeDefault)) ?>"
                             oninput="updateSummary()"
                             class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500/50 transition-colors">
                         <?php if (isset($errors['additional_charge'])): ?>
@@ -692,11 +704,11 @@ require_once __DIR__ . '/../includes/header.php';
                         <!-- Payment Source Type Toggle -->
                         <div class="flex bg-mb-black rounded-lg border border-mb-subtle/20 overflow-hidden mb-3 max-w-xs">
                             <label class="flex-1 text-center cursor-pointer">
-                                <input type="radio" name="return_payment_source_type" value="single" class="hidden peer" checked onchange="toggleReturnPaymentSourceType()">
+                                <input type="radio" name="return_payment_source_type" value="single" class="hidden peer" <?= $returnPaymentSourceType === 'single' ? 'checked' : '' ?> onchange="toggleReturnPaymentSourceType()">
                                 <span class="block py-2 text-xs font-medium peer-checked:bg-mb-accent peer-checked:text-white text-mb-subtle transition-colors">Single Source</span>
                             </label>
                             <label class="flex-1 text-center cursor-pointer">
-                                <input type="radio" name="return_payment_source_type" value="multi" class="hidden peer" onchange="toggleReturnPaymentSourceType()">
+                                <input type="radio" name="return_payment_source_type" value="multi" class="hidden peer" <?= $returnPaymentSourceType === 'multi' ? 'checked' : '' ?> onchange="toggleReturnPaymentSourceType()">
                                 <span class="block py-2 text-xs font-medium peer-checked:bg-mb-accent peer-checked:text-white text-mb-subtle transition-colors">Multi Source</span>
                             </label>
                         </div>
@@ -728,6 +740,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <div class="relative w-44">
                                     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-mb-subtle text-xs">$</span>
                                     <input type="number" name="return_multi_cash_amount" id="returnMultiCashAmount" step="0.01" min="0" placeholder="0.00"
+                                        value="<?= e($_POST['return_multi_cash_amount'] ?? '') ?>"
                                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-7 pr-3 py-2 text-white focus:outline-none focus:border-green-500 text-sm"
                                         oninput="validateReturnMultiTotal()">
                                 </div>
@@ -737,6 +750,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <div class="relative w-44">
                                     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-mb-subtle text-xs">$</span>
                                     <input type="number" name="return_multi_credit_amount" id="returnMultiCreditAmount" step="0.01" min="0" placeholder="0.00"
+                                        value="<?= e($_POST['return_multi_credit_amount'] ?? '') ?>"
                                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-7 pr-3 py-2 text-white focus:outline-none focus:border-amber-500 text-sm"
                                         oninput="validateReturnMultiTotal()">
                                 </div>
@@ -746,6 +760,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <div class="relative w-44">
                                     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-mb-subtle text-xs">$</span>
                                     <input type="number" name="return_multi_bank_amount" id="returnMultiBankAmount" step="0.01" min="0" placeholder="0.00"
+                                        value="<?= e($_POST['return_multi_bank_amount'] ?? '') ?>"
                                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-7 pr-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm"
                                         oninput="validateReturnMultiTotal()">
                                 </div>
@@ -758,7 +773,7 @@ require_once __DIR__ . '/../includes/header.php';
                                             class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm">
                                             <option value="">Select account</option>
                                             <?php foreach ($activeBankAccounts as $acc): ?>
-                                                <option value="<?= (int) $acc['id'] ?>"><?= e($acc['name']) ?></option>
+                                                <option value="<?= (int) $acc['id'] ?>" <?= (int) ($_POST['return_multi_bank_account_id'] ?? 0) === (int) $acc['id'] ? 'selected' : '' ?>><?= e($acc['name']) ?></option>
                                             <?php endforeach; ?>
                                         </select>
                                     </div>
@@ -833,7 +848,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 Charges</span><span id="previewDmgAmt"></span></div>
                         <div id="previewAdditionalRow"
                             class="justify-between text-orange-300 <?= $additionalChg > 0 ? 'flex' : 'hidden' ?>">
-                            <span>Additional Charge</span>
+                            <span>Return Pickup Charge</span>
                             <span
                                 id="previewAdditionalAmt"><?= $additionalChg > 0 ? '+$' . number_format($additionalChg, 2) : '' ?></span>
                         </div>
@@ -1256,6 +1271,10 @@ function updateSummary(){
     }
     document.getElementById("grandTotalDisplay").textContent="$"+total.toFixed(2);
     toggleReturnBankField();
+    var sourceTypeEl = document.querySelector("input[name=\"return_payment_source_type\"]:checked");
+    if (sourceTypeEl && sourceTypeEl.value === "multi") {
+        validateReturnMultiTotal();
+    }
 }
 const slider=document.getElementById("fuelSlider");
 const valEl=document.getElementById("fuel-val");
@@ -1280,6 +1299,7 @@ const returnPaymentMethodEl=document.getElementById("returnPaymentMethod");
 if(returnPaymentMethodEl){
     returnPaymentMethodEl.addEventListener("change", toggleReturnBankField);
 }
+toggleReturnPaymentSourceType();
 
 const returnForm=document.getElementById("returnForm");
 const ratingModal=document.getElementById("ratingModal");

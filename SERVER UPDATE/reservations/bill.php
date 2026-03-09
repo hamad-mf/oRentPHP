@@ -722,7 +722,7 @@ function fdt(?string $dt): string
                         <?php endif; ?>
                         <?php if ($additionalChg > 0): ?>
                             <tr style="color:#c2410c">
-                                <td>Additional Charge</td>
+                                <td>Return Pickup Charge</td>
                                 <td class="val">+$<?= number_format($additionalChg, 2) ?></td>
                             </tr>
                         <?php endif; ?>

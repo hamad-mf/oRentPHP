@@ -16,6 +16,9 @@ if (settings_get($pdo, 'deposit_percentage', '') === '') {
 if (settings_get($pdo, 'delivery_charge_default', '') === '') {
     settings_set($pdo, 'delivery_charge_default', '0');
 }
+if (settings_get($pdo, 'return_pickup_charge_default', '') === '') {
+    settings_set($pdo, 'return_pickup_charge_default', '0');
+}
 if (settings_get($pdo, 'lead_incentive_per_lead', '') === '') {
     settings_set($pdo, 'lead_incentive_per_lead', '0');
 }
@@ -34,15 +37,37 @@ if (settings_get($pdo, 'security_deposit_bank_account_id', '') === '') {
 }
 
 $leadSources = lead_sources_get_map($pdo);
+$mobileBottomNavCatalog = mobile_bottom_nav_catalog();
 $activeBankAccounts = array_values(array_filter(ledger_get_accounts($pdo), fn($a) => (int) ($a['is_active'] ?? 0) === 1));
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $postedBottomNavKeys = $_POST['mobile_bottom_nav_keys'] ?? [];
+    if (!is_array($postedBottomNavKeys)) {
+        $postedBottomNavKeys = [];
+    }
+    $selectedBottomNavKeys = [];
+    $seenBottomNav = [];
+    foreach ($postedBottomNavKeys as $rawKey) {
+        $key = strtolower(trim((string) $rawKey));
+        if ($key === '' || !isset($mobileBottomNavCatalog[$key]) || isset($seenBottomNav[$key])) {
+            continue;
+        }
+        $seenBottomNav[$key] = true;
+        $selectedBottomNavKeys[] = $key;
+    }
+    if (count($selectedBottomNavKeys) !== 5) {
+        flash('error', 'Please select exactly 5 menu items for the mobile bottom bar.');
+        redirect('general.php');
+    }
+
     $rate = max(0, (float) ($_POST['late_return_rate_per_hour'] ?? 0));
     settings_set($pdo, 'late_return_rate_per_hour', (string) $rate);
     $depositPct = min(100, max(0, (float) ($_POST['deposit_percentage'] ?? 0)));
     settings_set($pdo, 'deposit_percentage', (string) $depositPct);
     $deliveryChargeDefault = max(0, (float) ($_POST['delivery_charge_default'] ?? 0));
     settings_set($pdo, 'delivery_charge_default', (string) $deliveryChargeDefault);
+    $returnPickupChargeDefault = max(0, (float) ($_POST['return_pickup_charge_default'] ?? 0));
+    settings_set($pdo, 'return_pickup_charge_default', (string) $returnPickupChargeDefault);
     $leadIncentivePerLead = max(0, (float) ($_POST['lead_incentive_per_lead'] ?? 0));
     settings_set($pdo, 'lead_incentive_per_lead', (string) $leadIncentivePerLead);
     $perPage = max(5, min(200, (int) ($_POST['per_page'] ?? 25)));
@@ -63,6 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         settings_set($pdo, 'security_deposit_bank_account_id', '0');
     }
+    settings_set($pdo, 'mobile_bottom_nav_keys', mobile_bottom_nav_encode_keys($selectedBottomNavKeys));
     app_log('ACTION', 'Updated general settings');
     flash('success', 'Settings saved successfully.');
     redirect('general.php');
@@ -71,12 +97,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $lateRate = (float) settings_get($pdo, 'late_return_rate_per_hour', '0');
 $depositPct = (float) settings_get($pdo, 'deposit_percentage', '0');
 $deliveryChargeDefault = (float) settings_get($pdo, 'delivery_charge_default', '0');
+$returnPickupChargeDefault = (float) settings_get($pdo, 'return_pickup_charge_default', '0');
 $leadIncentivePerLead = (float) settings_get($pdo, 'lead_incentive_per_lead', '0');
 $perPageSetting = (int) settings_get($pdo, 'per_page', '25');
 $pipelinePaginationEnabledSetting = settings_get($pdo, 'pipeline_pagination_enabled', '1') !== '0';
 $autoCloseAfterSetting = (int) settings_get($pdo, 'auto_close_lost_after_followups', '0');
 $deliveryIncentiveSetting = (float) settings_get($pdo, 'delivery_incentive_per_delivery', '0');
 $securityDepositBankAccountIdSetting = (int) settings_get($pdo, 'security_deposit_bank_account_id', '0');
+$mobileBottomNavSelectedKeys = mobile_bottom_nav_get_keys($pdo, 5);
 
 $pageTitle = 'Settings';
 require_once __DIR__ . '/../includes/header.php';
@@ -137,6 +165,15 @@ require_once __DIR__ . '/../includes/header.php';
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm" placeholder="0.00">
                 </div>
                 <p class="text-xs text-mb-subtle mt-1">Prefilled in delivery screen, still editable per reservation.</p>
+            </div>
+            <div>
+                <label class="block text-sm text-mb-silver mb-2">Default Return Pickup Charge ($)</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
+                    <input type="number" name="return_pickup_charge_default" value="<?= $returnPickupChargeDefault ?>" min="0" step="0.01" required
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm" placeholder="0.00">
+                </div>
+                <p class="text-xs text-mb-subtle mt-1">Prefilled in return screen as Return Pickup Charge, still editable per reservation.</p>
             </div>
             <div class="pt-2 border-t border-mb-subtle/10">
                 <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Delivery Deposit</h3>
@@ -259,6 +296,26 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         </div>
 
+        <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-4">
+            <div>
+                <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Mobile Bottom Bar Menus</h3>
+                <p class="text-xs text-mb-subtle mt-2 ml-5">Choose exactly 5 items for the mobile bottom navigation bar.</p>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <?php foreach ($mobileBottomNavCatalog as $menuKey => $menuLabel): ?>
+                    <label class="flex items-center gap-3 bg-mb-black/50 border border-mb-subtle/20 rounded-lg px-4 py-3 text-sm text-mb-silver hover:border-mb-accent/40 transition-colors cursor-pointer">
+                        <input type="checkbox"
+                            name="mobile_bottom_nav_keys[]"
+                            value="<?= e($menuKey) ?>"
+                            class="rounded border-mb-subtle/30 bg-mb-black text-mb-accent focus:ring-mb-accent/40 mobile-bottom-nav-checkbox"
+                            <?= in_array($menuKey, $mobileBottomNavSelectedKeys, true) ? 'checked' : '' ?>>
+                        <span><?= e($menuLabel) ?></span>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+            <p id="mobileBottomNavCount" class="text-xs text-mb-subtle">Selected: 0 / 5</p>
+        </div>
+
         <div class="flex items-center justify-end gap-4">
             <button type="submit" class="bg-mb-accent text-white px-8 py-3 rounded-full hover:bg-mb-accent/80 transition-colors font-medium shadow-lg shadow-mb-accent/20">
                 Save Settings
@@ -281,5 +338,40 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     <?php endif; ?>
 </div>
+
+<script>
+(function () {
+    const boxes = Array.from(document.querySelectorAll('.mobile-bottom-nav-checkbox'));
+    const counter = document.getElementById('mobileBottomNavCount');
+    if (!boxes.length || !counter) return;
+
+    function selectedCount() {
+        return boxes.filter(function (box) { return box.checked; }).length;
+    }
+
+    function refreshCounter() {
+        const count = selectedCount();
+        counter.textContent = 'Selected: ' + count + ' / 5';
+        if (count === 5) {
+            counter.className = 'text-xs text-green-400';
+        } else {
+            counter.className = 'text-xs text-red-400';
+        }
+    }
+
+    boxes.forEach(function (box) {
+        box.addEventListener('change', function () {
+            const count = selectedCount();
+            if (count > 5) {
+                box.checked = false;
+                return;
+            }
+            refreshCounter();
+        });
+    });
+
+    refreshCounter();
+})();
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

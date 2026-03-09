@@ -275,7 +275,7 @@ function fuelBar(int $pct): string
 
                 <?php if ($additionalChg > 0): ?>
                     <div class="flex justify-between text-sm">
-                        <span class="text-orange-400/80">Additional Charge</span>
+                        <span class="text-orange-400/80">Return Pickup Charge</span>
                         <span class="text-orange-400/80">+$<?= number_format($additionalChg, 2) ?></span>
                     </div>
                 <?php endif; ?>

@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/db.php';
 auth_check();
 $_currentUser = current_user();
 require_once __DIR__ . '/notifications.php';
+require_once __DIR__ . '/settings_helpers.php';
 $_notifCount = notif_count($pdo);
 $_notifs = notif_all($pdo);
 ?>
@@ -298,6 +299,22 @@ $_notifs = notif_all($pdo);
         .sidebar-chevron.expanded { transform: rotate(90deg); }
         .sidebar-submenu { display: none !important; }
         .sidebar-submenu.open { display: block !important; }
+
+        /* Mobile bottom navigation */
+        .mobile-bottom-nav {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .light-mode .mobile-bottom-nav {
+            background-color: rgba(255, 255, 255, 0.95) !important;
+            border-top-color: rgba(15, 23, 42, 0.12) !important;
+        }
+        .light-mode .mobile-bottom-nav a {
+            color: #64748b;
+        }
+        .light-mode .mobile-bottom-nav a.mobile-bottom-nav-active {
+            color: #0284c7;
+        }
     </style>
 </head>
 
@@ -388,7 +405,7 @@ $_notifs = notif_all($pdo);
             $isAdmin = ($_currentUser['role'] ?? '') === 'admin';
             $cuPerms = $_currentUser['permissions'] ?? [];
 
-            $isDash = $currentPage === 'index.php' && !in_array($currentDir, ['vehicles', 'clients', 'reservations', 'investments', 'gps', 'papers', 'expenses', 'challans', 'staff', 'settings', 'leads'], true);
+            $isDash = $currentPage === 'index.php' && $moduleIdx === null;
             echo navLink("{$root}index.php", 'Dashboard', $icons['dashboard'], $isDash);
 
             if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
@@ -456,6 +473,58 @@ $_notifs = notif_all($pdo);
                 echo navLink("{$root}investments/index.php", 'Investments', $investIcon, $currentDir === 'investments');
             }
             echo navLink("{$root}settings/general.php", 'Settings', $icons['settings'], $currentDir === 'settings');
+
+            $canVehicles = $isAdmin || in_array('add_vehicles', $cuPerms, true);
+            $canClients = $isAdmin || in_array('manage_clients', $cuPerms, true);
+            $canPipeline = $isAdmin || in_array('add_leads', $cuPerms, true);
+            $canReservations = $isAdmin || !empty(array_intersect(['add_reservations', 'do_delivery', 'do_return'], $cuPerms));
+            $canGps = $canReservations;
+            $canAccounts = $isAdmin || in_array('view_finances', $cuPerms, true);
+            $mobileAccountIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>';
+            $mobileMenuCatalog = [
+                'dashboard' => ['href' => "{$root}index.php", 'label' => 'Dashboard', 'icon' => $icons['dashboard'], 'active' => $isDash, 'allowed' => true],
+                'vehicles' => ['href' => "{$root}vehicles/index.php", 'label' => 'Vehicles', 'icon' => $icons['vehicles'], 'active' => $currentDir === 'vehicles', 'allowed' => $canVehicles],
+                'pipeline' => ['href' => "{$root}leads/pipeline.php", 'label' => 'Pipeline', 'icon' => $icons['pipeline'], 'active' => $currentDir === 'leads', 'allowed' => $canPipeline],
+                'reservations' => ['href' => "{$root}reservations/index.php", 'label' => 'Bookings', 'icon' => $icons['reservations'], 'active' => $currentDir === 'reservations', 'allowed' => $canReservations],
+                'accounts' => ['href' => "{$root}accounts/index.php", 'label' => 'Accounts', 'icon' => $mobileAccountIcon, 'active' => $currentDir === 'accounts', 'allowed' => $canAccounts],
+                'clients' => ['href' => "{$root}clients/index.php", 'label' => 'Clients', 'icon' => $icons['clients'], 'active' => $currentDir === 'clients', 'allowed' => $canClients],
+                'gps' => ['href' => "{$root}gps/index.php", 'label' => 'GPS', 'icon' => $icons['gps'], 'active' => $currentDir === 'gps', 'allowed' => $canGps],
+                'settings' => ['href' => "{$root}settings/general.php", 'label' => 'Settings', 'icon' => $icons['settings'], 'active' => $currentDir === 'settings', 'allowed' => true],
+            ];
+
+            $mobileNavItems = [];
+            $mobileAddedKeys = [];
+            $mobileSelectedKeys = mobile_bottom_nav_get_keys($pdo, 5);
+            foreach ($mobileSelectedKeys as $menuKey) {
+                if (!isset($mobileMenuCatalog[$menuKey])) {
+                    continue;
+                }
+                $menu = $mobileMenuCatalog[$menuKey];
+                if (empty($menu['allowed']) || isset($mobileAddedKeys[$menuKey])) {
+                    continue;
+                }
+                unset($menu['allowed']);
+                $mobileAddedKeys[$menuKey] = true;
+                $mobileNavItems[] = $menu;
+            }
+
+            $mobileFallbackOrder = array_merge(mobile_bottom_nav_default_keys(), array_keys($mobileMenuCatalog));
+            foreach ($mobileFallbackOrder as $menuKey) {
+                if (count($mobileNavItems) >= 5) {
+                    break;
+                }
+                if (!isset($mobileMenuCatalog[$menuKey]) || isset($mobileAddedKeys[$menuKey])) {
+                    continue;
+                }
+                $menu = $mobileMenuCatalog[$menuKey];
+                if (empty($menu['allowed'])) {
+                    continue;
+                }
+                unset($menu['allowed']);
+                $mobileAddedKeys[$menuKey] = true;
+                $mobileNavItems[] = $menu;
+            }
+            $mobileNavItems = array_slice($mobileNavItems, 0, 5);
             ?>
         </nav>
 
@@ -482,6 +551,30 @@ $_notifs = notif_all($pdo);
     </aside>
 
     <div id="app-sidebar-backdrop" class="fixed inset-0 z-[60] bg-black/60 hidden md:hidden"></div>
+    <?php if (!empty($mobileNavItems)): ?>
+    <nav id="mobile-bottom-nav"
+        class="mobile-bottom-nav md:hidden fixed inset-x-0 bottom-0 z-[55] border-t border-mb-subtle/30 bg-mb-surface/95">
+        <div class="flex items-center justify-between gap-1 px-2 pt-1.5"
+            style="padding-bottom: calc(env(safe-area-inset-bottom) + 0.375rem);">
+            <?php foreach ($mobileNavItems as $item): ?>
+                <?php
+                    $isActiveMobile = !empty($item['active']);
+                    $itemIcon = (string) ($item['icon'] ?? '');
+                    if ($isActiveMobile) {
+                        $itemIcon = str_replace('opacity-70 group-hover:opacity-100', 'opacity-100', $itemIcon);
+                    }
+                ?>
+                <a href="<?= e((string) ($item['href'] ?? '#')) ?>"
+                    class="group flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-1.5 rounded-md transition-colors <?= $isActiveMobile ? 'mobile-bottom-nav-active text-mb-accent' : 'text-mb-silver hover:text-white' ?>">
+                    <?= $itemIcon ?>
+                    <span class="text-[11px] leading-none truncate w-full text-center px-1">
+                        <?= e((string) ($item['label'] ?? '')) ?>
+                    </span>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    </nav>
+    <?php endif; ?>
 
     <!-- Main Content -->
     <main class="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative">
@@ -795,4 +888,4 @@ $_notifs = notif_all($pdo);
             </script>        </header>
 
         <!-- Page Content -->
-        <div class="flex-1 min-h-0 overflow-y-auto bg-gradient-to-br from-mb-black to-mb-surface p-4 sm:p-6 md:p-8">
+        <div class="flex-1 min-h-0 overflow-y-auto bg-gradient-to-br from-mb-black to-mb-surface p-4 sm:p-6 md:p-8 pb-24 sm:pb-24 md:pb-8">

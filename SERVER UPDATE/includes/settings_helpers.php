@@ -29,6 +29,106 @@ function settings_set(PDO $pdo, string $key, string $value): void
     $stmt->execute([$key, $value]);
 }
 
+function mobile_bottom_nav_catalog(): array
+{
+    return [
+        'dashboard' => 'Dashboard',
+        'vehicles' => 'Vehicles',
+        'pipeline' => 'Pipeline',
+        'reservations' => 'Bookings',
+        'accounts' => 'Accounts',
+        'clients' => 'Clients',
+        'gps' => 'GPS',
+        'settings' => 'Settings',
+    ];
+}
+
+function mobile_bottom_nav_default_keys(): array
+{
+    return ['dashboard', 'vehicles', 'pipeline', 'reservations', 'accounts'];
+}
+
+function mobile_bottom_nav_encode_keys(array $keys): string
+{
+    $catalog = mobile_bottom_nav_catalog();
+    $clean = [];
+    $seen = [];
+
+    foreach ($keys as $key) {
+        $normalized = strtolower(trim((string) $key));
+        if ($normalized === '' || !isset($catalog[$normalized]) || isset($seen[$normalized])) {
+            continue;
+        }
+        $seen[$normalized] = true;
+        $clean[] = $normalized;
+    }
+
+    if (empty($clean)) {
+        $clean = mobile_bottom_nav_default_keys();
+    }
+
+    return json_encode(array_values($clean), JSON_UNESCAPED_UNICODE) ?: '[]';
+}
+
+function mobile_bottom_nav_decode_keys(string $encoded): array
+{
+    $decoded = json_decode($encoded, true);
+    $rawItems = is_array($decoded) ? $decoded : preg_split('/\r\n|\r|\n|,/', $encoded);
+    if (!is_array($rawItems)) {
+        return mobile_bottom_nav_default_keys();
+    }
+
+    $catalog = mobile_bottom_nav_catalog();
+    $keys = [];
+    $seen = [];
+
+    foreach ($rawItems as $item) {
+        $key = strtolower(trim((string) $item));
+        if ($key === '' || !isset($catalog[$key]) || isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        $keys[] = $key;
+    }
+
+    return empty($keys) ? mobile_bottom_nav_default_keys() : $keys;
+}
+
+function mobile_bottom_nav_get_keys(PDO $pdo, int $requiredCount = 5): array
+{
+    $requiredCount = max(1, min(8, $requiredCount));
+
+    $defaults = mobile_bottom_nav_default_keys();
+    $defaultEncoded = mobile_bottom_nav_encode_keys($defaults);
+
+    settings_ensure_table($pdo);
+    $stmt = $pdo->prepare("INSERT IGNORE INTO system_settings (`key`, `value`) VALUES ('mobile_bottom_nav_keys', ?)");
+    $stmt->execute([$defaultEncoded]);
+
+    $stored = settings_get($pdo, 'mobile_bottom_nav_keys', $defaultEncoded);
+    $keys = mobile_bottom_nav_decode_keys($stored);
+
+    $catalog = mobile_bottom_nav_catalog();
+    foreach ($defaults as $key) {
+        if (count($keys) >= $requiredCount) {
+            break;
+        }
+        if (isset($catalog[$key]) && !in_array($key, $keys, true)) {
+            $keys[] = $key;
+        }
+    }
+    foreach (array_keys($catalog) as $key) {
+        if (count($keys) >= $requiredCount) {
+            break;
+        }
+        if (!in_array($key, $keys, true)) {
+            $keys[] = $key;
+        }
+    }
+
+    return array_slice($keys, 0, $requiredCount);
+}
+
 function lead_sources_default_map(): array
 {
     return [
