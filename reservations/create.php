@@ -450,8 +450,58 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php endif; ?>
                     </div>
 
+                    <!-- Advance Collected -->
+                    <div class="order-8">
+                        <label class="block text-sm text-mb-silver mb-2">Advance Collected (Optional)</label>
+                        <input type="number" name="advance_paid" id="advancePaid"
+                            value="<?= e($_POST['advance_paid'] ?? '') ?>" step="0.01"
+                            min="0" placeholder="0.00"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent text-sm">
+                        <p class="text-xs text-mb-subtle mt-1">
+                            Advance reduces the amount to be collected at delivery.
+                        </p>
+                        <?php if (isset($errors['advance_paid'])): ?>
+                            <p class="text-red-400 text-xs mt-1"><?= e($errors['advance_paid']) ?></p>
+                        <?php endif; ?>
+                    </div>
+
+                    <div id="advanceMethodWrap" class="order-9 hidden space-y-2">
+                        <label class="block text-xs text-mb-silver">Advance Payment Method</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <?php
+                            $advanceMethods = ['cash' => 'Cash', 'account' => 'Account', 'credit' => 'Credit'];
+                            foreach ($advanceMethods as $val => $label):
+                                ?>
+                                <label class="flex items-center gap-2 cursor-pointer bg-mb-black/30 border border-mb-subtle/10 rounded-lg px-3 py-2 hover:border-mb-accent/40 transition-all">
+                                    <input type="radio" name="advance_payment_method" value="<?= $val ?>"
+                                        <?= (($_POST['advance_payment_method'] ?? '') === $val) ? 'checked' : '' ?>
+                                        class="accent-mb-accent" onchange="toggleAdvanceBankField()">
+                                    <span class="text-mb-silver text-sm"><?= $label ?></span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php if (isset($errors['advance_payment_method'])): ?>
+                            <p class="text-red-400 text-xs mt-1"><?= e($errors['advance_payment_method']) ?></p>
+                        <?php endif; ?>
+                        <div id="advanceBankWrap" class="hidden">
+                            <label class="block text-xs text-mb-silver mb-1">Bank Account</label>
+                            <select name="advance_bank_account_id" id="advanceBankAccount"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
+                                <option value="">Select account</option>
+                                <?php foreach ($activeBankAccounts as $acc): ?>
+                                    <option value="<?= (int) $acc['id'] ?>" <?= ((string)($_POST['advance_bank_account_id'] ?? '')) === (string)$acc['id'] ? 'selected' : '' ?>>
+                                        <?= e($acc['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (isset($errors['advance_bank_account_id'])): ?>
+                                <p class="text-red-400 text-xs mt-1"><?= e($errors['advance_bank_account_id']) ?></p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
                     <!-- Reservation Note -->
-                    <div class="order-7">
+                    <div class="order-10">
                         <label class="block text-sm text-mb-silver mb-2">Reservation Note (Optional)</label>
                         <textarea name="reservation_note" rows="2" placeholder="Add any special instructions or notes..."
                             class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent"><?= e($_POST['reservation_note'] ?? '') ?></textarea>
