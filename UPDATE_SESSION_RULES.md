@@ -91,3 +91,4 @@ Add one row per release.
 | 2026-03-11 | staff_incentives | Yes | `migrations/releases/2026-03-11_staff_incentives.sql` | Pending | Staff incentives per month from profile, history tracking, auto-included in payroll generation. |
 | 2026-03-11 | staff_admin_dashboard_toggle | Yes | `migrations/releases/2026-03-11_staff_admin_dashboard_toggle.sql` | Pending | Add toggle in staff profile to allow staff view admin dashboard. |
 | 2026-03-11 | reservation_notes | Yes | `migrations/releases/2026-03-11_reservation_notes.sql` | Pending | Add optional note field when creating reservation, displayed on details page. |
+| 2026-03-11 | client_proofs | Yes | `migrations/releases/2026-03-11_client_proofs.sql` | Pending | Multiple client proof uploads (max 5) via new client_proofs table. |

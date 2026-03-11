@@ -59,3 +59,29 @@ function clients_has_column(PDO $pdo, string $column): bool
 
     return $cache[$key];
 }
+
+function clients_has_table(PDO $pdo, string $table): bool
+{
+    static $cache = [];
+    if (array_key_exists($table, $cache)) {
+        return $cache[$table];
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = ?
+        ");
+        $stmt->execute([$table]);
+        $cache[$table] = ((int) $stmt->fetchColumn()) > 0;
+    } catch (Throwable $e) {
+        app_log('ERROR', "Client helper: table check failed for {$table} - " . $e->getMessage(), [
+            'file' => $e->getFile() . ':' . $e->getLine(),
+        ]);
+        $cache[$table] = false;
+    }
+
+    return $cache[$table];
+}

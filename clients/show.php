@@ -1,8 +1,10 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/client_helpers.php';
 
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
+$supportsClientProofs = clients_has_table($pdo, 'client_proofs');
 
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -46,6 +48,18 @@ if (!$c) {
     flash('error', 'Client not found.');
     redirect('index.php');
 }
+
+$clientProofs = [];
+if ($supportsClientProofs) {
+    try {
+        $pStmt = $pdo->prepare('SELECT * FROM client_proofs WHERE client_id = ? ORDER BY created_at DESC');
+        $pStmt->execute([$id]);
+        $clientProofs = $pStmt->fetchAll();
+    } catch (Throwable $e) {
+        $clientProofs = [];
+    }
+}
+$legacyProofFile = $c['proof_file'] ?? null;
 
 $resStmt = $pdo->prepare('SELECT r.*, v.brand, v.model, v.license_plate FROM reservations r JOIN vehicles v ON r.vehicle_id = v.id WHERE r.client_id = ? ORDER BY r.created_at DESC');
 $resStmt->execute([$id]);
@@ -162,20 +176,41 @@ require_once __DIR__ . '/../includes/header.php';
                 <p class="text-mb-silver text-sm"><?= e($c['notes']) ?></p>
             </div>
         <?php endif; ?>
-        <?php if (!empty($c['proof_file'])): ?>
+        <?php
+        $totalProofs = ($legacyProofFile ? 1 : 0) + count($clientProofs);
+        ?>
+        <?php if ($legacyProofFile || !empty($clientProofs)): ?>
             <div class="mt-4 bg-mb-black/30 border border-mb-subtle/10 rounded-lg px-4 py-3">
-                <p class="text-mb-subtle text-xs uppercase font-medium mb-3">📎 ID / Proof Document</p>
-                <?php $proofExt = strtolower(pathinfo($c['proof_file'], PATHINFO_EXTENSION)); ?>
-                <?php if (in_array($proofExt, ['jpg', 'jpeg', 'png'])): ?>
-                    <a href="<?= $root . e($c['proof_file']) ?>" target="_blank">
-                        <img src="<?= $root . e($c['proof_file']) ?>" alt="Proof document"
-                            class="max-h-48 rounded-lg border border-mb-subtle/20 hover:opacity-80 transition-opacity">
-                    </a>
-                <?php else: ?>
-                    <a href="<?= $root . e($c['proof_file']) ?>" target="_blank"
-                        class="inline-flex items-center gap-2 bg-mb-accent/10 border border-mb-accent/30 text-mb-accent px-4 py-2 rounded-lg text-sm hover:bg-mb-accent/20 transition-colors">
-                        📄 View PDF Document
-                    </a>
+                <p class="text-mb-subtle text-xs uppercase font-medium mb-3">ID / Proof Documents
+                    <span class="text-mb-subtle text-[10px] ml-2"><?= $totalProofs ?> file(s)</span>
+                </p>
+                <?php if ($legacyProofFile): ?>
+                    <?php $proofExt = strtolower(pathinfo($legacyProofFile, PATHINFO_EXTENSION)); ?>
+                    <?php if (in_array($proofExt, ['jpg', 'jpeg', 'png'])): ?>
+                        <a href="<?= $root . e($legacyProofFile) ?>" target="_blank">
+                            <img src="<?= $root . e($legacyProofFile) ?>" alt="Proof document"
+                                class="max-h-48 rounded-lg border border-mb-subtle/20 hover:opacity-80 transition-opacity">
+                        </a>
+                    <?php else: ?>
+                        <a href="<?= $root . e($legacyProofFile) ?>" target="_blank"
+                            class="inline-flex items-center gap-2 bg-mb-accent/10 border border-mb-accent/30 text-mb-accent px-4 py-2 rounded-lg text-sm hover:bg-mb-accent/20 transition-colors">
+                            View legacy document
+                        </a>
+                    <?php endif; ?>
+                <?php endif; ?>
+                <?php if (!empty($clientProofs)): ?>
+                    <div class="mt-3 space-y-2">
+                        <?php foreach ($clientProofs as $doc): ?>
+                            <div class="flex items-center justify-between gap-3 bg-mb-black/30 border border-mb-subtle/20 rounded-lg px-3 py-2">
+                                <div class="min-w-0">
+                                    <p class="text-white text-xs truncate"><?= e($doc['title'] ?: basename($doc['file_path'])) ?></p>
+                                    <p class="text-mb-subtle text-[10px] uppercase"><?= e($doc['type'] ?? '') ?></p>
+                                </div>
+                                <a href="<?= $root . e($doc['file_path']) ?>" target="_blank"
+                                    class="text-mb-accent text-xs hover:underline">View</a>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
                 <?php endif; ?>
             </div>
         <?php endif; ?>

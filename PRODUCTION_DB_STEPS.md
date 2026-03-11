@@ -11,6 +11,10 @@ This file tracks all database changes that need to be applied to **production** 
 
 ## Pending
 
+### 2026-03-11 - Client Proof Documents
+**SQL file:** `migrations/releases/2026-03-11_client_proofs.sql`
+**Notes:** Adds `client_proofs` table for storing up to 5 proof documents per client.
+
 ### 2026-03-11 - Reservation Notes
 **SQL file:** `migrations/releases/2026-03-11_reservation_notes.sql`
 **Notes:** Adds optional `note` column to reservations table. Note can be added during reservation creation and displayed on reservation details page.

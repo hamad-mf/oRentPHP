@@ -322,7 +322,8 @@ function ledger_kpi_exclusion_clause(string $alias = ''): string
     if ($prefix !== '') {
         $prefix = rtrim($prefix, '.') . '.';
     }
-    return "(" . $prefix . "source_event IS NULL OR " . $prefix . "source_event NOT IN ('security_deposit_in','security_deposit_out'))";
+    return "(" . $prefix . "source_event IS NULL OR " . $prefix . "source_event NOT IN ('security_deposit_in','security_deposit_out','transfer_out','transfer_in'))"
+        . " AND (" . $prefix . "source_type IS NULL OR " . $prefix . "source_type <> 'transfer')";
 }
 
 /**
@@ -549,6 +550,87 @@ function ledger_transfer(
         if ($pdo->inTransaction())
             $pdo->rollBack();
         app_log('ERROR', "Ledger transfer failed: " . $e->getMessage());
+        $error = 'Database error. Please try again.';
+        return false;
+    }
+}
+
+/**
+ * Transfer funds from Cash to a bank account atomically.
+ * - Creates a cash expense entry ("Transfer Out")
+ * - Creates an account income entry ("Transfer In")
+ * - Updates destination bank balance in the same transaction
+ *
+ * @param  string $error  Populated with a reason on failure.
+ * @return bool
+ */
+function ledger_transfer_cash_to_bank(
+    PDO $pdo,
+    int $toId,
+    float $amount,
+    ?string $description,
+    int $userId,
+    ?string $postedAt = null,
+    string &$error = ''
+): bool {
+    ledger_ensure_schema($pdo);
+
+    if ($toId <= 0) {
+        $error = 'Please select a destination bank account.';
+        return false;
+    }
+    if ($amount <= 0) {
+        $error = 'Transfer amount must be greater than zero.';
+        return false;
+    }
+
+    $stmt = $pdo->prepare("SELECT id, name, is_active FROM bank_accounts WHERE id = ? LIMIT 1");
+    $stmt->execute([$toId]);
+    $acct = $stmt->fetch();
+
+    if (!$acct || !(int) $acct['is_active']) {
+        $error = 'Destination account not found or inactive.';
+        return false;
+    }
+
+    $cashIncome  = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income'")->fetchColumn();
+    $cashExpense = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense'")->fetchColumn();
+    $cashBalance = $cashIncome - $cashExpense;
+
+    if ($cashBalance < $amount) {
+        $error = 'Insufficient cash balance (Balance: $' . number_format($cashBalance, 2) . ').';
+        return false;
+    }
+
+    $postedAt = $postedAt ?? (new DateTime('now', new DateTimeZone('Asia/Kolkata')))->format('Y-m-d H:i:s');
+    $desc = $description ?: ('Cash transfer to ' . $acct['name']);
+
+    try {
+        $pdo->beginTransaction();
+
+        $pdo->prepare("INSERT INTO ledger_entries
+            (txn_type, category, description, amount, payment_mode, bank_account_id,
+             source_type, source_event, posted_at, created_by)
+            VALUES ('expense', 'Transfer Out', ?, ?, 'cash', NULL, 'transfer', 'transfer_out', ?, ?)")
+            ->execute([$desc, $amount, $postedAt, $userId]);
+
+        $pdo->prepare("INSERT INTO ledger_entries
+            (txn_type, category, description, amount, payment_mode, bank_account_id,
+             source_type, source_event, posted_at, created_by)
+            VALUES ('income', 'Transfer In', ?, ?, 'account', ?, 'transfer', 'transfer_in', ?, ?)")
+            ->execute([$desc, $amount, $toId, $postedAt, $userId]);
+
+        $pdo->prepare("UPDATE bank_accounts SET balance = balance + ? WHERE id = ?")
+            ->execute([$amount, $toId]);
+
+        $pdo->commit();
+        app_log('ACTION', "Ledger: cash transfer $$amount to account#$toId by user#$userId");
+        return true;
+
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction())
+            $pdo->rollBack();
+        app_log('ERROR', "Ledger cash transfer failed: " . $e->getMessage());
         $error = 'Database error. Please try again.';
         return false;
     }
