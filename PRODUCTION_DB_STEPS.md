@@ -11,6 +11,22 @@ This file tracks all database changes that need to be applied to **production** 
 
 ## Pending
 
+### 2026-03-11 - Reservation Notes
+**SQL file:** `migrations/releases/2026-03-11_reservation_notes.sql`
+**Notes:** Adds optional `note` column to reservations table. Note can be added during reservation creation and displayed on reservation details page.
+
+### 2026-03-11 - Staff Admin Dashboard Toggle
+**SQL file:** `migrations/releases/2026-03-11_staff_admin_dashboard_toggle.sql`
+**Notes:** Adds `enable_admin_dashboard` column to staff table. When enabled, staff can view full admin dashboard.
+
+### 2026-03-11 - Staff Incentives
+**SQL file:** `migrations/releases/2026-03-11_staff_incentives.sql`
+**Notes:** Creates `staff_incentives` table for tracking monthly incentives per staff member. Allows adding incentives from staff profile and auto-includes them in payroll generation.
+
+### 2026-03-10 - Reservation Advance Payment
+**SQL file:** `migrations/releases/2026-03-10_reservation_advance_payment.sql`
+**Notes:** Adds `advance_paid`, `advance_payment_method`, `advance_bank_account_id` columns to the `reservations` table. Required before deploying the advance payment feature.
+
 ### 2026-03-09 - Configurable Expense Categories (No DB change needed)
 **SQL file:** `None`
 **Notes:** Expense categories are now managed in Settings > Expense Categories and stored in existing `system_settings` table (`expense_categories` key).

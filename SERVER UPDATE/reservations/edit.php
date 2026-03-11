@@ -4,8 +4,12 @@ if (!auth_has_perm('add_reservations')) {
     flash('error', 'You do not have permission to edit reservations.');
     redirect('index.php');
 }
+require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
+require_once __DIR__ . '/../includes/ledger_helpers.php';
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
+reservation_payment_ensure_schema($pdo);
+ledger_ensure_schema($pdo);
 
 $rStmt = $pdo->prepare('SELECT r.*, c.name AS client_name, v.brand, v.model, v.license_plate, v.daily_rate, v.monthly_rate, v.rate_1day, v.rate_7day, v.rate_15day, v.rate_30day FROM reservations r JOIN clients c ON r.client_id=c.id JOIN vehicles v ON r.vehicle_id=v.id WHERE r.id=?');
 $rStmt->execute([$id]);
@@ -22,6 +26,7 @@ if (!in_array($r['status'], ['pending', 'confirmed', 'active'])) {
 
 $clients = $pdo->query("SELECT id,name FROM clients WHERE is_blacklisted=0 ORDER BY name")->fetchAll();
 $vehicles = $pdo->query("SELECT id, brand, model, license_plate, daily_rate, monthly_rate, rate_1day, rate_7day, rate_15day, rate_30day FROM vehicles WHERE status IN ('available','rented') ORDER BY brand")->fetchAll();
+$activeBankAccounts = array_values(array_filter(ledger_get_accounts($pdo), fn($a) => (int) ($a['is_active'] ?? 0) === 1));
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -52,6 +57,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $endDate = $eD ? sprintf('%s %02d:%02d:00', $eD, $eH, $eM) : '';
 
     $totalPrice = (float) ($_POST['total_price'] ?? 0);
+    $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
+
+    // Advance Payment fields
+    $advancePaid = max(0, (float) ($_POST['advance_paid'] ?? 0));
+    $advanceMethod = reservation_payment_method_normalize($_POST['advance_payment_method'] ?? null);
+    $advanceBankId = (int) ($_POST['advance_bank_account_id'] ?? 0);
+    $advanceBankId = $advanceBankId > 0 ? $advanceBankId : null;
 
     if ($totalPrice <= 0)
         $errors['total_price'] = 'Total price must be greater than 0.';
@@ -74,9 +86,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors['client_id'] = 'Client is blacklisted.';
     }
 
+    // Advance validation
+    if ($advancePaid > 0) {
+        $remainingAfterVoucher = max(0, $totalPrice - $voucherApplied);
+        if ($advancePaid > $remainingAfterVoucher) {
+            $errors['advance_paid'] = 'Advance cannot exceed amount after voucher ($' . number_format($remainingAfterVoucher, 2) . ').';
+        }
+        if (!isset($errors['advance_paid']) && $advanceMethod === null) {
+            $errors['advance_payment_method'] = 'Please select how the advance was received.';
+        }
+        if (!isset($errors['advance_paid']) && $advanceMethod === 'account') {
+            if ($advanceBankId === null) {
+                $errors['advance_bank_account_id'] = 'Please select the bank account for the advance.';
+            }
+        } elseif ($advanceMethod !== 'account') {
+            $advanceBankId = null;
+        }
+    } else {
+        $advanceMethod = null;
+        $advanceBankId = null;
+    }
+
     if (empty($errors)) {
-        $pdo->prepare('UPDATE reservations SET client_id=?,vehicle_id=?,rental_type=?,start_date=?,end_date=?,total_price=? WHERE id=?')
-            ->execute([$clientId, $vehicleId, $rentalType, $startDate, $endDate, $totalPrice, $id]);
+        $pdo->prepare('UPDATE reservations SET client_id=?,vehicle_id=?,rental_type=?,start_date=?,end_date=?,total_price=?,advance_paid=?,advance_payment_method=?,advance_bank_account_id=? WHERE id=?')
+            ->execute([
+                $clientId,
+                $vehicleId,
+                $rentalType,
+                $startDate,
+                $endDate,
+                $totalPrice,
+                $advancePaid,
+                $advanceMethod,
+                $advanceBankId,
+                $id
+            ]);
+
+        // Historical correction: adjust existing advance ledger entry
+        $advKey = "reservation:advance:{$id}";
+        $newRounded = round($advancePaid, 2);
+        $st = $pdo->prepare("SELECT id, bank_account_id, amount FROM ledger_entries WHERE idempotency_key = ? LIMIT 1");
+        $st->execute([$advKey]);
+        $existingLedger = $st->fetch(PDO::FETCH_ASSOC);
+
+        if ($existingLedger) {
+            try {
+                $pdo->beginTransaction();
+                $existingAmount = (float) $existingLedger['amount'];
+                $oldBankId = $existingLedger['bank_account_id'] ? (int) $existingLedger['bank_account_id'] : null;
+
+                if ($newRounded <= 0) {
+                    if ($oldBankId) {
+                        $pdo->prepare("UPDATE bank_accounts SET balance = balance - ? WHERE id = ?")
+                            ->execute([$existingAmount, $oldBankId]);
+                    }
+                    $pdo->prepare("DELETE FROM ledger_entries WHERE id = ?")
+                        ->execute([(int) $existingLedger['id']]);
+                } else {
+                    $newBankId = ledger_resolve_bank_account_id($pdo, $advanceMethod, $advanceBankId);
+                    if ($oldBankId === $newBankId) {
+                        $diff = $newRounded - $existingAmount;
+                        if ($newBankId && abs($diff) > 0.0001) {
+                            $pdo->prepare("UPDATE bank_accounts SET balance = balance + ? WHERE id = ?")
+                                ->execute([$diff, $newBankId]);
+                        }
+                    } else {
+                        if ($oldBankId) {
+                            $pdo->prepare("UPDATE bank_accounts SET balance = balance - ? WHERE id = ?")
+                                ->execute([$existingAmount, $oldBankId]);
+                        }
+                        if ($newBankId) {
+                            $pdo->prepare("UPDATE bank_accounts SET balance = balance + ? WHERE id = ?")
+                                ->execute([$newRounded, $newBankId]);
+                        }
+                    }
+
+                    $pdo->prepare("UPDATE ledger_entries SET amount = ?, payment_mode = ?, bank_account_id = ? WHERE id = ?")
+                        ->execute([$newRounded, $advanceMethod, $newBankId, (int) $existingLedger['id']]);
+                }
+                $pdo->commit();
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                app_log('ERROR', 'Advance ledger update failed for reservation #' . $id . ': ' . $e->getMessage(), [
+                    'file' => $e->getFile() . ':' . $e->getLine(),
+                ]);
+            }
+        } elseif ($newRounded > 0 && $advanceMethod !== null) {
+            $ledgerUserId = (int) ($_SESSION['user']['id'] ?? 0);
+            ledger_post_reservation_event($pdo, $id, 'advance', $advancePaid, $advanceMethod, $ledgerUserId, $advanceBankId);
+        }
+
         app_log('ACTION', "Updated reservation (ID: $id)");
         flash('success', 'Reservation updated.');
         redirect("show.php?id=$id");
@@ -281,6 +382,58 @@ require_once __DIR__ . '/../includes/header.php';
                     <p class="text-red-400 text-xs mt-1"><?= e($errors['total_price']) ?></p>
                 <?php endif; ?>
             </div>
+            <?php
+            $advancePaidInput = $_POST['advance_paid'] ?? ($r['advance_paid'] ?? '');
+            $advanceMethodSelected = $_POST['advance_payment_method'] ?? ($r['advance_payment_method'] ?? '');
+            $advanceBankSelected = $_POST['advance_bank_account_id'] ?? ($r['advance_bank_account_id'] ?? '');
+            ?>
+            <div class="pt-2 space-y-2">
+                <label class="block text-sm text-mb-silver mb-2">Advance Collected (Optional)</label>
+                <input type="number" name="advance_paid" id="advancePaid" value="<?= e($advancePaidInput) ?>" step="0.01"
+                    min="0" placeholder="0.00" oninput="updateAdvanceSection()"
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent text-sm">
+                <?php if (isset($errors['advance_paid'])): ?>
+                    <p class="text-red-400 text-xs mt-1"><?= e($errors['advance_paid']) ?></p>
+                <?php endif; ?>
+            </div>
+
+            <div id="advanceMethodWrap" class="space-y-2 hidden">
+                <label class="block text-xs text-mb-silver">Advance Payment Method</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <?php
+                    $advanceMethods = ['cash' => 'Cash', 'account' => 'Account', 'credit' => 'Credit'];
+                    foreach ($advanceMethods as $val => $label):
+                        ?>
+                        <label class="flex items-center gap-2 cursor-pointer bg-mb-black/30 border border-mb-subtle/10 rounded-lg px-3 py-2 hover:border-mb-accent/40 transition-all">
+                            <input type="radio" name="advance_payment_method" value="<?= $val ?>"
+                                <?= ($advanceMethodSelected === $val) ? 'checked' : '' ?>
+                                class="accent-mb-accent" onchange="toggleAdvanceBankField()">
+                            <span class="text-mb-silver text-sm"><?= $label ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+                <?php if (isset($errors['advance_payment_method'])): ?>
+                    <p class="text-red-400 text-xs mt-1"><?= e($errors['advance_payment_method']) ?></p>
+                <?php endif; ?>
+                <div id="advanceBankWrap" class="hidden">
+                    <label class="block text-xs text-mb-silver mb-1">Bank Account</label>
+                    <select name="advance_bank_account_id" id="advanceBankAccount"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
+                        <option value="">Select account</option>
+                        <?php foreach ($activeBankAccounts as $acc): ?>
+                            <option value="<?= (int) $acc['id'] ?>" <?= (string) $advanceBankSelected === (string) $acc['id'] ? 'selected' : '' ?>>
+                                <?= e($acc['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if (isset($errors['advance_bank_account_id'])): ?>
+                        <p class="text-red-400 text-xs mt-1"><?= e($errors['advance_bank_account_id']) ?></p>
+                    <?php endif; ?>
+                    <?php if (empty($activeBankAccounts)): ?>
+                        <p class="text-red-400 text-xs mt-1">No active bank account found. Go to Accounts and add one.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
         <div class="flex items-center justify-end gap-4">
             <a href="show.php?id=<?= $id ?>" class="text-mb-silver hover:text-white text-sm">Cancel</a>
@@ -361,6 +514,47 @@ $(vehicleSelect).on("change", calcPrice);
         document.getElementById(p + c).addEventListener('change', calcPrice);
     });
 });
+
+function updateAdvanceSection() {
+    const el = document.getElementById('advancePaid');
+    const wrap = document.getElementById('advanceMethodWrap');
+    if (!el || !wrap) return;
+    const val = parseFloat(el.value || '0');
+    const show = val > 0;
+    wrap.classList.toggle('hidden', !show);
+    if (!show) {
+        document.querySelectorAll('input[name="advance_payment_method"]').forEach(r => r.checked = false);
+    }
+    toggleAdvanceBankField();
+}
+
+function toggleAdvanceBankField() {
+    const method = document.querySelector('input[name="advance_payment_method"]:checked');
+    const bankWrap = document.getElementById('advanceBankWrap');
+    const bankSelect = document.getElementById('advanceBankAccount');
+    const advVal = parseFloat(document.getElementById('advancePaid')?.value || '0');
+    const needsBank = method && method.value === 'account' && advVal > 0;
+    if (bankWrap) {
+        bankWrap.classList.toggle('hidden', !needsBank);
+    }
+    if (bankSelect) {
+        if (needsBank) {
+            bankSelect.setAttribute('required', 'required');
+        } else {
+            bankSelect.removeAttribute('required');
+            bankSelect.value = '';
+        }
+    }
+}
+
+const advInput = document.getElementById('advancePaid');
+if (advInput) {
+    advInput.addEventListener('input', updateAdvanceSection);
+}
+document.querySelectorAll('input[name="advance_payment_method"]').forEach(r => {
+    r.addEventListener('change', toggleAdvanceBankField);
+});
+updateAdvanceSection();
 </script>
 JS;
 require_once __DIR__ . '/../includes/footer.php';

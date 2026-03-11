@@ -62,7 +62,8 @@ $allFiles = Get-ChildItem -Path $src -File -Recurse | Where-Object {
         'audit_columns.php',
         'ACCOUNT_IMPLEMENTATION.md',
         'UPDATE_SESSION_RULES.md',
-        'PRODUCTION_DB_STEPS.md'
+        'PRODUCTION_DB_STEPS.md',
+        'Advance Payment Int.md'
         
     )
     if ($rel -in $skipFiles) { return $false }

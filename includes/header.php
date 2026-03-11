@@ -403,6 +403,20 @@ $_notifs = notif_all($pdo);
 
             // Auth-based nav rendering
             $isAdmin = ($_currentUser['role'] ?? '') === 'admin';
+            if (!$isAdmin && !empty($_currentUser['staff_id'])) {
+                try {
+                    $dashChk = $pdo->prepare("SELECT enable_admin_dashboard FROM staff WHERE id = ?");
+                    $dashChk->execute([(int)$_currentUser['staff_id']]);
+                    $dashRow = $dashChk->fetch();
+                    if (!empty($dashRow['enable_admin_dashboard'])) {
+                        if (isset($_SESSION['force_staff_dashboard'])) {
+                            $isAdmin = !$_SESSION['force_staff_dashboard'];
+                        } else {
+                            $isAdmin = true;
+                        }
+                    }
+                } catch (Throwable $e) {}
+            }
             $cuPerms = $_currentUser['permissions'] ?? [];
 
             $isDash = $currentPage === 'index.php' && $moduleIdx === null;

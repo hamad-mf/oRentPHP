@@ -69,3 +69,30 @@ function notif_all(PDO $pdo): array
 {
     return $pdo->query("SELECT * FROM notifications ORDER BY is_read ASC, created_at DESC LIMIT 50")->fetchAll();
 }
+
+/**
+ * Create a notification for a reservation event
+ * @param PDO $pdo Database connection
+ * @param int $reservationId Reservation ID
+ * @param string $event Event type: 'created', 'delivered', 'returned', 'cancelled'
+ * @param string $clientName Client name
+ * @param string $vehicleName Vehicle brand and model
+ * @return void
+ */
+function notif_create_reservation_event(PDO $pdo, int $reservationId, string $event, string $clientName, string $vehicleName): void
+{
+    $messages = [
+        'created' => "📋 New reservation: {$clientName} - {$vehicleName}",
+        'delivered' => "🚗 Vehicle delivered: {$clientName} - {$vehicleName}",
+        'returned' => "✅ Vehicle returned: {$clientName} - {$vehicleName}",
+        'cancelled' => "❌ Reservation cancelled: {$clientName} - {$vehicleName}",
+    ];
+    $message = $messages[$event] ?? "Reservation update: {$clientName} - {$vehicleName}";
+    
+    try {
+        $pdo->prepare("INSERT INTO notifications (type, message, reservation_id) VALUES ('info', ?, ?)")
+            ->execute([$message, $reservationId]);
+    } catch (Throwable $e) {
+        // Silent fail - don't break reservation flow
+    }
+}

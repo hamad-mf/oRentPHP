@@ -49,6 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $joined     = $_POST['joined_date'] ?? '';
     $notes      = trim($_POST['notes'] ?? '');
     $perms      = $_POST['permissions'] ?? [];
+    $enableAdminDash = isset($_POST['enable_admin_dashboard']) ? 1 : 0;
 
     if (!$name)     $errors[] = 'Name is required.';
     if (!$username) $errors[] = 'Username is required.';
@@ -85,8 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->beginTransaction();
         try {
             // Update staff
-            $us = $pdo->prepare("UPDATE staff SET name=?, role=?, phone=?, email=?, salary=?, joined_date=?, notes=?, id_proof_path=?, updated_at=? WHERE id=?");
-            $us->execute([$name, $staffRole ?: null, $phone ?: null, $email ?: null, $salary !== '' ? (float)$salary : null, $joined ?: null, $notes ?: null, $proofPath, app_now_sql(), $id]);
+            $us = $pdo->prepare("UPDATE staff SET name=?, role=?, phone=?, email=?, salary=?, joined_date=?, notes=?, id_proof_path=?, enable_admin_dashboard=?, updated_at=? WHERE id=?");
+            $us->execute([$name, $staffRole ?: null, $phone ?: null, $email ?: null, $salary !== '' ? (float)$salary : null, $joined ?: null, $notes ?: null, $proofPath, $enableAdminDash, app_now_sql(), $id]);
 
             // Update user
             if ($userId) {
@@ -250,6 +251,14 @@ require_once __DIR__ . '/../includes/header.php';
                             class="w-4 h-4 rounded accent-mb-accent">
                         <span class="text-sm text-mb-silver">Account Active</span>
                     </label>
+                </div>
+                <div class="flex items-center gap-3 pt-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="enable_admin_dashboard" value="1" <?= ($staff['enable_admin_dashboard'] ?? 0) ? 'checked' : '' ?>
+                            class="w-4 h-4 rounded accent-green-500">
+                        <span class="text-sm text-mb-silver">Enable Admin Dashboard View</span>
+                    </label>
+                    <span class="text-xs text-mb-subtle">(Staff can see full admin dashboard)</span>
                 </div>
             </div>
         </div>

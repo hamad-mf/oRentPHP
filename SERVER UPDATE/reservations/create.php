@@ -5,9 +5,15 @@ if (!auth_has_perm('add_reservations')) {
     redirect('index.php');
 }
 require_once __DIR__ . '/../includes/voucher_helpers.php';
+require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
+require_once __DIR__ . '/../includes/ledger_helpers.php';
+require_once __DIR__ . '/../includes/notifications.php';
 $pdo = db();
 
 voucher_ensure_schema($pdo);
+reservation_payment_ensure_schema($pdo);
+ledger_ensure_schema($pdo);
+$activeBankAccounts = array_values(array_filter(ledger_get_accounts($pdo), fn($a) => (int)($a['is_active'] ?? 0) === 1));
 
 $clients = $pdo->query("SELECT id, name, voucher_balance FROM clients WHERE is_blacklisted=0 ORDER BY name")->fetchAll();
 $hiddenCount = $pdo->query("SELECT COUNT(*) FROM clients WHERE is_blacklisted=1")->fetchColumn();
@@ -85,6 +91,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $totalPrice = (float) ($_POST['total_price'] ?? 0);
     $voucherRequest = max(0, (float) ($_POST['voucher_amount'] ?? 0));
     $voucherApplied = 0.0;
+
+    // Advance Payment fields
+    $advancePaid   = max(0, (float) ($_POST['advance_paid'] ?? 0));
+    $advanceMethod = reservation_payment_method_normalize($_POST['advance_payment_method'] ?? null);
+    $advanceBankId = (int) ($_POST['advance_bank_account_id'] ?? 0);
+    $advanceBankId = $advanceBankId > 0 ? $advanceBankId : null;
+    $reservationNote = trim($_POST['reservation_note'] ?? '');
     $clientVoucherBalance = 0.0;
 
     if (!$clientId)
@@ -122,6 +135,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Advance validation
+    if ($advancePaid > 0) {
+        $remainingAfterVoucher = max(0, $totalPrice - $voucherApplied);
+        if ($advancePaid > $remainingAfterVoucher) {
+            $errors['advance_paid'] = 'Advance cannot exceed amount after voucher ($' . number_format($remainingAfterVoucher, 2) . ').';
+        }
+        if (!isset($errors['advance_paid']) && $advanceMethod === null) {
+            $errors['advance_payment_method'] = 'Please select how the advance was received.';
+        }
+        if (!isset($errors['advance_paid']) && $advanceMethod === 'account') {
+            if ($advanceBankId === null) {
+                $errors['advance_bank_account_id'] = 'Please select the bank account for the advance.';
+            }
+        } elseif ($advanceMethod !== 'account') {
+            $advanceBankId = null;
+        }
+    } else {
+        $advanceMethod = null;
+        $advanceBankId = null;
+    }
+
     if (!isset($errors['vehicle_id']) && !isset($errors['start_date']) && !isset($errors['end_date'])) {
         $vehicleStmt = $pdo->prepare("SELECT status FROM vehicles WHERE id=?");
         $vehicleStmt->execute([$vehicleId]);
@@ -143,8 +177,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('Vehicle overlap');
             }
 
-            $stmt = $pdo->prepare('INSERT INTO reservations (client_id,vehicle_id,rental_type,start_date,end_date,total_price,voucher_applied,status) VALUES (?,?,?,?,?,?,?,?)');
-            $stmt->execute([$clientId, $vehicleId, $rentalType, $startDate, $endDate, $totalPrice, $voucherApplied, 'confirmed']);
+            $stmt = $pdo->prepare('INSERT INTO reservations (client_id,vehicle_id,rental_type,start_date,end_date,total_price,voucher_applied,advance_paid,advance_payment_method,advance_bank_account_id,status,note) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
+            $stmt->execute([$clientId, $vehicleId, $rentalType, $startDate, $endDate, $totalPrice, $voucherApplied, $advancePaid, $advanceMethod, $advanceBankId, 'confirmed', $reservationNote ?: null]);
             $id = (int) $pdo->lastInsertId();
 
             if ($voucherApplied > 0) {
@@ -153,17 +187,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->commit();
 
+            // Ledger: post advance payment (outside transaction for safety)
+            if ($advancePaid > 0 && $advanceMethod !== null) {
+                ledger_post_reservation_event($pdo, $id, 'advance', $advancePaid, $advanceMethod, (int)$_SESSION['user']['id'], $advanceBankId);
+            }
+
             // Get client name
             $cn = $pdo->prepare('SELECT name FROM clients WHERE id=?');
             $cn->execute([$clientId]);
             $clientName = $cn->fetchColumn();
 
+            // Get vehicle name
+            $vn = $pdo->prepare('SELECT CONCAT(brand, " ", model) FROM vehicles WHERE id=?');
+            $vn->execute([$vehicleId]);
+            $vehicleName = $vn->fetchColumn() ?: 'Unknown Vehicle';
+
+            // Create notification
+            notif_create_reservation_event($pdo, $id, 'created', $clientName, $vehicleName);
+
             $msg = "Reservation confirmed for $clientName.";
             if ($voucherApplied > 0) {
-                $payNow = max(0, $totalPrice - $voucherApplied);
-                $msg .= ' Voucher used: $' . number_format($voucherApplied, 2) . '. Collect at delivery: $' . number_format($payNow, 2) . '.';
+                $msg .= ' Voucher used: $' . number_format($voucherApplied, 2) . '.';
             }
-            app_log('ACTION', "Created reservation (ID: $id)");
+            if ($advancePaid > 0) {
+                $msg .= ' Advance of $' . number_format($advancePaid, 2) . ' recorded.';
+            }
+            app_log('ACTION', "Created reservation (ID: $id)" . ($advancePaid > 0 ? " [Advance: \$$advancePaid ($advanceMethod)]" : ''));
             flash('success', $msg);
             redirect("show.php?id=$id");
         } catch (Throwable $e) {
@@ -399,7 +448,13 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?= e($errors['voucher_amount']) ?>
                             </p>
                         <?php endif; ?>
-                        <p id="voucherError" class="text-red-400 text-xs mt-1" style="display:none"></p>
+                    </div>
+
+                    <!-- Reservation Note -->
+                    <div class="order-7">
+                        <label class="block text-sm text-mb-silver mb-2">Reservation Note (Optional)</label>
+                        <textarea name="reservation_note" rows="2" placeholder="Add any special instructions or notes..."
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent"><?= e($_POST['reservation_note'] ?? '') ?></textarea>
                     </div>
                 </div>
             </div>
@@ -431,6 +486,10 @@ require_once __DIR__ . '/../includes/header.php';
                     <div id="calcVoucherRow" class="hidden justify-between text-xs text-green-400">
                         <span>Voucher Applied</span>
                         <span id="calcVoucherApplied">-$0.00</span>
+                    </div>
+                    <div id="calcAdvanceRow" class="hidden justify-between text-xs text-purple-400">
+                        <span>Advance Collected</span>
+                        <span id="calcAdvancePaid">-$0.00</span>
                     </div>
                     <div class="border-t border-mb-subtle/20 pt-2 flex justify-between text-sm font-medium">
                         <span class="text-mb-silver">Estimated Total</span>
@@ -726,8 +785,25 @@ function updateVoucherPreview() {
             calcVoucherApplied.textContent = '-$0.00';
         }
     }
+
+    // Advance row
+    const advEl = document.getElementById('advancePaid');
+    const adv = advEl ? (parseFloat(advEl.value) || 0) : 0;
+    const advRow = document.getElementById('calcAdvanceRow');
+    const advSpan = document.getElementById('calcAdvancePaid');
+    if (advRow && advSpan) {
+        if (adv > 0) {
+            advRow.classList.remove('hidden');
+            advRow.classList.add('flex');
+            advSpan.textContent = '-$' + adv.toFixed(2);
+        } else {
+            advRow.classList.add('hidden');
+            advRow.classList.remove('flex');
+        }
+    }
+
     if (calcCollectNow) {
-        calcCollectNow.textContent = '$' + Math.max(0, total - applied).toFixed(2);
+        calcCollectNow.textContent = '$' + Math.max(0, total - applied - adv).toFixed(2);
     }
 }
 
@@ -768,6 +844,26 @@ if (voucherAmount) {
     });
 }
 totalPrice.addEventListener('input', updateVoucherPreview);
+
+// Advance section JS
+function updateAdvanceSection() {
+    const el = document.getElementById('advancePaid');
+    const wrap = document.getElementById('advanceMethodWrap');
+    if (!el || !wrap) return;
+    const adv = parseFloat(el.value) || 0;
+    if (adv > 0) { wrap.classList.remove('hidden'); }
+    else { wrap.classList.add('hidden'); }
+    updateVoucherPreview();
+}
+function toggleAdvanceBankField() {
+    const method = document.querySelector('input[name="advance_payment_method"]:checked');
+    const bankWrap = document.getElementById('advanceBankWrap');
+    if (!bankWrap) return;
+    bankWrap.classList.toggle('hidden', !method || method.value !== 'account');
+}
+const advInput = document.getElementById('advancePaid');
+if (advInput) { advInput.addEventListener('input', updateAdvanceSection); }
+updateAdvanceSection();
 document.getElementById('resForm').addEventListener('submit', function (e) {
     if (!validateVoucher()) {
         e.preventDefault();

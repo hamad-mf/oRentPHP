@@ -87,3 +87,7 @@ Add one row per release.
 | 2026-03-08 | client_reviews_table | Yes | `migrations/releases/2026-03-08_client_reviews_table.sql` | Applied (phpMyAdmin) | Added `client_reviews` table for history. |
 | 2026-03-08 | pre_payroll_advance | Yes | None | N/A | Refined pre-payroll advances (month/year specific). |
 | 2026-03-09 | configurable_expense_categories | Yes | None | N/A | Added Settings > Expense Categories and wired Accounts expense entry + category filter to use configured categories. |
+| 2026-03-10 | reservation_advance_payment | Yes | `migrations/releases/2026-03-10_reservation_advance_payment.sql` | Pending | Advance payment at reservation creation with cash/credit/account method, ledger posting, delivery deduction, and show page display. |
+| 2026-03-11 | staff_incentives | Yes | `migrations/releases/2026-03-11_staff_incentives.sql` | Pending | Staff incentives per month from profile, history tracking, auto-included in payroll generation. |
+| 2026-03-11 | staff_admin_dashboard_toggle | Yes | `migrations/releases/2026-03-11_staff_admin_dashboard_toggle.sql` | Pending | Add toggle in staff profile to allow staff view admin dashboard. |
+| 2026-03-11 | reservation_notes | Yes | `migrations/releases/2026-03-11_reservation_notes.sql` | Pending | Add optional note field when creating reservation, displayed on details page. |

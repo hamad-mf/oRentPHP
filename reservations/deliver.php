@@ -6,6 +6,7 @@ if (!auth_has_perm('do_delivery')) {
 }
 require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
 require_once __DIR__ . '/../includes/ledger_helpers.php';
+require_once __DIR__ . '/../includes/notifications.php';
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
 reservation_payment_ensure_schema($pdo);
@@ -48,7 +49,8 @@ $depositPct = (float) settings_get($pdo, 'deposit_percentage', '0');
 $deliveryChargeDefault = (float) settings_get($pdo, 'delivery_charge_default', '0');
 
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
-$baseCollectNow = max(0, (float) $r['total_price'] - $voucherApplied);
+$advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
+$baseCollectNow = max(0, (float) $r['total_price'] - $voucherApplied - $advancePaid);
 $existingDeliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryCharge = max(0, (float) ($_POST['delivery_charge'] ?? ($existingDeliveryCharge > 0 ? $existingDeliveryCharge : $deliveryChargeDefault)));
 $existingDeliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
@@ -226,6 +228,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($voucherApplied > 0) {
             $msg .= ' Voucher used: $' . number_format($voucherApplied, 2) . '.';
         }
+        if ($advancePaid > 0) {
+            $msg .= ' Advance already collected: $' . number_format($advancePaid, 2) . '.';
+        }
         if ($deliveryCharge > 0) {
             $msg .= ' Delivery charge: $' . number_format($deliveryCharge, 2) . '.';
         }
@@ -289,6 +294,11 @@ $gpsStmt->execute([
             $id,
             "Delivered reservation #{$id} — {$r['client_name']} → {$r['brand']} {$r['model']} ({$r['license_plate']}). Collected: \$" . number_format($collectNowAtDelivery, 2) . "."
         );
+
+        // Create notification
+        $vehicleName = $r['brand'] . ' ' . $r['model'];
+        notif_create_reservation_event($pdo, $id, 'delivered', $r['client_name'], $vehicleName);
+
         redirect("show.php?id=$id");
     }
 }
@@ -352,6 +362,12 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="flex justify-between text-green-400">
                         <span>Voucher Applied</span>
                         <span>-$<?= number_format($voucherApplied, 2) ?></span>
+                    </div>
+                <?php endif; ?>
+                <?php if ($advancePaid > 0): ?>
+                    <div class="flex justify-between text-purple-400">
+                        <span>Advance Collected</span>
+                        <span>-$<?= number_format($advancePaid, 2) ?></span>
                     </div>
                 <?php endif; ?>
                 <div class="flex items-center justify-between text-mb-silver gap-3">

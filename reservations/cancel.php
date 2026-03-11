@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/ledger_helpers.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
+require_once __DIR__ . '/../includes/notifications.php';
 $pdo = db();
 auth_require_admin();
 
@@ -86,6 +87,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->commit();
             app_log('ACTION', "Cancelled reservation #$id. Refund: $refund.");
+
+            // Create notification
+            $vehicleName = $r['brand'] . ' ' . $r['model'];
+            notif_create_reservation_event($pdo, $id, 'cancelled', $r['client_name'], $vehicleName);
+
             flash('success', "Reservation #{$id} cancelled. Refund amount: \$" . number_format($refund, 2) . '.');
             redirect("show.php?id=$id");
         } catch (Throwable $e) {

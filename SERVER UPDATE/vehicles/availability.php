@@ -6,19 +6,32 @@ $pdo = db();
 require_once __DIR__ . '/../includes/settings_helpers.php';
 vehicle_ensure_schema($pdo);
 
-$selectedDate = trim($_GET['date'] ?? '');
+$startDate = trim($_GET['start_date'] ?? '');
+$endDate = trim($_GET['end_date'] ?? '');
 $today = date('Y-m-d');
 
-if ($selectedDate === '') {
-    $selectedDate = $today;
+if ($startDate === '') {
+    $startDate = $today;
+}
+if ($endDate === '') {
+    $endDate = $today;
 }
 
-$dateCheck = DateTime::createFromFormat('Y-m-d', $selectedDate);
-if (!$dateCheck || $dateCheck->format('Y-m-d') !== $selectedDate) {
-    $selectedDate = $today;
+$startCheck = DateTime::createFromFormat('Y-m-d', $startDate);
+$endCheck = DateTime::createFromFormat('Y-m-d', $endDate);
+
+if (!$startCheck || $startCheck->format('Y-m-d') !== $startDate) {
+    $startDate = $today;
+}
+if (!$endCheck || $endCheck->format('Y-m-d') !== $endDate) {
+    $endDate = $today;
 }
 
-// Fetch all vehicles with their reservation status for the selected date
+if ($startDate > $endDate) {
+    $endDate = $startDate;
+}
+
+// Fetch all vehicles - we'll filter in PHP for overlapping reservations
 $sql = "SELECT v.*,
                r.id AS reservation_id,
                r.status AS reservation_status,
@@ -36,14 +49,20 @@ $sql = "SELECT v.*,
         ORDER BY v.brand, v.model, v.license_plate";
 
 $stmt = $pdo->prepare($sql);
-$stmt->execute([$selectedDate, $selectedDate]);
+$stmt->execute([$endDate, $startDate]);
 $vehicles = $stmt->fetchAll();
 
-// Only keep available vehicles (not in maintenance and no active reservation)
+// Filter: vehicle is available for ENTIRE range if no overlapping reservation
 $availableVehicles = [];
+$bookedVehicles = [];
 foreach ($vehicles as $v) {
-    if ($v['status'] !== 'maintenance' && !$v['reservation_id']) {
+    if ($v['status'] === 'maintenance') {
+        continue;
+    }
+    if (!$v['reservation_id']) {
         $availableVehicles[] = $v;
+    } else {
+        $bookedVehicles[] = $v;
     }
 }
 
@@ -78,15 +97,20 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5">
         <form method="get" class="flex flex-wrap items-end gap-4">
             <div>
-                <label class="block text-sm text-mb-subtle mb-2">Select Date</label>
-                <input type="date" name="date" value="<?= e($selectedDate) ?>"
+                <label class="block text-sm text-mb-subtle mb-2">Start Date</label>
+                <input type="date" name="start_date" value="<?= e($startDate) ?>"
+                    class="bg-mb-black border border-mb-subtle/30 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-mb-accent">
+            </div>
+            <div>
+                <label class="block text-sm text-mb-subtle mb-2">End Date</label>
+                <input type="date" name="end_date" value="<?= e($endDate) ?>"
                     class="bg-mb-black border border-mb-subtle/30 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-mb-accent">
             </div>
             <button type="submit"
                 class="bg-mb-accent hover:bg-mb-accent/80 text-white font-medium px-5 py-2.5 rounded-lg transition-colors">
                 Check Availability
             </button>
-            <a href="?date=<?= $today ?>" class="text-mb-subtle hover:text-white text-sm py-2.5">
+            <a href="?start_date=<?= $today ?>&end_date=<?= $today ?>" class="text-mb-subtle hover:text-white text-sm py-2.5">
                 Today
             </a>
         </form>
@@ -96,7 +120,7 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="inline-flex items-center gap-3 bg-green-500/10 border border-green-500/30 rounded-xl px-5 py-4">
         <span class="w-3 h-3 rounded-full bg-green-500"></span>
         <span class="text-green-400 text-lg font-semibold"><?= $availableCount ?></span>
-        <span class="text-mb-subtle text-sm">vehicle<?= $availableCount !== 1 ? 's' : '' ?> available on <?= date('d M Y', strtotime($selectedDate)) ?></span>
+        <span class="text-mb-subtle text-sm">vehicle<?= $availableCount !== 1 ? 's' : '' ?> available from <?= date('d M Y', strtotime($startDate)) ?> to <?= date('d M Y', strtotime($endDate)) ?></span>
     </div>
 
     <!-- Vehicle List -->

@@ -126,6 +126,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'prepare_payroll') {
         }
     }
 
+    // Fetch staff incentives from staff_incentives table for the month/year
+    $staffIncentivesMap = [];
+    $hasIncentiveTable = false;
+    try {
+        $hasIncentiveTable = (bool) $pdo->query("SHOW TABLES LIKE 'staff_incentives'")->fetchColumn();
+        if ($hasIncentiveTable && !empty($batchStaff)) {
+            $userIds3 = array_column($batchStaff, 'user_id');
+            $ph3 = implode(',', array_fill(0, count($userIds3), '?'));
+            $incStmt = $pdo->prepare(
+                "SELECT user_id, COALESCE(SUM(amount),0) AS total FROM staff_incentives WHERE user_id IN($ph3) AND month = ? AND year = ? GROUP BY user_id"
+            );
+            $incStmt->execute(array_merge($userIds3, [$prepareMonth, $prepareYear]));
+            foreach ($incStmt->fetchAll() as $row) {
+                $staffIncentivesMap[$row['user_id']] = (float) $row['total'];
+            }
+        }
+    } catch (Throwable $e) {
+        $hasIncentiveTable = false;
+    }
+
     $advanceOutstandingMap = $getAdvanceOutstandingMap(array_column($batchStaff, 'user_id'));
     foreach ($batchStaff as &$staffRow) {
         $staffRow['advance_outstanding'] = (float) ($advanceOutstandingMap[$staffRow['user_id']] ?? 0);
@@ -158,7 +178,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save_payroll') {
                 continue;
 
             $basic = (float) ($row['salary'] ?? 0);
-            $incentive = (float) ($incentives[$uid] ?? 0);
+            $manualIncentive = (float) ($incentives[$uid] ?? 0);
+            $tableIncentive = 0.0;
+            if ($hasIncentiveTable) {
+                try {
+                    $incQ = $pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM staff_incentives WHERE user_id = ? AND month = ? AND year = ?");
+                    $incQ->execute([$uid, $month, $year]);
+                    $tableIncentive = (float) $incQ->fetchColumn();
+                } catch (Throwable $e) {
+                    $tableIncentive = 0.0;
+                }
+            }
+            $incentive = $manualIncentive + $tableIncentive;
             $net = $basic + $incentive;
 
             if ($advanceSchemaReady) {
@@ -601,6 +632,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 $leadBonus     = round($closedLeads * $incentivePerLead, 2);
                                 $delivBonusPer = $deliveryIncentivePer ?? 0;
                                 $deliveryBonus = round($deliveries * $delivBonusPer, 2);
+                                $tableIncentive = $staffIncentivesMap[$s['user_id']] ?? 0;
                                 $autoIncentive = round($leadBonus + $deliveryBonus, 2);
                             ?>
                             <tr class="hover:bg-mb-black/20 transition-colors">
@@ -614,7 +646,7 @@ require_once __DIR__ . '/../includes/header.php';
                                     <?php if ($deliveries > 0): ?><span class="inline-flex items-center gap-1 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-full px-2.5 py-0.5 text-xs font-medium"><?= $deliveries ?> del</span><?php if ($delivBonusPer > 0): ?><p class="text-xs text-orange-400/70 mt-0.5">+$<?= number_format($deliveryBonus, 2) ?></p><?php endif; ?><?php else: ?><span class="text-mb-subtle/40 text-xs">-</span><?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 text-right text-mb-silver">$<?= number_format($basic, 2) ?></td>
-                                <td class="px-6 py-4 text-right"><input type="number" name="incentive[<?= $s['user_id'] ?>]" class="incentive-input bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-1.5 text-white text-sm w-28 text-right focus:outline-none focus:border-mb-accent" value="<?= $autoIncentive ?>" min="0" step="0.01" data-basic="<?= $basic ?>" data-auto="<?= $autoIncentive ?>" oninput="updateNet(this)"></td>
+                                <td class="px-6 py-4 text-right"><input type="number" name="incentive[<?= $s['user_id'] ?>]" class="incentive-input bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-1.5 text-white text-sm w-28 text-right focus:outline-none focus:border-mb-accent" value="<?= $autoIncentive + $tableIncentive ?>" min="0" step="0.01" data-basic="<?= $basic ?>" data-auto="<?= $autoIncentive + $tableIncentive ?>" data-table="<?= $tableIncentive ?>" oninput="updateNet(this)"><?php if($tableIncentive > 0):?><p class="text-[10px] text-green-400/70 mt-0.5">+<?= $tableIncentive ?> from profile</p><?php endif;?></td>
                                 <td class="px-6 py-4 text-right text-mb-accent font-medium net-cell">$<?= number_format($basic + $autoIncentive, 2) ?></td>
                                 <td class="px-6 py-4"><input type="text" name="notes[<?= $s['user_id'] ?>]" placeholder="optional note" class="bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-1.5 text-white text-sm w-40 focus:outline-none focus:border-mb-accent placeholder-mb-subtle"></td>
                             </tr>

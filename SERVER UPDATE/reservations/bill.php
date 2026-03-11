@@ -28,13 +28,14 @@ $end = strtotime($r['end_date']);
 $days = max(1, (int) ceil(($end - $start) / 86400) + 1); // inclusive: count both start & end day
 $basePrice = (float) $r['total_price'];
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
+$advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
 // Keep manual additional amount hidden in bill text, but include it in totals.
 // Delivery discount
 $delivDiscType = $r['delivery_discount_type'] ?? null;
 $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
-$delivBase = max(0, $basePrice - $voucherApplied) + $deliveryCharge + $deliveryManualAmount;
+$delivBase = max(0, $basePrice - $voucherApplied - $advancePaid) + $deliveryCharge + $deliveryManualAmount;
 $delivDiscountAmt = 0;
 if ($delivDiscType === 'percent') {
     $delivDiscountAmt = round($delivBase * min($delivDiscVal, 100) / 100, 2);
@@ -64,7 +65,7 @@ if ($discType === 'percent') {
 }
 $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
 $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
-$totalCollected = $baseCollectedAtDelivery + $cashDueAtReturn;
+$totalCollected = $advancePaid + $baseCollectedAtDelivery + $cashDueAtReturn;
 
 
 // Format datetime helper
@@ -496,7 +497,6 @@ function fdt(?string $dt): string
         <div class="inv-header">
             <div>
                 <div class="company-name">Orentincars</div>
-                <div class="company-sub">Car Rental CRM</div>
             </div>
             <div class="inv-badge">
                 <div class="label"><?= $isQuotation ? 'Quotation' : 'Invoice' ?></div>
@@ -678,6 +678,12 @@ function fdt(?string $dt): string
                         <tr style="color:#16a34a">
                             <td>Voucher Used on Booking</td>
                             <td class="val">-$<?= number_format($voucherApplied, 2) ?></td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php if ($advancePaid > 0): ?>
+                        <tr style="color:#7c3aed">
+                            <td>Advance Collected</td>
+                            <td class="val">-$<?= number_format($advancePaid, 2) ?></td>
                         </tr>
                     <?php endif; ?>
                     <?php if ($deliveryCharge > 0): ?>

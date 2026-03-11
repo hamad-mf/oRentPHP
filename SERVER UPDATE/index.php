@@ -13,6 +13,23 @@ gps_tracking_ensure_schema($pdo);
 auth_check();
 $_cuMe   = current_user();
 $isAdmin = ($_cuMe['role'] ?? '') === 'admin';
+$canSeeBothDashboards = false;
+if (!$isAdmin && !empty($_cuMe['staff_id'])) {
+    $dashCheck = $pdo->prepare("SELECT enable_admin_dashboard FROM staff WHERE id = ?");
+    $dashCheck->execute([(int)$_cuMe['staff_id']]);
+    $dashRow = $dashCheck->fetch();
+    if (!empty($dashRow['enable_admin_dashboard'])) {
+        $canSeeBothDashboards = true;
+        if (isset($_SESSION['force_staff_dashboard'])) {
+            $isAdmin = !$_SESSION['force_staff_dashboard'];
+        }
+    }
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_dashboard'])) {
+    $_SESSION['force_staff_dashboard'] = ($_POST['toggle_dashboard'] === 'staff');
+    header('Location: index.php');
+    exit;
+}
 $cuPerms = $_cuMe['permissions'] ?? [];
 $istNow  = new DateTime('now', new DateTimeZone('Asia/Kolkata'));
 $istToday = $istNow->format('Y-m-d');
@@ -37,17 +54,22 @@ $tr->execute([$istToday]);
 $todayReturns = (int) $tr->fetchColumn();
 $gpsWarnings     = gps_active_warning_count($pdo);
 
+$creditIncome = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income'")->fetchColumn();
+$creditExpense = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='expense'")->fetchColumn();
+$outstandingCredits = $creditIncome - $creditExpense;
+
 $eq = $pdo->prepare("SELECT COUNT(*) FROM reservations WHERE DATE(created_at)=?"); $eq->execute([$istToday]); $enquiries = (int)$eq->fetchColumn();
 $cd = $pdo->prepare("SELECT COUNT(*) FROM reservations r JOIN vehicle_inspections vi ON vi.reservation_id=r.id AND vi.type='return' WHERE r.status='completed' AND DATE(vi.created_at)=?"); $cd->execute([$istToday]); $closedDeals = (int)$cd->fetchColumn();
 $nc = $pdo->prepare("SELECT COUNT(*) FROM clients WHERE DATE(created_at)=?"); $nc->execute([$istToday]); $newClients = (int)$nc->fetchColumn();
 $totalClients = (int)$pdo->query("SELECT COUNT(*) FROM clients")->fetchColumn();
 
-$overdueFollowups = 0; $activeLeads = 0;
+$overdueFollowups = 0; $activeLeads = 0; $totalLeads = 0;
 try {
     $of = $pdo->prepare("SELECT COUNT(*) FROM lead_followups WHERE scheduled_at < ? AND is_done=0");
     $of->execute([app_now_sql()]);
     $overdueFollowups = (int) $of->fetchColumn();
     $activeLeads = (int)$pdo->query("SELECT COUNT(*) FROM leads WHERE status NOT IN('closed_won','closed_lost')")->fetchColumn();
+    $totalLeads = (int)$pdo->query("SELECT COUNT(*) FROM leads")->fetchColumn();
 } catch(Throwable $e) {
      app_log('ERROR', 'Dashboard: lead metrics query failed - ' . $e->getMessage(), [
         'file' => $e->getFile() . ':' . $e->getLine(),
@@ -68,7 +90,7 @@ if ($isAdmin) {
     $todayRevenue = 0.0;
     $todayRevenueResolved = false;
     try {
-        $rs=$pdo->prepare("SELECT COALESCE(SUM(CASE WHEN txn_type='income' THEN amount WHEN txn_type='expense' THEN -amount ELSE 0 END),0) FROM ledger_entries WHERE source_type='reservation' AND source_event IN('delivery','return','cancellation') AND DATE(posted_at)=?");
+        $rs=$pdo->prepare("SELECT COALESCE(SUM(CASE WHEN txn_type='income' THEN amount WHEN txn_type='expense' THEN -amount ELSE 0 END),0) FROM ledger_entries WHERE source_type='reservation' AND source_event IN('advance','delivery','return','cancellation') AND DATE(posted_at)=?");
         $rs->execute([$istToday]); $todayRevenue=(float)$rs->fetchColumn();
         $todayRevenueResolved = true;
     } catch(Throwable $e){
@@ -80,8 +102,16 @@ if ($isAdmin) {
     ]);
     }
     if (!$todayRevenueResolved) {
-        try{$ls=$pdo->prepare("SELECT COALESCE(SUM(CASE WHEN d.delivery_today=1 THEN r.delivery_paid_amount ELSE 0 END+CASE WHEN rt.return_today=1 THEN r.return_paid_amount ELSE 0 END),0) FROM reservations r LEFT JOIN(SELECT reservation_id,1 AS delivery_today FROM vehicle_inspections WHERE type='delivery' AND DATE(created_at)=? GROUP BY reservation_id)d ON d.reservation_id=r.id LEFT JOIN(SELECT reservation_id,1 AS return_today FROM vehicle_inspections WHERE type='return' AND DATE(created_at)=? GROUP BY reservation_id)rt ON rt.reservation_id=r.id WHERE d.delivery_today=1 OR rt.return_today=1");
-        $ls->execute([$istToday,$istToday]);$todayRevenue=(float)$ls->fetchColumn();}catch(Throwable $e){
+        try{$ls=$pdo->prepare("SELECT COALESCE(SUM(
+            CASE WHEN d.delivery_today=1 THEN r.delivery_paid_amount ELSE 0 END
+          + CASE WHEN rt.return_today=1 THEN r.return_paid_amount ELSE 0 END
+          + CASE WHEN DATE(r.created_at)=? THEN r.advance_paid ELSE 0 END
+        ),0)
+        FROM reservations r
+        LEFT JOIN(SELECT reservation_id,1 AS delivery_today FROM vehicle_inspections WHERE type='delivery' AND DATE(created_at)=? GROUP BY reservation_id)d ON d.reservation_id=r.id
+        LEFT JOIN(SELECT reservation_id,1 AS return_today FROM vehicle_inspections WHERE type='return' AND DATE(created_at)=? GROUP BY reservation_id)rt ON rt.reservation_id=r.id
+        WHERE d.delivery_today=1 OR rt.return_today=1 OR DATE(r.created_at)=?");
+        $ls->execute([$istToday,$istToday,$istToday,$istToday]);$todayRevenue=(float)$ls->fetchColumn();}catch(Throwable $e){
            app_log('ERROR', 'Dashboard: fallback today revenue query failed - ' . $e->getMessage(), [
         'file' => $e->getFile() . ':' . $e->getLine(),
         'screen' => 'index.php',
@@ -192,6 +222,16 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
 <?php if ($isAdmin): ?>
 <!--  ADMIN DASHBOARD  -->
 
+<?php if ($canSeeBothDashboards): ?>
+<div class="flex justify-end mb-4">
+    <form method="POST" class="flex items-center gap-2 bg-mb-surface border border-mb-subtle/20 rounded-lg px-3 py-2">
+        <span class="text-xs text-mb-subtle">View:</span>
+        <button type="submit" name="toggle_dashboard" value="admin" class="text-xs px-2 py-1 rounded <?= $isAdmin ? 'bg-mb-accent text-white' : 'text-mb-subtle hover:text-white' ?>">Admin</button>
+        <button type="submit" name="toggle_dashboard" value="staff" class="text-xs px-2 py-1 rounded <?= !$isAdmin ? 'bg-mb-accent text-white' : 'text-mb-subtle hover:text-white' ?>">Staff</button>
+    </form>
+</div>
+<?php endif; ?>
+
     <section>
         <h3 class="text-white text-lg font-light mb-4 uppercase tracking-wider border-l-2 border-mb-accent pl-2">Fleet Status</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -209,12 +249,13 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
             <a href="reservations/index.php?due_today=1" class="bg-mb-surface border border-mb-subtle/20 p-6 rounded-lg flex items-center justify-between hover:bg-mb-black/30 transition-colors cursor-pointer"><div><p class="text-mb-silver text-sm uppercase mb-1">Today Returns</p><span class="text-3xl font-light text-white"><?= $todayReturns ?> Vehicles</span></div><div class="w-12 h-12 rounded-full bg-mb-accent/10 flex items-center justify-center text-mb-accent"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div></a>
             <div onclick="toggleNotif(true)" class="bg-mb-surface border border-mb-subtle/20 p-6 rounded-lg flex items-center justify-between hover:bg-mb-black/30 transition-colors cursor-pointer"><div><p class="text-mb-silver text-sm uppercase mb-1">Notifications</p><span class="text-3xl font-light <?= $_notifCount>0?'text-yellow-400':'text-white' ?>"><?= $_notifCount ?> New</span><p class="text-xs text-mb-subtle mt-1">Click to view details</p></div><div class="w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center text-yellow-500"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg></div></div>
             <a href="gps/index.php?status=active&tracking=no" class="bg-mb-surface border <?= $gpsWarnings>0?'border-red-500/40 bg-red-500/5':'border-mb-subtle/20' ?> p-6 rounded-lg flex items-center justify-between hover:bg-mb-black/30 transition-colors cursor-pointer"><div><p class="text-mb-silver text-sm uppercase mb-1">GPS Warnings</p><span class="text-3xl font-light <?= $gpsWarnings>0?'text-red-400':'text-white' ?>"><?= $gpsWarnings ?> Issue<?= $gpsWarnings===1?'':'s' ?></span><?php if($gpsWarnings>0):?><p class="text-xs text-red-400/70 mt-1 animate-pulse">Active vehicles with GPS inactive</p><?php else:?><p class="text-xs text-mb-subtle mt-1">All active vehicles tracking</p><?php endif;?></div><div class="w-12 h-12 rounded-full <?= $gpsWarnings>0?'bg-red-500/10 text-red-400':'bg-green-500/10 text-green-400' ?> flex items-center justify-center"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 2a7 7 0 00-7 7c0 4.5 7 13 7 13s7-8.5 7-13a7 7 0 00-7-7zm0 10a3 3 0 110-6 3 3 0 010 6z"/></svg></div></a>
+            <a href="accounts/credit.php" class="bg-mb-surface border <?= $outstandingCredits>0?'border-red-500/40 bg-red-500/5':'border-mb-subtle/20' ?> p-6 rounded-lg flex items-center justify-between hover:bg-mb-black/30 transition-colors cursor-pointer"><div><p class="text-mb-silver text-sm uppercase mb-1">Outstanding Credits</p><span class="text-3xl font-light <?= $outstandingCredits>0?'text-red-400':'text-white' ?>">$<?= number_format($outstandingCredits,2) ?></span><?php if($outstandingCredits>0):?><p class="text-xs text-red-400/70 mt-1 animate-pulse">Credit to be settled</p><?php else:?><p class="text-xs text-mb-subtle mt-1">All credits settled</p><?php endif;?></div><div class="w-12 h-12 rounded-full <?= $outstandingCredits>0?'bg-red-500/10 text-red-400':'bg-green-500/10 text-green-400' ?> flex items-center justify-center"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg></div></a>
         </div>
     </section>
 
     <section>
         <h3 class="text-white text-lg font-light mb-4 uppercase tracking-wider border-l-2 border-mb-accent pl-2">Business Performance <span class="text-mb-subtle text-sm normal-case tracking-normal">(Today)</span></h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div class="bg-mb-surface border border-mb-subtle/20 p-5 rounded-lg" x-data="{editing:false}">
                 <div class="flex items-center justify-between mb-2"><p class="text-mb-silver text-sm uppercase">Daily Target</p><button @click="editing=!editing" class="text-mb-subtle hover:text-mb-accent transition-colors p-1 rounded"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></div>
                 <form x-show="editing" method="POST" class="flex items-center gap-2 mb-2" x-cloak><span class="text-mb-silver text-sm">$</span><input type="number" name="daily_target" value="<?= (int)$dailyTarget ?>" min="0" step="100" class="w-28 bg-mb-black border border-mb-accent/40 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-mb-accent"><button type="submit" class="bg-mb-accent text-white px-3 py-1 rounded text-xs font-medium hover:bg-mb-accent/80 transition-colors">Save</button><button type="button" @click="editing=false" class="text-mb-subtle hover:text-white text-xs transition-colors">Cancel</button></form>
@@ -223,6 +264,7 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
             <?= statCard('Enquiries',$enquiries) ?>
             <?= statCard('Closed Deals',$closedDeals) ?>
             <?= statCard('Total Clients',$totalClients,'clients/index.php','text-white',$newClients > 0 ? $newClients . ' new today' : '') ?>
+            <?= statCard('Total Leads',$totalLeads,'leads/index.php') ?>
         </div>
     </section>
 
@@ -252,6 +294,16 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
 
 <?php else: ?>
 <!--  STAFF DASHBOARD  -->
+
+<?php if ($canSeeBothDashboards): ?>
+<div class="flex justify-end mb-4">
+    <form method="POST" class="flex items-center gap-2 bg-mb-surface border border-mb-subtle/20 rounded-lg px-3 py-2">
+        <span class="text-xs text-mb-subtle">View:</span>
+        <button type="submit" name="toggle_dashboard" value="admin" class="text-xs px-2 py-1 rounded <?= $isAdmin ? 'bg-mb-accent text-white' : 'text-mb-subtle hover:text-white' ?>">Admin</button>
+        <button type="submit" name="toggle_dashboard" value="staff" class="text-xs px-2 py-1 rounded <?= !$isAdmin ? 'bg-mb-accent text-white' : 'text-mb-subtle hover:text-white' ?>">Staff</button>
+    </form>
+</div>
+<?php endif; ?>
 
     <div class="flex items-center justify-between">
         <div>

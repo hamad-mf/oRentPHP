@@ -72,6 +72,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'give_
     exit;
 }
 
+// --- Staff Incentive Feature ---
+$hasIncentiveTable = false;
+$incentiveHistory = [];
+$totalIncentives = 0.0;
+try {
+    $hasIncentiveTable = (bool) $pdo->query("SHOW TABLES LIKE 'staff_incentives'")->fetchColumn();
+    if ($hasIncentiveTable && $userId) {
+        $incStmt = $pdo->prepare("SELECT id, month, year, amount, note, created_at FROM staff_incentives WHERE user_id = ? ORDER BY year DESC, month DESC, id DESC");
+        $incStmt->execute([$userId]);
+        $incentiveHistory = $incStmt->fetchAll();
+        $incSumStmt = $pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM staff_incentives WHERE user_id = ?");
+        $incSumStmt->execute([$userId]);
+        $totalIncentives = (float) $incSumStmt->fetchColumn();
+    }
+} catch (Exception $incEx) {}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_incentive_from_profile') {
+    $incAmt   = (float) ($_POST['incentive_amount'] ?? 0);
+    $incNote  = trim($_POST['incentive_note'] ?? '');
+    $incMonth = (int)   ($_POST['incentive_month'] ?? date('n'));
+    $incYear  = (int)   ($_POST['incentive_year']  ?? date('Y'));
+    if ($incMonth < 1 || $incMonth > 12) $incMonth = (int) date('n');
+    if ($incYear  < 2000 || $incYear > 2100) $incYear = (int) date('Y');
+    if ($incAmt > 0 && $userId && $hasIncentiveTable) {
+        try {
+            $nowSql = date('Y-m-d H:i:s');
+            $pdo->prepare("INSERT INTO staff_incentives (user_id, month, year, amount, note, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)")
+                ->execute([$userId, $incMonth, $incYear, $incAmt, $incNote ?: null, $nowSql, current_user()['id']]);
+            flash('success', sprintf('Incentive of $%s added for %s.', number_format($incAmt, 2), $staff['name']));
+        } catch (Throwable $incE) {
+            flash('error', 'Incentive failed: ' . $incE->getMessage());
+        }
+    }
+    header('Location: show.php?id=' . $id);
+    exit;
+}
+
 // Permissions
 $perms = [];
 if ($userId) {
@@ -328,6 +365,74 @@ $s = getFlash('success');
                                     <?= $adv['status'] === 'partially_recovered' ? 'Partial' : ucfirst($adv['status']) ?>
                                     <?php if ($adv['status'] !== 'recovered'): ?>(rem: $<?= number_format($adv['remaining_amount'], 2) ?>)<?php endif; ?>
                                 </span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($hasIncentiveTable && $userId): ?>
+            <!-- Staff Incentives Card -->
+            <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-white text-sm font-medium border-l-2 border-green-400 pl-3">Staff Incentives</h3>
+                    <?php if ($totalIncentives > 0): ?>
+                        <span class="text-xs bg-green-500/10 text-green-400 border border-green-500/20 px-2.5 py-1 rounded-full">Total: $<?= number_format($totalIncentives, 2) ?></span>
+                    <?php else: ?>
+                        <span class="text-xs bg-mb-subtle/10 text-mb-subtle border border-mb-subtle/20 px-2.5 py-1 rounded-full">No Incentives</span>
+                    <?php endif; ?>
+                </div>
+                <form method="POST" class="space-y-3">
+                    <input type="hidden" name="action" value="add_incentive_from_profile">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs text-mb-subtle mb-1">For Month</label>
+                            <select name="incentive_month" class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-green-400">
+                                <?php
+                                $defInc_m = (int)date('n');
+                                $defInc_y = (int)date('Y');
+                                for ($im = 1; $im <= 12; $im++): ?>
+                                    <option value="<?= $im ?>" <?= $im === $defInc_m ? 'selected' : '' ?>>
+                                        <?= date('M', mktime(0,0,0,$im,1)) ?>
+                                    </option>
+                                <?php endfor; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-mb-subtle mb-1">Year</label>
+                            <select name="incentive_year" class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-green-400">
+                                <?php for ($iy = (int)date('Y') - 1; $iy <= (int)date('Y') + 1; $iy++): ?>
+                                    <option value="<?= $iy ?>" <?= $iy === $defInc_y ? 'selected' : '' ?>><?= $iy ?></option>
+                                <?php endfor; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-mb-subtle mb-1">Amount</label>
+                        <input type="number" name="incentive_amount" min="0.01" step="0.01" placeholder="0.00" required
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-mb-subtle mb-1">Note (optional)</label>
+                        <input type="text" name="incentive_note" placeholder="e.g. Performance bonus"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-400">
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-green-500/15 text-green-300 border border-green-500/30 px-4 py-2.5 rounded-xl hover:bg-green-500/25 transition-colors text-sm font-medium">
+                        Add Incentive
+                    </button>
+                </form>
+                <?php if (!empty($incentiveHistory)): ?>
+                    <div class="mt-4 pt-4 border-t border-mb-subtle/10 space-y-2.5">
+                        <p class="text-xs text-mb-subtle uppercase tracking-wider mb-2">Incentive History</p>
+                        <?php foreach ($incentiveHistory as $inc): ?>
+                            <div class="flex items-start justify-between gap-2 text-xs">
+                                <div>
+                                    <span class="text-green-400">$<?= number_format($inc['amount'], 2) ?></span>
+                                    <?php if ($inc['note']): ?><span class="text-mb-subtle ml-1">— <?= e($inc['note']) ?></span><?php endif; ?>
+                                    <p class="text-mb-subtle/60 mt-0.5"><?= date('M Y', strtotime($inc['created_at'])) ?></p>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     </div>

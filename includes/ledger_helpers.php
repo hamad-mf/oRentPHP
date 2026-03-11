@@ -189,13 +189,13 @@ function ledger_post(
 //  ”  ”  Reservation Auto-Posting  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 /**
- * Auto-post income from a reservation delivery or return payment.
+ * Auto-post income from a reservation advance, delivery, or return payment.
  * Idempotent  ” safe to call twice for the same event.
  */
 function ledger_post_reservation_event(
     PDO $pdo,
     int $reservationId,
-    string $event,          // 'delivery' | 'return'
+    string $event,          // 'advance' | 'delivery' | 'return'
     float $amount,
     ?string $paymentMethod, // 'cash' | 'account' | 'credit' | null
     int $userId,
@@ -206,8 +206,26 @@ function ledger_post_reservation_event(
 
     ledger_ensure_schema($pdo);
 
-    $category = $event === 'delivery' ? 'Reservation Delivery' : 'Reservation Return';
-    $description = "Reservation #$reservationId  ” " . ucfirst($event) . " payment";
+    $event = strtolower(trim($event));
+    switch ($event) {
+        case 'delivery':
+            $category = 'Reservation Delivery';
+            $label = 'Delivery';
+            break;
+        case 'return':
+            $category = 'Reservation Return';
+            $label = 'Return';
+            break;
+        case 'advance':
+            $category = 'Reservation Advance';
+            $label = 'Advance';
+            break;
+        default:
+            $category = 'Reservation Payment';
+            $label = ucfirst($event);
+            break;
+    }
+    $description = "Reservation #$reservationId - {$label} payment";
     $idKey = "reservation:{$event}:{$reservationId}";
     $bankId = ledger_resolve_bank_account_id($pdo, $paymentMethod, $bankAccountId);
 

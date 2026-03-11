@@ -8,6 +8,7 @@ require_once __DIR__ . '/../includes/voucher_helpers.php';
 require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
 require_once __DIR__ . '/../includes/ledger_helpers.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
+require_once __DIR__ . '/../includes/notifications.php';
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
 voucher_ensure_schema($pdo);
@@ -39,12 +40,13 @@ $returnPickupChargeDefault = (float) settings_get($pdo, 'return_pickup_charge_de
 $startDt = new DateTime($r['start_date']);
 $scheduledEndDt = new DateTime($r['end_date']);
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
+$advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
 // Account for delivery discount when showing what was actually collected at delivery
 $delivDiscType_ = $r['delivery_discount_type'] ?? null;
 $delivDiscVal_ = (float) ($r['delivery_discount_value'] ?? 0);
-$delivBase_ = max(0, (float) $r['total_price'] - $voucherApplied) + $deliveryCharge + $deliveryManualAmount;
+$delivBase_ = max(0, (float) $r['total_price'] - $voucherApplied - $advancePaid) + $deliveryCharge + $deliveryManualAmount;
 $delivDiscAmt_ = 0;
 if ($delivDiscType_ === 'percent') {
     $delivDiscAmt_ = round($delivBase_ * min($delivDiscVal_, 100) / 100, 2);
@@ -213,7 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['mileage'] = 'Mileage must be 0 or more.';
 
     // All photos are required
-    $requiredPhotos = ['front','back','left','right','interior','odometer','with_customer'];
+    $requiredPhotos = ['front','back','left','right','interior','odometer'];
     foreach ($requiredPhotos as $photoKey) {
         if (empty($_FILES['photos']['name'][$photoKey]) || $_FILES['photos']['error'][$photoKey] !== UPLOAD_ERR_OK) {
             $errors['photo_' . $photoKey] = ucfirst(str_replace('_', ' ', $photoKey)) . ' photo is required.';
@@ -362,6 +364,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msg .= ' | Method: Multi Source';
             }
             $msg .= ' | Base collected at delivery: $' . number_format($baseCollectedAtDelivery, 2);
+            if ($advancePaid > 0) {
+                $msg .= ' | Advance collected: $' . number_format($advancePaid, 2);
+            }
             if ($r['deposit_amount'] > 0) {
                 $msg .= ' | Deposit: $' . number_format((float) $r['deposit_amount'], 2) . ' (Returned: $' . number_format($depositReturned, 2) . ')';
             }
@@ -428,6 +433,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $id,
                 "Returned reservation #{$id} — {$r['client_name']} → {$r['brand']} {$r['model']}. Due at return: \$" . number_format($cashDueAtReturn, 2) . "."
             );
+
+            // Create notification
+            $vehicleName = $r['brand'] . ' ' . $r['model'];
+            notif_create_reservation_event($pdo, $id, 'returned', $r['client_name'], $vehicleName);
+
             redirect("bill.php?id=$id");
         }
     }
@@ -828,6 +838,12 @@ require_once __DIR__ . '/../includes/header.php';
                                 <span>-$<?= number_format($voucherApplied, 2) ?></span>
                             </div>
                         <?php endif; ?>
+                        <?php if ($advancePaid > 0): ?>
+                            <div class="flex justify-between text-purple-300">
+                                <span>Advance Collected</span>
+                                <span>-$<?= number_format($advancePaid, 2) ?></span>
+                            </div>
+                        <?php endif; ?>
                         <div class="flex justify-between text-mb-silver">
                             <span>Base Collected at Delivery</span>
                             <span>$<?= number_format($baseCollectedAtDelivery, 2) ?></span>
@@ -891,7 +907,6 @@ require_once __DIR__ . '/../includes/header.php';
                     'right' => 'Right',
                     'interior' => 'Interior',
                     'odometer' => 'Photo of Odometer',
-                    'with_customer' => 'Photo with Customer',
                 ];
                 foreach ($photoViews as $areaKey => $areaLabel):
                     ?>

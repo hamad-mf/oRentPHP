@@ -35,12 +35,13 @@ $overdue = isOverdue($r['end_date'], $r['status']);
 // Totals calculation (match bill.php)
 $basePrice = (float) $r['total_price'];
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
+$advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
 // Delivery discount
 $delivDiscType = $r['delivery_discount_type'] ?? null;
 $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
-$delivBaseWithCharge = max(0, $basePrice - $voucherApplied) + $deliveryCharge + $deliveryManualAmount;
+$delivBaseWithCharge = max(0, $basePrice - $voucherApplied - $advancePaid) + $deliveryCharge + $deliveryManualAmount;
 $delivDiscountAmt = 0;
 if ($delivDiscType === 'percent') {
     $delivDiscountAmt = round($delivBaseWithCharge * min($delivDiscVal, 100) / 100, 2);
@@ -68,7 +69,7 @@ if ($discType === 'percent') {
 }
 $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
 $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
-$totalCollected = $baseCollectedAtDelivery + $cashDueAtReturn;
+$totalCollected = $advancePaid + $baseCollectedAtDelivery + $cashDueAtReturn;
 $refundAmount = max(0, (float) ($r['refund_amount'] ?? 0));
 $netCollected = max(0, $totalCollected - $refundAmount);
 
@@ -211,6 +212,12 @@ function fuelBar(int $pct): string
                     </p>
                 </div>
             </div>
+            <?php if (!empty($r['note'])): ?>
+            <div class="mt-4 bg-mb-black/40 rounded-xl p-4 border-l-2 border-mb-accent">
+                <p class="text-mb-subtle text-xs uppercase mb-1">Reservation Note</p>
+                <p class="text-white text-sm whitespace-pre-wrap"><?= e($r['note']) ?></p>
+            </div>
+            <?php endif; ?>
 
             <!-- Pricing Summary -->
             <div class="border-t border-mb-subtle/10 pt-4 space-y-2">
@@ -218,6 +225,12 @@ function fuelBar(int $pct): string
                     <div class="flex justify-between text-sm">
                         <span class="text-green-500/80">Voucher Used on Booking</span>
                         <span class="text-green-500/80">-$<?= number_format($voucherApplied, 2) ?></span>
+                    </div>
+                <?php endif; ?>
+                <?php if ($advancePaid > 0): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-purple-400/80">Advance Collected</span>
+                        <span class="text-purple-400/80">-$<?= number_format($advancePaid, 2) ?></span>
                     </div>
                 <?php endif; ?>
                 <?php if ($delivDiscountAmt > 0): ?>
