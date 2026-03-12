@@ -92,3 +92,5 @@ Add one row per release.
 | 2026-03-11 | staff_admin_dashboard_toggle | Yes | `migrations/releases/2026-03-11_staff_admin_dashboard_toggle.sql` | Pending | Add toggle in staff profile to allow staff view admin dashboard. |
 | 2026-03-11 | reservation_notes | Yes | `migrations/releases/2026-03-11_reservation_notes.sql` | Pending | Add optional note field when creating reservation, displayed on details page. |
 | 2026-03-11 | client_proofs | Yes | `migrations/releases/2026-03-11_client_proofs.sql` | Pending | Multiple client proof uploads (max 5) via new client_proofs table. |
+| 2026-03-12 | delivery_prepaid_charge | Yes | `migrations/releases/2026-03-12_delivery_prepaid_charge.sql` | Pending | Collect delivery charge at reservation creation; delivery screen shows it as already collected. |
+| 2026-03-12 | ledger_void_entries | Yes | `migrations/releases/2026-03-12_ledger_void_entries.sql` | Pending | Soft-void ledger entries with reason; voided entries excluded from KPI totals. |

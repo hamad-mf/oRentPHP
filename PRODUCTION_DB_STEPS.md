@@ -11,6 +11,14 @@ This file tracks all database changes that need to be applied to **production** 
 
 ## Pending
 
+### 2026-03-12 - Ledger Void Entries
+**SQL file:** `migrations/releases/2026-03-12_ledger_void_entries.sql`
+**Notes:** Adds void metadata to ledger entries to allow soft-voiding mistakes while preserving audit history.
+
+### 2026-03-12 - Reservation Delivery Charge Prepaid
+**SQL file:** `migrations/releases/2026-03-12_delivery_prepaid_charge.sql`
+**Notes:** Adds prepaid delivery charge fields on reservations to collect delivery charge at booking time.
+
 ### 2026-03-11 - Client Proof Documents
 **SQL file:** `migrations/releases/2026-03-11_client_proofs.sql`
 **Notes:** Adds `client_proofs` table for storing up to 5 proof documents per client.

@@ -43,6 +43,7 @@ $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
+$deliveryPrepaid = max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
 // Account for delivery discount when showing what was actually collected at delivery
 $delivDiscType_ = $r['delivery_discount_type'] ?? null;
 $delivDiscVal_ = (float) ($r['delivery_discount_value'] ?? 0);
@@ -842,6 +843,12 @@ require_once __DIR__ . '/../includes/header.php';
                             <div class="flex justify-between text-purple-300">
                                 <span>Advance Collected</span>
                                 <span>-$<?= number_format($advancePaid, 2) ?></span>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($deliveryPrepaid > 0): ?>
+                            <div class="flex justify-between text-blue-300">
+                                <span>Delivery Charge Collected at Booking</span>
+                                <span>+$<?= number_format($deliveryPrepaid, 2) ?></span>
                             </div>
                         <?php endif; ?>
                         <div class="flex justify-between text-mb-silver">

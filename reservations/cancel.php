@@ -36,6 +36,9 @@ try {
 // Collect what was taken from the customer at delivery
 $deliveryPaid   = (float)($r['delivery_paid_amount'] ?? 0);
 $deliveryMethod = $r['delivery_payment_method'] ?? null;
+$advancePaid    = (float)($r['advance_paid'] ?? 0);
+$deliveryPrepaid = (float)($r['delivery_charge_prepaid'] ?? 0);
+$maxRefund = $deliveryPaid + $advancePaid + $deliveryPrepaid;
 // Fetch bank_account_id from ledger_entries (not stored directly on reservation)
 $ledBankRow = $pdo->prepare("SELECT bank_account_id FROM ledger_entries WHERE source_type='reservation' AND source_id=? AND source_event='delivery' AND bank_account_id IS NOT NULL ORDER BY id DESC LIMIT 1");
 $ledBankRow->execute([$id]);
@@ -48,8 +51,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $admin      = current_user();
 
     if (!$reason) $errors[] = 'Cancellation reason is required.';
-    if ($refund > $deliveryPaid) {
-        $errors[] = 'Refund cannot exceed amount collected at delivery ($' . number_format($deliveryPaid, 2) . ').';
+    if ($refund > $maxRefund) {
+        $errors[] = 'Refund cannot exceed total collected amount ($' . number_format($maxRefund, 2) . ').';
     }
 
     if (empty($errors)) {
@@ -156,12 +159,20 @@ require_once __DIR__ . '/../includes/header.php';
             $collectedAtDelivery = max(0, $delBase - $delDisc);
             ?>
             <?php if ($voucherAmt > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Voucher Used</span><span class="text-green-400">-$<?= number_format($voucherAmt,2) ?></span></div><?php endif; ?>
+            <?php if ($advancePaid > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Advance Collected</span><span class="text-purple-300">+$<?= number_format($advancePaid,2) ?></span></div><?php endif; ?>
+            <?php if ($deliveryPrepaid > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Delivery Charge Collected at Booking</span><span class="text-blue-300">+$<?= number_format($deliveryPrepaid,2) ?></span></div><?php endif; ?>
             <?php if ($delCharge > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Delivery Charge</span><span class="text-white">+$<?= number_format($delCharge,2) ?></span></div><?php endif; ?>
             <?php if ($delDisc > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Delivery Discount</span><span class="text-green-400">-$<?= number_format($delDisc,2) ?></span></div><?php endif; ?>
             <div class="flex justify-between items-center bg-mb-black/40 rounded-lg px-4 py-3 border border-mb-subtle/20">
                 <span class="text-white font-medium text-sm"> Total Collected at Delivery</span>
                 <span class="text-mb-accent font-bold text-xl">$<?= number_format($deliveryPaid, 2) ?></span>
             </div>
+            <?php if ($maxRefund > 0): ?>
+                <div class="flex justify-between items-center bg-mb-black/30 rounded-lg px-4 py-2 border border-mb-subtle/10">
+                    <span class="text-mb-subtle text-sm">Total Collected (Refund Max)</span>
+                    <span class="text-white font-semibold">$<?= number_format($maxRefund, 2) ?></span>
+                </div>
+            <?php endif; ?>
             <?php if ($deliveryMethod): ?>
             <p class="text-mb-subtle text-xs">Payment method: <span class="text-white"><?= ucfirst($deliveryMethod) ?></span></p>
             <?php endif; ?>
@@ -177,14 +188,14 @@ require_once __DIR__ . '/../includes/header.php';
             <label class="text-mb-subtle text-xs uppercase tracking-wider block mb-2">Refund Amount <span class="text-mb-subtle/50 normal-case">(0 = no refund)</span></label>
             <div class="relative">
                 <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle">$</span>
-                <input type="number" name="refund_amount" id="refund_amount" step="0.01" min="0" max="<?= $deliveryPaid ?>"
-                    value="<?= number_format($deliveryPaid, 2, '.', '') ?>"
-                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/20">
-            </div>
-            <div class="flex gap-2 mt-2">
-                <button type="button" onclick="document.getElementById('refund_amount').value='<?= number_format($deliveryPaid,2,'.','') ?>'" class="text-[11px] bg-mb-black border border-mb-subtle/20 text-mb-subtle hover:text-white px-3 py-1 rounded-full transition-colors">Full Refund ($<?= number_format($deliveryPaid,2) ?>)</button>
-                <button type="button" onclick="document.getElementById('refund_amount').value='0'" class="text-[11px] bg-mb-black border border-mb-subtle/20 text-mb-subtle hover:text-white px-3 py-1 rounded-full transition-colors">No Refund ($0)</button>
-            </div>
+            <input type="number" name="refund_amount" id="refund_amount" step="0.01" min="0" max="<?= $maxRefund ?>"
+                value="<?= number_format($maxRefund, 2, '.', '') ?>"
+                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/20">
+        </div>
+        <div class="flex gap-2 mt-2">
+            <button type="button" onclick="document.getElementById('refund_amount').value='<?= number_format($maxRefund,2,'.','') ?>'" class="text-[11px] bg-mb-black border border-mb-subtle/20 text-mb-subtle hover:text-white px-3 py-1 rounded-full transition-colors">Full Refund ($<?= number_format($maxRefund,2) ?>)</button>
+            <button type="button" onclick="document.getElementById('refund_amount').value='0'" class="text-[11px] bg-mb-black border border-mb-subtle/20 text-mb-subtle hover:text-white px-3 py-1 rounded-full transition-colors">No Refund ($0)</button>
+        </div>
         </div>
 
         <div>

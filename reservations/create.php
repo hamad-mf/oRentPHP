@@ -7,13 +7,17 @@ if (!auth_has_perm('add_reservations')) {
 require_once __DIR__ . '/../includes/voucher_helpers.php';
 require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
 require_once __DIR__ . '/../includes/ledger_helpers.php';
+require_once __DIR__ . '/../includes/settings_helpers.php';
 require_once __DIR__ . '/../includes/notifications.php';
 $pdo = db();
 
 voucher_ensure_schema($pdo);
 reservation_payment_ensure_schema($pdo);
 ledger_ensure_schema($pdo);
+settings_ensure_table($pdo);
 $activeBankAccounts = array_values(array_filter(ledger_get_accounts($pdo), fn($a) => (int)($a['is_active'] ?? 0) === 1));
+// Default delivery charge collected at reservation
+$deliveryChargeDefault = (float) settings_get($pdo, 'delivery_charge_default', '0');
 
 $clients = $pdo->query("SELECT id, name, voucher_balance FROM clients WHERE is_blacklisted=0 ORDER BY name")->fetchAll();
 $hiddenCount = $pdo->query("SELECT COUNT(*) FROM clients WHERE is_blacklisted=1")->fetchColumn();
@@ -97,6 +101,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $advanceMethod = reservation_payment_method_normalize($_POST['advance_payment_method'] ?? null);
     $advanceBankId = (int) ($_POST['advance_bank_account_id'] ?? 0);
     $advanceBankId = $advanceBankId > 0 ? $advanceBankId : null;
+    // Delivery charge collected at reservation
+    $deliveryPrepaidInput = (float) ($_POST['delivery_charge_prepaid'] ?? $deliveryChargeDefault);
+    $deliveryPrepaid = max(0, $deliveryPrepaidInput);
+    $deliveryPrepaidMethod = reservation_payment_method_normalize($_POST['delivery_prepaid_payment_method'] ?? null);
+    $deliveryPrepaidBankId = (int) ($_POST['delivery_prepaid_bank_account_id'] ?? 0);
+    $deliveryPrepaidBankId = $deliveryPrepaidBankId > 0 ? $deliveryPrepaidBankId : null;
     $reservationNote = trim($_POST['reservation_note'] ?? '');
     $clientVoucherBalance = 0.0;
 
@@ -156,6 +166,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $advanceBankId = null;
     }
 
+    // Delivery prepaid validation
+    if ($deliveryPrepaidInput < 0) {
+        $errors['delivery_charge_prepaid'] = 'Delivery charge cannot be negative.';
+    }
+    if ($deliveryPrepaid > 0) {
+        if ($deliveryPrepaidMethod === null) {
+            $errors['delivery_prepaid_payment_method'] = 'Please select how the delivery charge was received.';
+        }
+        if (!isset($errors['delivery_prepaid_payment_method']) && $deliveryPrepaidMethod === 'account') {
+            if ($deliveryPrepaidBankId === null) {
+                $errors['delivery_prepaid_bank_account_id'] = 'Please select the bank account for the delivery charge.';
+            }
+        } elseif ($deliveryPrepaidMethod !== 'account') {
+            $deliveryPrepaidBankId = null;
+        }
+    } else {
+        $deliveryPrepaidMethod = null;
+        $deliveryPrepaidBankId = null;
+    }
+
     if (!isset($errors['vehicle_id']) && !isset($errors['start_date']) && !isset($errors['end_date'])) {
         $vehicleStmt = $pdo->prepare("SELECT status FROM vehicles WHERE id=?");
         $vehicleStmt->execute([$vehicleId]);
@@ -177,8 +207,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('Vehicle overlap');
             }
 
-            $stmt = $pdo->prepare('INSERT INTO reservations (client_id,vehicle_id,rental_type,start_date,end_date,total_price,voucher_applied,advance_paid,advance_payment_method,advance_bank_account_id,status,note) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
-            $stmt->execute([$clientId, $vehicleId, $rentalType, $startDate, $endDate, $totalPrice, $voucherApplied, $advancePaid, $advanceMethod, $advanceBankId, 'confirmed', $reservationNote ?: null]);
+            $stmt = $pdo->prepare('INSERT INTO reservations (client_id,vehicle_id,rental_type,start_date,end_date,total_price,voucher_applied,advance_paid,advance_payment_method,advance_bank_account_id,delivery_charge_prepaid,delivery_prepaid_payment_method,delivery_prepaid_bank_account_id,status,note) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $stmt->execute([
+                $clientId,
+                $vehicleId,
+                $rentalType,
+                $startDate,
+                $endDate,
+                $totalPrice,
+                $voucherApplied,
+                $advancePaid,
+                $advanceMethod,
+                $advanceBankId,
+                $deliveryPrepaid,
+                $deliveryPrepaidMethod,
+                $deliveryPrepaidBankId,
+                'confirmed',
+                $reservationNote ?: null
+            ]);
             $id = (int) $pdo->lastInsertId();
 
             if ($voucherApplied > 0) {
@@ -190,6 +236,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Ledger: post advance payment (outside transaction for safety)
             if ($advancePaid > 0 && $advanceMethod !== null) {
                 ledger_post_reservation_event($pdo, $id, 'advance', $advancePaid, $advanceMethod, (int)$_SESSION['user']['id'], $advanceBankId);
+            }
+            if ($deliveryPrepaid > 0 && $deliveryPrepaidMethod !== null) {
+                ledger_post_reservation_event($pdo, $id, 'delivery_prepaid', $deliveryPrepaid, $deliveryPrepaidMethod, (int)$_SESSION['user']['id'], $deliveryPrepaidBankId);
             }
 
             // Get client name
@@ -212,7 +261,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($advancePaid > 0) {
                 $msg .= ' Advance of $' . number_format($advancePaid, 2) . ' recorded.';
             }
-            app_log('ACTION', "Created reservation (ID: $id)" . ($advancePaid > 0 ? " [Advance: \$$advancePaid ($advanceMethod)]" : ''));
+            if ($deliveryPrepaid > 0) {
+                $msg .= ' Delivery charge of $' . number_format($deliveryPrepaid, 2) . ' collected.';
+            }
+            $logMsg = "Created reservation (ID: $id)";
+            if ($advancePaid > 0) {
+                $logMsg .= " [Advance: \$$advancePaid ($advanceMethod)]";
+            }
+            if ($deliveryPrepaid > 0) {
+                $logMsg .= " [Delivery Prepaid: \$$deliveryPrepaid ($deliveryPrepaidMethod)]";
+            }
+            app_log('ACTION', $logMsg);
             flash('success', $msg);
             redirect("show.php?id=$id");
         } catch (Throwable $e) {
@@ -500,8 +559,56 @@ require_once __DIR__ . '/../includes/header.php';
                         </div>
                     </div>
 
-                    <!-- Reservation Note -->
+                    <!-- Delivery Charge Collected at Booking -->
                     <div class="order-10">
+                        <label class="block text-sm text-mb-silver mb-2">Delivery Charge Collected (Booking)</label>
+                        <input type="number" name="delivery_charge_prepaid" id="deliveryChargePrepaid"
+                            value="<?= e($_POST['delivery_charge_prepaid'] ?? number_format($deliveryChargeDefault, 2, '.', '')) ?>" step="0.01"
+                            min="0" placeholder="0.00"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500/60 text-sm">
+                        <p class="text-xs text-mb-subtle mt-1">Collected now; shown as read-only on delivery.</p>
+                        <?php if (isset($errors['delivery_charge_prepaid'])): ?>
+                            <p class="text-red-400 text-xs mt-1"><?= e($errors['delivery_charge_prepaid']) ?></p>
+                        <?php endif; ?>
+                    </div>
+
+                    <div id="deliveryPrepaidMethodWrap" class="order-11 hidden space-y-2">
+                        <label class="block text-xs text-mb-silver">Delivery Charge Payment Method</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <?php
+                            $deliveryPrepaidMethods = ['cash' => 'Cash', 'account' => 'Account', 'credit' => 'Credit'];
+                            foreach ($deliveryPrepaidMethods as $val => $label):
+                                ?>
+                                <label class="flex items-center gap-2 cursor-pointer bg-mb-black/30 border border-mb-subtle/10 rounded-lg px-3 py-2 hover:border-mb-accent/40 transition-all">
+                                    <input type="radio" name="delivery_prepaid_payment_method" value="<?= $val ?>"
+                                        <?= (($_POST['delivery_prepaid_payment_method'] ?? '') === $val) ? 'checked' : '' ?>
+                                        class="accent-mb-accent" onchange="toggleDeliveryPrepaidBankField()">
+                                    <span class="text-mb-silver text-sm"><?= $label ?></span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php if (isset($errors['delivery_prepaid_payment_method'])): ?>
+                            <p class="text-red-400 text-xs mt-1"><?= e($errors['delivery_prepaid_payment_method']) ?></p>
+                        <?php endif; ?>
+                        <div id="deliveryPrepaidBankWrap" class="hidden">
+                            <label class="block text-xs text-mb-silver mb-1">Bank Account</label>
+                            <select name="delivery_prepaid_bank_account_id" id="deliveryPrepaidBankAccount"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
+                                <option value="">Select account</option>
+                                <?php foreach ($activeBankAccounts as $acc): ?>
+                                    <option value="<?= (int) $acc['id'] ?>" <?= ((string)($_POST['delivery_prepaid_bank_account_id'] ?? '')) === (string)$acc['id'] ? 'selected' : '' ?>>
+                                        <?= e($acc['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (isset($errors['delivery_prepaid_bank_account_id'])): ?>
+                                <p class="text-red-400 text-xs mt-1"><?= e($errors['delivery_prepaid_bank_account_id']) ?></p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <!-- Reservation Note -->
+                    <div class="order-12">
                         <label class="block text-sm text-mb-silver mb-2">Reservation Note (Optional)</label>
                         <textarea name="reservation_note" rows="2" placeholder="Add any special instructions or notes..."
                             class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent"><?= e($_POST['reservation_note'] ?? '') ?></textarea>
@@ -541,6 +648,10 @@ require_once __DIR__ . '/../includes/header.php';
                         <span>Advance Collected</span>
                         <span id="calcAdvancePaid">-$0.00</span>
                     </div>
+                    <div id="calcDeliveryPrepaidRow" class="hidden justify-between text-xs text-blue-400">
+                        <span>Delivery Charge Collected</span>
+                        <span id="calcDeliveryPrepaid">-$0.00</span>
+                    </div>
                     <div class="border-t border-mb-subtle/20 pt-2 flex justify-between text-sm font-medium">
                         <span class="text-mb-silver">Estimated Total</span>
                         <span class="text-mb-accent" id="calcTotal">$0</span>
@@ -572,6 +683,7 @@ const startDate = document.getElementById('startDate');
 const endDate = document.getElementById('endDate');
 const totalPrice = document.getElementById('totalPrice');
 const voucherAmount = document.getElementById('voucherAmount');
+const deliveryChargePrepaid = document.getElementById('deliveryChargePrepaid');
 const calcVoucherBalance = document.getElementById('calcVoucherBalance');
 const calcVoucherRow = document.getElementById('calcVoucherRow');
 const calcVoucherApplied = document.getElementById('calcVoucherApplied');
@@ -852,6 +964,21 @@ function updateVoucherPreview() {
         }
     }
 
+    // Delivery prepaid row
+    const delPre = deliveryChargePrepaid ? (parseFloat(deliveryChargePrepaid.value) || 0) : 0;
+    const delPreRow = document.getElementById('calcDeliveryPrepaidRow');
+    const delPreSpan = document.getElementById('calcDeliveryPrepaid');
+    if (delPreRow && delPreSpan) {
+        if (delPre > 0) {
+            delPreRow.classList.remove('hidden');
+            delPreRow.classList.add('flex');
+            delPreSpan.textContent = '-$' + delPre.toFixed(2);
+        } else {
+            delPreRow.classList.add('hidden');
+            delPreRow.classList.remove('flex');
+        }
+    }
+
     if (calcCollectNow) {
         calcCollectNow.textContent = '$' + Math.max(0, total - applied - adv).toFixed(2);
     }
@@ -914,6 +1041,45 @@ function toggleAdvanceBankField() {
 const advInput = document.getElementById('advancePaid');
 if (advInput) { advInput.addEventListener('input', updateAdvanceSection); }
 updateAdvanceSection();
+
+// Delivery prepaid section JS
+function updateDeliveryPrepaidSection() {
+    const el = document.getElementById('deliveryChargePrepaid');
+    const wrap = document.getElementById('deliveryPrepaidMethodWrap');
+    if (!el || !wrap) return;
+    const val = parseFloat(el.value || '0') || 0;
+    wrap.classList.toggle('hidden', !(val > 0));
+    if (!(val > 0)) {
+        document.querySelectorAll('input[name="delivery_prepaid_payment_method"]').forEach(r => r.checked = false);
+    }
+    toggleDeliveryPrepaidBankField();
+    updateVoucherPreview();
+}
+function toggleDeliveryPrepaidBankField() {
+    const method = document.querySelector('input[name="delivery_prepaid_payment_method"]:checked');
+    const bankWrap = document.getElementById('deliveryPrepaidBankWrap');
+    const bankSelect = document.getElementById('deliveryPrepaidBankAccount');
+    const val = parseFloat(document.getElementById('deliveryChargePrepaid')?.value || '0');
+    const needsBank = method && method.value === 'account' && val > 0;
+    if (bankWrap) {
+        bankWrap.classList.toggle('hidden', !needsBank);
+    }
+    if (bankSelect) {
+        if (needsBank) {
+            bankSelect.setAttribute('required', 'required');
+        } else {
+            bankSelect.removeAttribute('required');
+            bankSelect.value = '';
+        }
+    }
+}
+if (deliveryChargePrepaid) {
+    deliveryChargePrepaid.addEventListener('input', updateDeliveryPrepaidSection);
+}
+document.querySelectorAll('input[name="delivery_prepaid_payment_method"]').forEach(r => {
+    r.addEventListener('change', toggleDeliveryPrepaidBankField);
+});
+updateDeliveryPrepaidSection();
 document.getElementById('resForm').addEventListener('submit', function (e) {
     if (!validateVoucher()) {
         e.preventDefault();

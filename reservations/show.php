@@ -38,6 +38,7 @@ $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
+$deliveryPrepaid = max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
 // Delivery discount
 $delivDiscType = $r['delivery_discount_type'] ?? null;
 $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
@@ -69,7 +70,7 @@ if ($discType === 'percent') {
 }
 $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
 $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
-$totalCollected = $advancePaid + $baseCollectedAtDelivery + $cashDueAtReturn;
+$totalCollected = $advancePaid + $deliveryPrepaid + $baseCollectedAtDelivery + $cashDueAtReturn;
 $refundAmount = max(0, (float) ($r['refund_amount'] ?? 0));
 $netCollected = max(0, $totalCollected - $refundAmount);
 
@@ -231,6 +232,12 @@ function fuelBar(int $pct): string
                     <div class="flex justify-between text-sm">
                         <span class="text-purple-400/80">Advance Collected</span>
                         <span class="text-purple-400/80">-$<?= number_format($advancePaid, 2) ?></span>
+                    </div>
+                <?php endif; ?>
+                <?php if ($deliveryPrepaid > 0): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-blue-400/80">Delivery Charge Collected at Booking</span>
+                        <span class="text-blue-400/80">+$<?= number_format($deliveryPrepaid, 2) ?></span>
                     </div>
                 <?php endif; ?>
                 <?php if ($delivDiscountAmt > 0): ?>

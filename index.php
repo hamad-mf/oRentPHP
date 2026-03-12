@@ -54,8 +54,8 @@ $tr->execute([$istToday]);
 $todayReturns = (int) $tr->fetchColumn();
 $gpsWarnings     = gps_active_warning_count($pdo);
 
-$creditIncome = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income'")->fetchColumn();
-$creditExpense = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='expense'")->fetchColumn();
+$creditIncome = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income' AND voided_at IS NULL")->fetchColumn();
+$creditExpense = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='expense' AND voided_at IS NULL")->fetchColumn();
 $outstandingCredits = $creditIncome - $creditExpense;
 
 $eq = $pdo->prepare("SELECT COUNT(*) FROM reservations WHERE DATE(created_at)=?"); $eq->execute([$istToday]); $enquiries = (int)$eq->fetchColumn();
@@ -90,7 +90,7 @@ if ($isAdmin) {
     $todayRevenue = 0.0;
     $todayRevenueResolved = false;
     try {
-        $rs=$pdo->prepare("SELECT COALESCE(SUM(CASE WHEN txn_type='income' THEN amount WHEN txn_type='expense' THEN -amount ELSE 0 END),0) FROM ledger_entries WHERE source_type='reservation' AND source_event IN('advance','delivery','return','cancellation') AND DATE(posted_at)=?");
+        $rs=$pdo->prepare("SELECT COALESCE(SUM(CASE WHEN txn_type='income' THEN amount WHEN txn_type='expense' THEN -amount ELSE 0 END),0) FROM ledger_entries WHERE source_type='reservation' AND source_event IN('advance','delivery','delivery_prepaid','return','cancellation') AND voided_at IS NULL AND DATE(posted_at)=?");
         $rs->execute([$istToday]); $todayRevenue=(float)$rs->fetchColumn();
         $todayRevenueResolved = true;
     } catch(Throwable $e){
@@ -106,12 +106,13 @@ if ($isAdmin) {
             CASE WHEN d.delivery_today=1 THEN r.delivery_paid_amount ELSE 0 END
           + CASE WHEN rt.return_today=1 THEN r.return_paid_amount ELSE 0 END
           + CASE WHEN DATE(r.created_at)=? THEN r.advance_paid ELSE 0 END
+          + CASE WHEN DATE(r.created_at)=? THEN r.delivery_charge_prepaid ELSE 0 END
         ),0)
         FROM reservations r
         LEFT JOIN(SELECT reservation_id,1 AS delivery_today FROM vehicle_inspections WHERE type='delivery' AND DATE(created_at)=? GROUP BY reservation_id)d ON d.reservation_id=r.id
         LEFT JOIN(SELECT reservation_id,1 AS return_today FROM vehicle_inspections WHERE type='return' AND DATE(created_at)=? GROUP BY reservation_id)rt ON rt.reservation_id=r.id
         WHERE d.delivery_today=1 OR rt.return_today=1 OR DATE(r.created_at)=?");
-        $ls->execute([$istToday,$istToday,$istToday,$istToday]);$todayRevenue=(float)$ls->fetchColumn();}catch(Throwable $e){
+        $ls->execute([$istToday,$istToday,$istToday,$istToday,$istToday]);$todayRevenue=(float)$ls->fetchColumn();}catch(Throwable $e){
            app_log('ERROR', 'Dashboard: fallback today revenue query failed - ' . $e->getMessage(), [
         'file' => $e->getFile() . ':' . $e->getLine(),
         'screen' => 'index.php',
@@ -123,10 +124,10 @@ if ($isAdmin) {
     $accounts=['total'=>0.0,'cash'=>0.0,'ac'=>0.0,'credit'=>0.0];
     try{
         $accounts['ac']=(float)$pdo->query("SELECT COALESCE(SUM(balance),0) FROM bank_accounts WHERE is_active=1")->fetchColumn();
-        $ci=(float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income'")->fetchColumn();
-        $ce=(float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense'")->fetchColumn();
+        $ci=(float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income' AND voided_at IS NULL")->fetchColumn();
+        $ce=(float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense' AND voided_at IS NULL")->fetchColumn();
         $accounts['cash']=$ci-$ce;
-        $accounts['credit']=(float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income'")->fetchColumn();
+        $accounts['credit']=(float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income' AND voided_at IS NULL")->fetchColumn();
         $accounts['total']=$accounts['cash']+$accounts['ac']+$accounts['credit'];
     }catch(Throwable $e){
       app_log('ERROR', 'Dashboard: accounts summary query failed - ' . $e->getMessage(), [

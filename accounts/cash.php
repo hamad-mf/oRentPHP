@@ -15,6 +15,7 @@ $page    = max(1, (int) ($_GET['page'] ?? 1));
 
 $isAdmin = ($_currentUser['role'] ?? '') === 'admin';
 $userId = (int) ($_currentUser['id'] ?? 0);
+$includeVoided = (string)($_GET['include_voided'] ?? '') === '1';
 
 //  ”  ”  Handle POST actions  ”  ” 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -35,15 +36,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$cashIncome  = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income'")->fetchColumn();
-$cashExpense = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense'")->fetchColumn();
+$cashIncome  = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income' AND voided_at IS NULL")->fetchColumn();
+$cashExpense = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense' AND voided_at IS NULL")->fetchColumn();
 $cashBalance = $cashIncome - $cashExpense;
 
 $accounts = ledger_get_accounts($pdo);
 $activeAccounts = array_values(array_filter($accounts, fn($a) => (int) ($a['is_active'] ?? 0) === 1));
 $canTransfer = $isAdmin && $cashBalance > 0 && !empty($activeAccounts);
 
-$baseSql = " FROM ledger_entries le LEFT JOIN reservations r ON le.source_type='reservation' AND le.source_id = r.id LEFT JOIN clients c ON c.id = r.client_id LEFT JOIN users u ON u.id = le.created_by WHERE le.payment_mode = 'cash'";
+$voidFilter = $includeVoided ? '' : ' AND le.voided_at IS NULL';
+$baseSql = " FROM ledger_entries le LEFT JOIN reservations r ON le.source_type='reservation' AND le.source_id = r.id LEFT JOIN clients c ON c.id = r.client_id LEFT JOIN users u ON u.id = le.created_by WHERE le.payment_mode = 'cash'{$voidFilter}";
 $selectSql = "SELECT le.*, r.id AS res_id, r.status AS res_status, c.name AS client_name, u.name AS posted_by_name" . $baseSql . " ORDER BY le.id DESC, le.posted_at DESC";
 $countSql  = "SELECT COUNT(*)" . $baseSql;
 $pg = paginate_query($pdo, $selectSql, $countSql, [], $page, $perPage);
@@ -83,8 +85,16 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
         <div class="flex items-center justify-between px-6 py-4 border-b border-mb-subtle/10">
             <h2 class="text-white font-light">Cash Transactions</h2>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-3">
                 <span class="text-xs text-mb-subtle"><?= $pg['total'] ?> entries</span>
+                <form method="GET" class="inline-flex items-center gap-2">
+                    <label class="inline-flex items-center gap-2 text-xs text-mb-subtle">
+                        <input type="checkbox" name="include_voided" value="1" <?= $includeVoided ? 'checked' : '' ?>
+                            onchange="this.form.submit()"
+                            class="accent-mb-accent w-4 h-4 rounded border border-mb-subtle/30 bg-mb-black">
+                        Show voided
+                    </label>
+                </form>
                 <?php if ($isAdmin): ?>
                     <button type="button" onclick="<?= $canTransfer ? 'openCashTransferModal()' : '' ?>"
                         class="text-xs bg-blue-500/15 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-full hover:bg-blue-500/25 transition-colors flex items-center gap-1 <?= $canTransfer ? '' : 'opacity-50 cursor-not-allowed' ?>"
@@ -114,17 +124,31 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php else:
                         foreach ($entries as $row):
                             $isIncome = $row['txn_type'] === 'income';
+                            $isVoided = !empty($row['voided_at']);
                             $amtColor = $isIncome ? 'text-green-400' : 'text-red-400';
                             $typeBg   = $isIncome ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400';
                     ?>
-                        <tr class="hover:bg-mb-black/30 transition-colors">
+                        <tr class="hover:bg-mb-black/30 transition-colors<?= $isVoided ? ' opacity-60' : '' ?>">
                             <td class="px-6 py-3 text-mb-silver whitespace-nowrap"><?= date('d M Y', strtotime($row['posted_at'])) ?></td>
-                            <td class="px-6 py-3"><span class="<?= $typeBg ?> text-xs px-2 py-0.5 rounded-full font-medium"><?= strtoupper($row['txn_type']) ?></span></td>
-                            <td class="px-6 py-3 text-white"><?= e($row['category']) ?></td>
+                            <td class="px-6 py-3">
+                                <span class="<?= $typeBg ?> text-xs px-2 py-0.5 rounded-full font-medium"><?= strtoupper($row['txn_type']) ?></span>
+                                <?php if ($isVoided): ?>
+                                    <span class="ml-2 bg-red-500/15 text-red-400 text-[10px] px-2 py-0.5 rounded-full font-medium">VOID</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="px-6 py-3 <?= $isVoided ? 'text-mb-subtle line-through' : 'text-white' ?>"><?= e($row['category']) ?></td>
                             <td class="px-6 py-3 text-mb-silver"><?php if (!empty($row['client_name'])): ?><?= e($row['client_name']) ?><?php else: ?><span class="text-mb-subtle">&mdash;</span><?php endif; ?></td>
                             <td class="px-6 py-3"><?php if ($row['source_type'] === 'reservation' && !empty($row['res_id'])): ?><a href="../reservations/show.php?id=<?= (int)$row['res_id'] ?>" class="text-xs text-mb-accent hover:underline">Res #<?= (int)$row['res_id'] ?></a><?php if (!empty($row['source_event'])): ?> <span class="text-[10px] text-mb-subtle capitalize">(<?= e($row['source_event']) ?>)</span><?php endif; ?><?php elseif ($row['source_type'] === 'manual'): ?><span class="text-xs text-mb-subtle">Manual</span><?php else: ?><span class="text-xs text-mb-subtle capitalize"><?= e($row['source_type']) ?></span><?php endif; ?></td>
-                            <td class="px-6 py-3 text-mb-subtle max-w-xs truncate"><?= e($row['description'] ?? '') ?></td>
-                            <td class="px-6 py-3 text-right <?= $amtColor ?> font-medium whitespace-nowrap"><?= $isIncome ? '+' : '-' ?>$<?= number_format((float)$row['amount'], 2) ?></td>
+                            <td class="px-6 py-3 text-mb-subtle max-w-xs truncate">
+                                <?= e($row['description'] ?? '') ?>
+                                <?php if ($isVoided): ?>
+                                    <div class="text-xs text-red-400 mt-1">
+                                        Voided <?= date('d M Y H:i', strtotime($row['voided_at'])) ?>
+                                        <?= !empty($row['void_reason']) ? ' — ' . e($row['void_reason']) : '' ?>
+                                    </div>
+                                <?php endif; ?>
+                            </td>
+                            <td class="px-6 py-3 text-right <?= $amtColor ?> font-medium whitespace-nowrap<?= $isVoided ? ' line-through' : '' ?>"><?= $isIncome ? '+' : '-' ?>$<?= number_format((float)$row['amount'], 2) ?></td>
                         </tr>
                     <?php endforeach; endif; ?>
                 </tbody>
@@ -187,7 +211,7 @@ require_once __DIR__ . '/../includes/header.php';
     <?php endif; ?>
 </div>
 <?php
-echo render_pagination($pg);
+echo render_pagination($pg, $includeVoided ? ['include_voided' => '1'] : []);
 if ($isAdmin):
 ?>
 <script>

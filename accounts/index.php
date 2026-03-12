@@ -73,6 +73,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('index.php');
     }
 
+    //  ”  ”  Void entry (soft)  ”  ”
+    if ($action === 'void_entry' && $isAdmin) {
+        $entryId = (int) ($_POST['entry_id'] ?? 0);
+        $reason = trim($_POST['void_reason'] ?? '');
+        if ($entryId <= 0 || $reason === '') {
+            flash('error', 'Void reason is required.');
+        } elseif (ledger_void_entry($pdo, $entryId, $userId, $reason)) {
+            flash('success', 'Entry voided.');
+        } else {
+            flash('error', 'Could not void entry.');
+        }
+        redirect('index.php');
+    }
+
     //  ”  ”  Save bank account (create or edit)  ”  ” 
     if ($action === 'save_account' && $isAdmin) {
         $accId = (int) ($_POST['account_id'] ?? 0);
@@ -122,6 +136,7 @@ $fDateFrom = $_GET['date_from'] ?? date('Y-m-01');
 $fDateTo = $_GET['date_to'] ?? date('Y-m-d');
 $fSource = $_GET['source'] ?? '';
 $fCategory = trim($_GET['category'] ?? '');
+$includeVoided = (string)($_GET['include_voided'] ?? '') === '1';
 
 $accountFilter = null;
 if ($fAccount === 'cash' || $fAccount === 'credit') {
@@ -138,6 +153,7 @@ $filters = [
     'date_to' => $fDateTo,
     'source' => $fSource,
     'category' => $fCategory,
+    'include_voided' => $includeVoided ? 1 : 0,
 ];
 
 $accounts = ledger_get_accounts($pdo);
@@ -152,7 +168,7 @@ $systemExpenseCategories = [
     'EMI Payment',
     'Transfer Out',
 ];
-$existingExpenseCategoriesStmt = $pdo->query("SELECT DISTINCT category FROM ledger_entries WHERE txn_type = 'expense' ORDER BY category ASC");
+$existingExpenseCategoriesStmt = $pdo->query("SELECT DISTINCT category FROM ledger_entries WHERE txn_type = 'expense' AND voided_at IS NULL ORDER BY category ASC");
 $existingExpenseCategories = $existingExpenseCategoriesStmt ? array_map(static function ($row) {
     return trim((string) ($row['category'] ?? ''));
 }, $existingExpenseCategoriesStmt->fetchAll()) : [];
@@ -188,10 +204,12 @@ foreach ($accounts as $acc) {
 }
 
 // Cash & Credit virtual balances (from ledger_entries.payment_mode)
-$cashIncome  = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income'")->fetchColumn();
-$cashExpense = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense'")->fetchColumn();
+$cashIncome  = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income' AND voided_at IS NULL")->fetchColumn();
+$cashExpense = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense' AND voided_at IS NULL")->fetchColumn();
 $cashBalance = $cashIncome - $cashExpense;
-$creditBalance = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income'")->fetchColumn();
+$creditBalance = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income' AND voided_at IS NULL")->fetchColumn();
+$accountsTotal = (float) array_sum(array_column($accounts, 'balance'));
+$overallTotal = $accountsTotal + $cashBalance + $creditBalance;
 
 $success = getFlash('success');
 $error   = getFlash('error');
@@ -208,15 +226,16 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <?php
         $cards = [
-            ['Income', '$' . number_format($totalIncome, 2), 'text-green-400', 'border-green-500/20', 'bg-green-500/5'],
-            ['Expenses', '$' . number_format($totalExpense, 2), 'text-red-400', 'border-red-500/20', 'bg-red-500/5'],
-            ['Net', '$' . number_format($netBalance, 2), $netBalance >= 0 ? 'text-mb-accent' : 'text-red-400', 'border-mb-accent/20', 'bg-mb-accent/5'],
-            ['Accounts Total', '$' . number_format(array_sum(array_column($accounts, 'balance')), 2), 'text-yellow-400', 'border-yellow-500/20', 'bg-yellow-500/5'],
+            ['Income', '$' . number_format($totalIncome, 2), 'text-green-400', 'border-green-500/20', 'bg-green-500/5', 'period'],
+            ['Expenses', '$' . number_format($totalExpense, 2), 'text-red-400', 'border-red-500/20', 'bg-red-500/5', 'period'],
+            ['Net', '$' . number_format($netBalance, 2), $netBalance >= 0 ? 'text-mb-accent' : 'text-red-400', 'border-mb-accent/20', 'bg-mb-accent/5', 'period'],
+            ['Accounts Total', '$' . number_format($accountsTotal, 2), 'text-yellow-400', 'border-yellow-500/20', 'bg-yellow-500/5', 'bank accounts'],
+            ['Overall Total', '$' . number_format($overallTotal, 2), 'text-cyan-300', 'border-cyan-500/20', 'bg-cyan-500/5', 'accounts + cash + credit'],
         ];
-        foreach ($cards as [$label, $val, $clr, $bdr, $bg]): ?>
+        foreach ($cards as [$label, $val, $clr, $bdr, $bg, $sub]): ?>
             <div class="<?= $bg ?> border <?= $bdr ?> rounded-xl p-4">
                 <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">
-                    <?= $label ?> <span class="text-[10px] opacity-60">(period)</span>
+                    <?= $label ?> <span class="text-[10px] opacity-60">(<?= $sub ?>)</span>
                 </p>
                 <p class="text-xl font-light <?= $clr ?>">
                     <?= $val ?>
@@ -354,6 +373,12 @@ require_once __DIR__ . '/../includes/header.php';
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <label class="inline-flex items-center gap-2 text-xs text-mb-subtle">
+                        <input type="checkbox" name="include_voided" value="1" <?= $includeVoided ? 'checked' : '' ?>
+                            onchange="this.form.submit()"
+                            class="accent-mb-accent w-4 h-4 rounded border border-mb-subtle/30 bg-mb-black">
+                        Show voided
+                    </label>
                     <button type="submit"
                         class="bg-mb-accent/15 text-mb-accent border border-mb-accent/30 px-3 h-10 rounded-lg text-xs hover:bg-mb-accent/25 transition-colors">
                         Apply
@@ -393,11 +418,14 @@ require_once __DIR__ . '/../includes/header.php';
                         foreach ($entries as $row):
                             $isIncome = $row['txn_type'] === 'income';
                             $isManual = $row['source_type'] === 'manual';
+                            $isVoided = !empty($row['voided_at']);
+                            $isTransfer = ($row['source_type'] ?? '') === 'transfer'
+                                || in_array((string) ($row['source_event'] ?? ''), ['transfer_out', 'transfer_in'], true);
                             $amtColor = $isIncome ? 'text-green-400' : 'text-red-400';
                             $typeLabel = strtoupper($row['txn_type']);
                             $typeBg = $isIncome ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400';
                             ?>
-                            <tr class="hover:bg-mb-black/30 transition-colors group">
+                            <tr class="hover:bg-mb-black/30 transition-colors group<?= $isVoided ? ' opacity-60' : '' ?>">
                                 <td class="px-6 py-3 text-mb-silver whitespace-nowrap">
                                     <?= date('d M Y', strtotime($row['posted_at'])) ?>
                                 </td>
@@ -405,12 +433,21 @@ require_once __DIR__ . '/../includes/header.php';
                                     <span class="<?= $typeBg ?> text-xs px-2 py-0.5 rounded-full font-medium">
                                         <?= $typeLabel ?>
                                     </span>
+                                    <?php if ($isVoided): ?>
+                                        <span class="ml-2 bg-red-500/15 text-red-400 text-[10px] px-2 py-0.5 rounded-full font-medium">VOID</span>
+                                    <?php endif; ?>
                                 </td>
-                                <td class="px-6 py-3 text-white">
+                                <td class="px-6 py-3 <?= $isVoided ? 'text-mb-subtle line-through' : 'text-white' ?>">
                                     <?= e($row['category']) ?>
                                 </td>
                                 <td class="px-6 py-3 text-mb-subtle max-w-xs truncate">
                                     <?= e($row['description'] ?? '') ?>
+                                    <?php if ($isVoided): ?>
+                                        <div class="text-xs text-red-400 mt-1">
+                                            Voided <?= date('d M Y H:i', strtotime($row['voided_at'])) ?>
+                                            <?= !empty($row['void_reason']) ? ' — ' . e($row['void_reason']) : '' ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-3 text-mb-subtle capitalize">
                                     <?= e($row['payment_mode'] ?? ' ”') ?>
@@ -432,27 +469,48 @@ require_once __DIR__ . '/../includes/header.php';
                                         </span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="px-6 py-3 text-right <?= $amtColor ?> font-medium whitespace-nowrap">
+                                <td class="px-6 py-3 text-right <?= $amtColor ?> font-medium whitespace-nowrap<?= $isVoided ? ' line-through' : '' ?>">
                                     <?= $isIncome ? '+' : '-' ?>$
                                     <?= number_format((float) $row['amount'], 2) ?>
                                 </td>
                                 <td class="px-6 py-3 text-right">
-                                    <?php if ($isManual && $isAdmin): ?>
-                                        <form method="POST"
-                                            onsubmit="return confirm('Delete this entry and reverse bank balance?')">
-                                            <input type="hidden" name="action" value="delete_entry">
-                                            <input type="hidden" name="entry_id" value="<?= $row['id'] ?>">
-                                            <button type="submit"
-                                                class="opacity-0 group-hover:opacity-100 text-mb-subtle hover:text-red-400 transition-all">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            </button>
-                                        </form>
-                                    <?php else: ?>
-                                        <span class="text-mb-subtle/30 text-xs" title="System entry  ” cannot delete">ðŸ”’</span>
-                                    <?php endif; ?>
+                                    <div class="flex items-center justify-end gap-2">
+                                        <?php if ($isAdmin && !$isVoided && !$isTransfer): ?>
+                                            <form method="POST" id="voidForm<?= (int) $row['id'] ?>">
+                                                <input type="hidden" name="action" value="void_entry">
+                                                <input type="hidden" name="entry_id" value="<?= (int) $row['id'] ?>">
+                                                <input type="hidden" name="void_reason" value="">
+                                                <button type="button" onclick="promptVoid(<?= (int) $row['id'] ?>)"
+                                                    class="opacity-0 group-hover:opacity-100 text-mb-subtle hover:text-yellow-400 transition-all"
+                                                    title="Void entry">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                                            d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+
+                                        <?php if ($isManual && $isAdmin && !$isVoided): ?>
+                                            <form method="POST"
+                                                onsubmit="return confirm('Delete this entry and reverse bank balance?')">
+                                                <input type="hidden" name="action" value="delete_entry">
+                                                <input type="hidden" name="entry_id" value="<?= $row['id'] ?>">
+                                                <button type="submit"
+                                                    class="opacity-0 group-hover:opacity-100 text-mb-subtle hover:text-red-400 transition-all"
+                                                    title="Delete manual entry">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        <?php elseif ($isVoided): ?>
+                                            <span class="text-mb-subtle/30 text-xs" title="Entry voided">—</span>
+                                        <?php else: ?>
+                                            <span class="text-mb-subtle/30 text-xs" title="System entry  — cannot delete">🔒</span>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; endif; ?>
@@ -464,16 +522,16 @@ require_once __DIR__ . '/../includes/header.php';
         <?php if (!empty($entries)): ?>
             <div class="flex justify-end gap-8 px-6 py-4 border-t border-mb-subtle/10 text-sm">
                 <span class="text-green-400">Income: +$
-                    <?= number_format(array_sum(array_map(fn($r) => ($r['txn_type'] === 'income' && !ledger_is_security_deposit_event($r['source_event'] ?? null)) ? (float) $r['amount'] : 0, $entries)), 2) ?>
+                    <?= number_format(array_sum(array_map(fn($r) => ($r['txn_type'] === 'income' && empty($r['voided_at']) && !ledger_is_security_deposit_event($r['source_event'] ?? null)) ? (float) $r['amount'] : 0, $entries)), 2) ?>
                 </span>
                 <span class="text-red-400">Expenses: -$
-                    <?= number_format(array_sum(array_map(fn($r) => ($r['txn_type'] === 'expense' && !ledger_is_security_deposit_event($r['source_event'] ?? null)) ? (float) $r['amount'] : 0, $entries)), 2) ?>
+                    <?= number_format(array_sum(array_map(fn($r) => ($r['txn_type'] === 'expense' && empty($r['voided_at']) && !ledger_is_security_deposit_event($r['source_event'] ?? null)) ? (float) $r['amount'] : 0, $entries)), 2) ?>
                 </span>
             </div>
         <?php endif; ?>
     </div>
     <?php
-    $_aqp = array_filter(['type'=>$fType,'account'=>($fAccount!==''?$fAccount:null),'date_from'=>$fDateFrom,'date_to'=>$fDateTo,'source'=>$fSource,'category'=>$fCategory], fn($v)=>$v!==null&&$v!=='');
+    $_aqp = array_filter(['type'=>$fType,'account'=>($fAccount!==''?$fAccount:null),'date_from'=>$fDateFrom,'date_to'=>$fDateTo,'source'=>$fSource,'category'=>$fCategory,'include_voided'=>($includeVoided ? '1' : null)], fn($v)=>$v!==null&&$v!=='');
     echo render_pagination($_pgLedger, $_aqp);
     ?>
 </div>
@@ -657,6 +715,21 @@ require_once __DIR__ . '/../includes/header.php';
         }
         toggleEntryBankField();
         modal.classList.remove('hidden');
+    }
+
+    function promptVoid(entryId) {
+        const form = document.getElementById('voidForm' + entryId);
+        if (!form) return false;
+        const proceed = confirm('Void this entry? This will remove it from totals and reverse any account balance impact.');
+        if (!proceed) return false;
+        const reason = prompt('Reason for voiding this entry?');
+        if (!reason || !reason.trim()) return false;
+        const input = form.querySelector('input[name="void_reason"]');
+        if (input) {
+            input.value = reason.trim();
+        }
+        form.submit();
+        return false;
     }
 
     function openAccountModal(acc) {

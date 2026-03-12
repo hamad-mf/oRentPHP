@@ -64,6 +64,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $advanceMethod = reservation_payment_method_normalize($_POST['advance_payment_method'] ?? null);
     $advanceBankId = (int) ($_POST['advance_bank_account_id'] ?? 0);
     $advanceBankId = $advanceBankId > 0 ? $advanceBankId : null;
+    // Delivery charge collected at reservation
+    $deliveryPrepaidInput = (float) ($_POST['delivery_charge_prepaid'] ?? ($r['delivery_charge_prepaid'] ?? 0));
+    $deliveryPrepaid = max(0, $deliveryPrepaidInput);
+    $deliveryPrepaidMethod = reservation_payment_method_normalize($_POST['delivery_prepaid_payment_method'] ?? ($r['delivery_prepaid_payment_method'] ?? null));
+    $deliveryPrepaidBankId = (int) ($_POST['delivery_prepaid_bank_account_id'] ?? ($r['delivery_prepaid_bank_account_id'] ?? 0));
+    $deliveryPrepaidBankId = $deliveryPrepaidBankId > 0 ? $deliveryPrepaidBankId : null;
 
     if ($totalPrice <= 0)
         $errors['total_price'] = 'Total price must be greater than 0.';
@@ -107,8 +113,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $advanceBankId = null;
     }
 
+    // Delivery prepaid validation
+    if ($deliveryPrepaidInput < 0) {
+        $errors['delivery_charge_prepaid'] = 'Delivery charge cannot be negative.';
+    }
+    if ($deliveryPrepaid > 0) {
+        if ($deliveryPrepaidMethod === null) {
+            $errors['delivery_prepaid_payment_method'] = 'Please select how the delivery charge was received.';
+        }
+        if (!isset($errors['delivery_prepaid_payment_method']) && $deliveryPrepaidMethod === 'account') {
+            if ($deliveryPrepaidBankId === null) {
+                $errors['delivery_prepaid_bank_account_id'] = 'Please select the bank account for the delivery charge.';
+            }
+        } elseif ($deliveryPrepaidMethod !== 'account') {
+            $deliveryPrepaidBankId = null;
+        }
+    } else {
+        $deliveryPrepaidMethod = null;
+        $deliveryPrepaidBankId = null;
+    }
+
     if (empty($errors)) {
-        $pdo->prepare('UPDATE reservations SET client_id=?,vehicle_id=?,rental_type=?,start_date=?,end_date=?,total_price=?,advance_paid=?,advance_payment_method=?,advance_bank_account_id=? WHERE id=?')
+        $pdo->prepare('UPDATE reservations SET client_id=?,vehicle_id=?,rental_type=?,start_date=?,end_date=?,total_price=?,advance_paid=?,advance_payment_method=?,advance_bank_account_id=?,delivery_charge_prepaid=?,delivery_prepaid_payment_method=?,delivery_prepaid_bank_account_id=? WHERE id=?')
             ->execute([
                 $clientId,
                 $vehicleId,
@@ -119,13 +145,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $advancePaid,
                 $advanceMethod,
                 $advanceBankId,
+                $deliveryPrepaid,
+                $deliveryPrepaidMethod,
+                $deliveryPrepaidBankId,
                 $id
             ]);
 
         // Historical correction: adjust existing advance ledger entry
         $advKey = "reservation:advance:{$id}";
         $newRounded = round($advancePaid, 2);
-        $st = $pdo->prepare("SELECT id, bank_account_id, amount FROM ledger_entries WHERE idempotency_key = ? LIMIT 1");
+        $st = $pdo->prepare("SELECT id, bank_account_id, amount FROM ledger_entries WHERE idempotency_key = ? AND voided_at IS NULL LIMIT 1");
         $st->execute([$advKey]);
         $existingLedger = $st->fetch(PDO::FETCH_ASSOC);
 
@@ -176,6 +205,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($newRounded > 0 && $advanceMethod !== null) {
             $ledgerUserId = (int) ($_SESSION['user']['id'] ?? 0);
             ledger_post_reservation_event($pdo, $id, 'advance', $advancePaid, $advanceMethod, $ledgerUserId, $advanceBankId);
+        }
+
+        // Historical correction: adjust existing delivery prepaid ledger entry
+        $delKey = "reservation:delivery_prepaid:{$id}";
+        $newDelRounded = round($deliveryPrepaid, 2);
+        $st = $pdo->prepare("SELECT id, bank_account_id, amount FROM ledger_entries WHERE idempotency_key = ? AND voided_at IS NULL LIMIT 1");
+        $st->execute([$delKey]);
+        $existingDelLedger = $st->fetch(PDO::FETCH_ASSOC);
+
+        if ($existingDelLedger) {
+            try {
+                $pdo->beginTransaction();
+                $existingAmount = (float) $existingDelLedger['amount'];
+                $oldBankId = $existingDelLedger['bank_account_id'] ? (int) $existingDelLedger['bank_account_id'] : null;
+
+                if ($newDelRounded <= 0) {
+                    if ($oldBankId) {
+                        $pdo->prepare("UPDATE bank_accounts SET balance = balance - ? WHERE id = ?")
+                            ->execute([$existingAmount, $oldBankId]);
+                    }
+                    $pdo->prepare("DELETE FROM ledger_entries WHERE id = ?")
+                        ->execute([(int) $existingDelLedger['id']]);
+                } else {
+                    $newBankId = ledger_resolve_bank_account_id($pdo, $deliveryPrepaidMethod, $deliveryPrepaidBankId);
+                    if ($oldBankId === $newBankId) {
+                        $diff = $newDelRounded - $existingAmount;
+                        if ($newBankId && abs($diff) > 0.0001) {
+                            $pdo->prepare("UPDATE bank_accounts SET balance = balance + ? WHERE id = ?")
+                                ->execute([$diff, $newBankId]);
+                        }
+                    } else {
+                        if ($oldBankId) {
+                            $pdo->prepare("UPDATE bank_accounts SET balance = balance - ? WHERE id = ?")
+                                ->execute([$existingAmount, $oldBankId]);
+                        }
+                        if ($newBankId) {
+                            $pdo->prepare("UPDATE bank_accounts SET balance = balance + ? WHERE id = ?")
+                                ->execute([$newDelRounded, $newBankId]);
+                        }
+                    }
+
+                    $pdo->prepare("UPDATE ledger_entries SET amount = ?, payment_mode = ?, bank_account_id = ? WHERE id = ?")
+                        ->execute([$newDelRounded, $deliveryPrepaidMethod, $newBankId, (int) $existingDelLedger['id']]);
+                }
+                $pdo->commit();
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                app_log('ERROR', 'Delivery prepaid ledger update failed for reservation #' . $id . ': ' . $e->getMessage(), [
+                    'file' => $e->getFile() . ':' . $e->getLine(),
+                ]);
+            }
+        } elseif ($newDelRounded > 0 && $deliveryPrepaidMethod !== null) {
+            $ledgerUserId = (int) ($_SESSION['user']['id'] ?? 0);
+            ledger_post_reservation_event($pdo, $id, 'delivery_prepaid', $deliveryPrepaid, $deliveryPrepaidMethod, $ledgerUserId, $deliveryPrepaidBankId);
         }
 
         app_log('ACTION', "Updated reservation (ID: $id)");
@@ -434,6 +519,59 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
                 </div>
             </div>
+            <?php
+            $deliveryPrepaidInput = $_POST['delivery_charge_prepaid'] ?? ($r['delivery_charge_prepaid'] ?? '');
+            $deliveryPrepaidMethodSelected = $_POST['delivery_prepaid_payment_method'] ?? ($r['delivery_prepaid_payment_method'] ?? '');
+            $deliveryPrepaidBankSelected = $_POST['delivery_prepaid_bank_account_id'] ?? ($r['delivery_prepaid_bank_account_id'] ?? '');
+            ?>
+            <div class="pt-2 space-y-2">
+                <label class="block text-sm text-mb-silver mb-2">Delivery Charge Collected (Booking)</label>
+                <input type="number" name="delivery_charge_prepaid" id="deliveryChargePrepaid"
+                    value="<?= e($deliveryPrepaidInput) ?>" step="0.01"
+                    min="0" placeholder="0.00" oninput="updateDeliveryPrepaidSection()"
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500/60 text-sm">
+                <?php if (isset($errors['delivery_charge_prepaid'])): ?>
+                    <p class="text-red-400 text-xs mt-1"><?= e($errors['delivery_charge_prepaid']) ?></p>
+                <?php endif; ?>
+            </div>
+
+            <div id="deliveryPrepaidMethodWrap" class="space-y-2 hidden">
+                <label class="block text-xs text-mb-silver">Delivery Charge Payment Method</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <?php
+                    $deliveryMethods = ['cash' => 'Cash', 'account' => 'Account', 'credit' => 'Credit'];
+                    foreach ($deliveryMethods as $val => $label):
+                        ?>
+                        <label class="flex items-center gap-2 cursor-pointer bg-mb-black/30 border border-mb-subtle/10 rounded-lg px-3 py-2 hover:border-mb-accent/40 transition-all">
+                            <input type="radio" name="delivery_prepaid_payment_method" value="<?= $val ?>"
+                                <?= ($deliveryPrepaidMethodSelected === $val) ? 'checked' : '' ?>
+                                class="accent-mb-accent" onchange="toggleDeliveryPrepaidBankField()">
+                            <span class="text-mb-silver text-sm"><?= $label ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+                <?php if (isset($errors['delivery_prepaid_payment_method'])): ?>
+                    <p class="text-red-400 text-xs mt-1"><?= e($errors['delivery_prepaid_payment_method']) ?></p>
+                <?php endif; ?>
+                <div id="deliveryPrepaidBankWrap" class="hidden">
+                    <label class="block text-xs text-mb-silver mb-1">Bank Account</label>
+                    <select name="delivery_prepaid_bank_account_id" id="deliveryPrepaidBankAccount"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
+                        <option value="">Select account</option>
+                        <?php foreach ($activeBankAccounts as $acc): ?>
+                            <option value="<?= (int) $acc['id'] ?>" <?= (string) $deliveryPrepaidBankSelected === (string) $acc['id'] ? 'selected' : '' ?>>
+                                <?= e($acc['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if (isset($errors['delivery_prepaid_bank_account_id'])): ?>
+                        <p class="text-red-400 text-xs mt-1"><?= e($errors['delivery_prepaid_bank_account_id']) ?></p>
+                    <?php endif; ?>
+                    <?php if (empty($activeBankAccounts)): ?>
+                        <p class="text-red-400 text-xs mt-1">No active bank account found. Go to Accounts and add one.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
         <div class="flex items-center justify-end gap-4">
             <a href="show.php?id=<?= $id ?>" class="text-mb-silver hover:text-white text-sm">Cancel</a>
@@ -555,6 +693,45 @@ document.querySelectorAll('input[name="advance_payment_method"]').forEach(r => {
     r.addEventListener('change', toggleAdvanceBankField);
 });
 updateAdvanceSection();
+
+function updateDeliveryPrepaidSection() {
+    const el = document.getElementById('deliveryChargePrepaid');
+    const wrap = document.getElementById('deliveryPrepaidMethodWrap');
+    if (!el || !wrap) return;
+    const val = parseFloat(el.value || '0');
+    const show = val > 0;
+    wrap.classList.toggle('hidden', !show);
+    if (!show) {
+        document.querySelectorAll('input[name="delivery_prepaid_payment_method"]').forEach(r => r.checked = false);
+    }
+    toggleDeliveryPrepaidBankField();
+}
+function toggleDeliveryPrepaidBankField() {
+    const method = document.querySelector('input[name="delivery_prepaid_payment_method"]:checked');
+    const bankWrap = document.getElementById('deliveryPrepaidBankWrap');
+    const bankSelect = document.getElementById('deliveryPrepaidBankAccount');
+    const val = parseFloat(document.getElementById('deliveryChargePrepaid')?.value || '0');
+    const needsBank = method && method.value === 'account' && val > 0;
+    if (bankWrap) {
+        bankWrap.classList.toggle('hidden', !needsBank);
+    }
+    if (bankSelect) {
+        if (needsBank) {
+            bankSelect.setAttribute('required', 'required');
+        } else {
+            bankSelect.removeAttribute('required');
+            bankSelect.value = '';
+        }
+    }
+}
+const delPreInput = document.getElementById('deliveryChargePrepaid');
+if (delPreInput) {
+    delPreInput.addEventListener('input', updateDeliveryPrepaidSection);
+}
+document.querySelectorAll('input[name="delivery_prepaid_payment_method"]').forEach(r => {
+    r.addEventListener('change', toggleDeliveryPrepaidBankField);
+});
+updateDeliveryPrepaidSection();
 </script>
 JS;
 require_once __DIR__ . '/../includes/footer.php';
