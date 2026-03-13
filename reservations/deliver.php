@@ -52,7 +52,9 @@ $deliveryChargeDefault = $deliveryPrepaid > 0 ? 0.0 : (float) settings_get($pdo,
 
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
-$baseCollectNow = max(0, (float) $r['total_price'] - $voucherApplied - $advancePaid);
+$extensionPaid = max(0, (float) ($r['extension_paid_amount'] ?? 0));
+$basePriceForDelivery = max(0, (float) $r['total_price'] - $extensionPaid);
+$baseCollectNow = max(0, $basePriceForDelivery - $voucherApplied - $advancePaid);
 $existingDeliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryCharge = max(0, (float) ($_POST['delivery_charge'] ?? ($existingDeliveryCharge > 0 ? $existingDeliveryCharge : $deliveryChargeDefault)));
 $existingDeliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));

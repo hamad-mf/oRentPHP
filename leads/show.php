@@ -148,13 +148,9 @@ require_once __DIR__ . '/../includes/header.php';
                             class="bg-green-600/20 border border-green-500/40 text-green-400 px-4 py-2 rounded-full text-sm hover:bg-green-600/30 transition-colors">✅
                             View Client</a>
                     <?php else: ?>
-                        <form action="convert.php" method="POST"
-                            onsubmit="return confirm('Convert this lead into a new Client?')">
-                            <input type="hidden" name="id" value="<?= $id ?>">
-                            <button type="submit"
-                                class="bg-mb-accent/20 border border-mb-accent/40 text-mb-accent px-4 py-2 rounded-full text-sm hover:bg-mb-accent/30 transition-colors">🔄
-                                Convert to Client</button>
-                        </form>
+                        <a href="convert.php?id=<?= $id ?>"
+                            class="bg-mb-accent/20 border border-mb-accent/40 text-mb-accent px-4 py-2 rounded-full text-sm hover:bg-mb-accent/30 transition-colors">🔄
+                            Convert to Client</a>
                     <?php endif; ?>
                 <?php endif; ?>
                 <a href="edit.php?id=<?= $id ?>"

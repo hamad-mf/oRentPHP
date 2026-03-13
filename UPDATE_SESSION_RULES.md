@@ -94,3 +94,11 @@ Add one row per release.
 | 2026-03-11 | client_proofs | Yes | `migrations/releases/2026-03-11_client_proofs.sql` | Pending | Multiple client proof uploads (max 5) via new client_proofs table. |
 | 2026-03-12 | delivery_prepaid_charge | Yes | `migrations/releases/2026-03-12_delivery_prepaid_charge.sql` | Pending | Collect delivery charge at reservation creation; delivery screen shows it as already collected. |
 | 2026-03-12 | ledger_void_entries | Yes | `migrations/releases/2026-03-12_ledger_void_entries.sql` | Pending | Soft-void ledger entries with reason; voided entries excluded from KPI totals. |
+| 2026-03-13 | reservation_extension_grace | Yes | `migrations/releases/2026-03-13_reservation_extension_grace.sql` | Pending | Extend active reservations from today (grace), post extension payment to ledger, and track extension-paid amount. |
+| 2026-03-13 | vehicle_parts_due_notes | Yes | `migrations/releases/2026-03-13_vehicle_parts_due_notes.sql` | Pending | Add parts-due notes on vehicles to track upcoming replacements. |
+| 2026-03-13 | accounts_credit_net_balance | Yes | None | N/A | Accounts screen credit card + overall total now use net credit (income - expense). |
+| 2026-03-13 | staff_my_profile_nav | Yes | None | N/A | Added My Profile page for staff (no manage_staff permission required) with read-only advances/incentives, plus sidebar/mobile nav link. |
+| 2026-03-13 | vehicle_quotation | Yes | None | N/A | Added Generate Quotation button in vehicle details with printable vehicle rate sheet (delivery/return charges included). |
+| 2026-03-13 | client_address_proof_required | Yes | None | N/A | Client address and proof document are now required on create form. |
+| 2026-03-13 | client_phone_unique | Yes | None | N/A | Prevent duplicate client phone numbers on create/edit. |
+| 2026-03-13 | vehicle_catalog_brand_share | Yes | None | N/A | Catalog branding updated, total fleet hidden, and single-vehicle share links auto-open the vehicle modal. |

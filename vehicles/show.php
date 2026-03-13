@@ -39,6 +39,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
     redirect("show.php?id=$id");
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') === 'save_parts_due') {
+    if ($id <= 0) {
+        flash('error', 'Invalid vehicle request.');
+        redirect('index.php');
+    }
+
+    if (!auth_has_perm('add_vehicles')) {
+        flash('error', 'You do not have permission to update vehicle parts notes.');
+        redirect("show.php?id=$id");
+    }
+
+    $partsDueNotes = trim((string) ($_POST['parts_due_notes'] ?? ''));
+    if (mb_strlen($partsDueNotes) > 5000) {
+        flash('error', 'Parts notes are too long (max 5000 characters).');
+        redirect("show.php?id=$id");
+    }
+
+    try {
+        $upd = $pdo->prepare('UPDATE vehicles SET parts_due_notes = ? WHERE id = ?');
+        $upd->execute([$partsDueNotes !== '' ? $partsDueNotes : null, $id]);
+        app_log('ACTION', "Updated vehicle parts due notes (ID: $id)");
+        flash('success', $partsDueNotes === '' ? 'Vehicle parts notes cleared.' : 'Vehicle parts notes updated.');
+    } catch (Throwable $e) {
+        app_log('ERROR', 'Vehicle parts notes update failed - ' . $e->getMessage(), [
+            'file' => $e->getFile() . ':' . $e->getLine(),
+            'screen' => 'vehicles/show.php',
+            'vehicle_id' => $id,
+        ]);
+        flash('error', 'Unable to save parts notes. Please apply latest vehicle migration and try again.');
+    }
+
+    redirect("show.php?id=$id");
+}
+
 $vStmt = $pdo->prepare('SELECT * FROM vehicles WHERE id = ?');
 $vStmt->execute([$id]);
 $v = $vStmt->fetch();
@@ -102,6 +136,7 @@ $badge = ['available' => 'bg-green-500/10 text-green-400 border-green-500/30', '
 $badgeCls = $badge[$v['status']] ?? 'bg-gray-500/10 text-gray-400';
 $canEditCondition = auth_has_perm('add_vehicles');
 $conditionNotes = (string) ($v['condition_notes'] ?? '');
+$partsDueNotes = (string) ($v['parts_due_notes'] ?? '');
 $insuranceTypeRaw = strtolower(trim((string) ($v['insurance_type'] ?? '')));
 if ($insuranceTypeRaw === 'thrid class') {
     $insuranceTypeRaw = 'third class';
@@ -326,6 +361,9 @@ if (($v['status'] ?? '') === 'maintenance') {
                     <a href="edit.php?id=<?= $v['id'] ?>"
                         class="bg-mb-accent text-white px-5 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-sm font-medium">Edit
                         Vehicle</a>
+                    <a href="quotation.php?id=<?= $v['id'] ?>" target="_blank"
+                        class="border border-amber-500/30 text-amber-400 px-5 py-2 rounded-full hover:bg-amber-500/10 transition-colors text-sm font-medium">Generate
+                        Quotation</a>
                     <button type="button" onclick="document.getElementById('vehicleShareModal').classList.remove('hidden')"
                         class="border border-mb-subtle/30 text-mb-silver px-5 py-2 rounded-full hover:border-white/30 hover:text-white transition-all text-sm font-medium">Share
                         Vehicle Catalog</button>
@@ -372,6 +410,42 @@ if (($v['status'] ?? '') === 'maintenance') {
                     <p class="text-sm text-mb-silver whitespace-pre-line"><?= e($conditionNotes) ?></p>
                 <?php else: ?>
                     <p class="text-sm text-mb-subtle italic">No condition notes added yet.</p>
+                <?php endif; ?>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-mb-subtle/10 flex items-center justify-between">
+            <h3 class="text-white font-light">Parts Due (Upcoming Changes)</h3>
+            <span class="text-xs text-mb-subtle">Optional</span>
+        </div>
+        <div class="p-6">
+            <?php if ($canEditCondition): ?>
+                <form method="POST" class="space-y-3">
+                    <input type="hidden" name="action" value="save_parts_due">
+                    <input type="hidden" name="id" value="<?= (int) $id ?>">
+                    <textarea name="parts_due_notes" rows="5" maxlength="5000"
+                        placeholder="List parts that need replacement soon (e.g., brake pads, tires, battery, oil service) with any dates or notes."
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white placeholder-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm"><?= e($partsDueNotes) ?></textarea>
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-xs text-mb-subtle">Use this to track upcoming maintenance parts for this vehicle.</p>
+                        <div class="flex items-center gap-2">
+                            <?php if ($partsDueNotes !== ''): ?>
+                                <button type="submit" name="parts_due_notes" value=""
+                                    class="px-4 py-2 rounded-full border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors text-xs">Clear</button>
+                            <?php endif; ?>
+                            <button type="submit"
+                                class="px-5 py-2 rounded-full bg-mb-accent text-white hover:bg-mb-accent/80 transition-colors text-xs font-medium">Save
+                                Parts Notes</button>
+                        </div>
+                    </div>
+                </form>
+            <?php else: ?>
+                <?php if ($partsDueNotes !== ''): ?>
+                    <p class="text-sm text-mb-silver whitespace-pre-line"><?= e($partsDueNotes) ?></p>
+                <?php else: ?>
+                    <p class="text-sm text-mb-subtle italic">No upcoming parts notes added yet.</p>
                 <?php endif; ?>
             <?php endif; ?>
         </div>

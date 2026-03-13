@@ -41,6 +41,7 @@ DROP TABLE IF EXISTS staff_tasks;
 DROP TABLE IF EXISTS attendance_breaks;
 DROP TABLE IF EXISTS staff_attendance;
 DROP TABLE IF EXISTS challans;
+DROP TABLE IF EXISTS reservation_extensions;
 DROP TABLE IF EXISTS reservations;
 DROP TABLE IF EXISTS vehicle_images;
 DROP TABLE IF EXISTS documents;
@@ -74,6 +75,7 @@ CREATE TABLE vehicles (
     maintenance_started_at DATETIME DEFAULT NULL,
     maintenance_expected_return DATE DEFAULT NULL,
     maintenance_workshop_name VARCHAR(255) DEFAULT NULL,
+    parts_due_notes TEXT DEFAULT NULL,
     daily_rate DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     monthly_rate DECIMAL(10,2) DEFAULT NULL,
     rate_1day DECIMAL(10,2) DEFAULT NULL,
@@ -190,6 +192,7 @@ CREATE TABLE reservations (
     end_date DATETIME NOT NULL,
     actual_end_date DATETIME DEFAULT NULL,
     total_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    extension_paid_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     delivery_charge DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     delivery_manual_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     delivery_discount_type ENUM('percent','amount') DEFAULT NULL,
@@ -224,6 +227,27 @@ CREATE TABLE reservations (
     cancelled_at DATETIME DEFAULT NULL,
     cancellation_by INT DEFAULT NULL,
     refund_amount DECIMAL(10,2) DEFAULT NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE reservation_extensions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    reservation_id INT NOT NULL,
+    old_end_date DATETIME NOT NULL,
+    base_start_date DATETIME NOT NULL,
+    new_end_date DATETIME NOT NULL,
+    rental_type ENUM('daily','1day','7day','15day','30day','monthly') NOT NULL DEFAULT 'daily',
+    days INT NOT NULL,
+    rate_per_day DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    payment_method ENUM('cash','account','credit') DEFAULT NULL,
+    bank_account_id INT DEFAULT NULL,
+    ledger_entry_id INT DEFAULT NULL,
+    created_by INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_reservation (reservation_id),
+    INDEX idx_created_at (created_at),
+    FOREIGN KEY (reservation_id) REFERENCES reservations(id) ON DELETE CASCADE,
+    FOREIGN KEY (bank_account_id) REFERENCES bank_accounts(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE client_voucher_transactions (

@@ -56,7 +56,6 @@ try {
 $allImgsRaw = $pdo->query("SELECT * FROM vehicle_images ORDER BY vehicle_id, sort_order, id")->fetchAll();
 $vehicleImgMap = [];
 foreach ($allImgsRaw as $img) { $vehicleImgMap[$img['vehicle_id']][] = $img['file_path']; }
-$totalFleet = $pdo->query("SELECT COUNT(*) FROM vehicles")->fetchColumn();
 
 // Build canonical URL for sharing
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -703,8 +702,7 @@ if ($singleVehicleMode && $selectedVehicle) {
                 <div class="brand">
                     <div class="brand-logo">R</div>
                     <div>
-                        <div class="brand-name">oRent</div>
-                        <div class="brand-tagline">Vehicle Rental</div>
+                        <div class="brand-name">orentincars</div>
                     </div>
                 </div>
                 <div class="header-badges">
@@ -712,9 +710,6 @@ if ($singleVehicleMode && $selectedVehicle) {
                         <span
                             style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#22c55e;margin-right:4px;animation:pulse 2s infinite"></span>
                         <?= $totalAvailable ?> Available Now
-                    </span>
-                    <span class="badge badge-purple">
-                        <?= $totalFleet ?> Total Fleet
                     </span>
                 </div>
             </div>
@@ -956,6 +951,11 @@ function mCarGo(n){
 }
 function closeModal(){document.getElementById("veh-modal").style.display="none";document.body.style.overflow="";}
 document.addEventListener("keydown",function(e){if(e.key==="Escape")closeModal();});
+<?php if ($singleVehicleMode && $selectedVehicle): ?>
+window.addEventListener("load", function () {
+    openModal(<?= (int) $selectedVehicle['id'] ?>);
+});
+<?php endif; ?>
 </script>
 
 </body>

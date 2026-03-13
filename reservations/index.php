@@ -250,12 +250,14 @@ require_once __DIR__ . '/../includes/header.php';
                                 <td class="px-6 py-4 text-right text-mb-accent font-medium">
                                     <?php
                                     $basePrice = (float) $r['total_price'];
+                                    $extensionPaid = max(0, (float) ($r['extension_paid_amount'] ?? 0));
+                                    $basePriceForDelivery = max(0, $basePrice - $extensionPaid);
                                     $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
                                     $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
                                     $deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
                                     $delivDiscType = $r['delivery_discount_type'] ?? null;
                                     $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
-                                    $delivBase = max(0, $basePrice - $voucherApplied) + $deliveryCharge + $deliveryManualAmount;
+                                    $delivBase = max(0, $basePriceForDelivery - $voucherApplied) + $deliveryCharge + $deliveryManualAmount;
                                     $delivDiscountAmt = 0;
                                     if ($delivDiscType === 'percent') {
                                         $delivDiscountAmt = round($delivBase * min($delivDiscVal, 100) / 100, 2);
@@ -282,7 +284,7 @@ require_once __DIR__ . '/../includes/header.php';
                                     }
                                     $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
                                     $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
-                                    $totalCollected = $baseCollectedAtDelivery + $cashDueAtReturn;
+                                    $totalCollected = $baseCollectedAtDelivery + $extensionPaid + $cashDueAtReturn;
                                     $netCollected = $totalCollected;
                                     if (($r['status'] ?? '') === 'cancelled') {
                                         $refundAmt = max(0, (float) ($r['refund_amount'] ?? 0));

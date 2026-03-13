@@ -38,7 +38,8 @@ $deliveryPaid   = (float)($r['delivery_paid_amount'] ?? 0);
 $deliveryMethod = $r['delivery_payment_method'] ?? null;
 $advancePaid    = (float)($r['advance_paid'] ?? 0);
 $deliveryPrepaid = (float)($r['delivery_charge_prepaid'] ?? 0);
-$maxRefund = $deliveryPaid + $advancePaid + $deliveryPrepaid;
+$extensionPaid = (float)($r['extension_paid_amount'] ?? 0);
+$maxRefund = $deliveryPaid + $advancePaid + $deliveryPrepaid + $extensionPaid;
 // Fetch bank_account_id from ledger_entries (not stored directly on reservation)
 $ledBankRow = $pdo->prepare("SELECT bank_account_id FROM ledger_entries WHERE source_type='reservation' AND source_id=? AND source_event='delivery' AND bank_account_id IS NOT NULL ORDER BY id DESC LIMIT 1");
 $ledBankRow->execute([$id]);
@@ -149,18 +150,20 @@ require_once __DIR__ . '/../includes/header.php';
             <h3 class="text-mb-subtle text-xs uppercase tracking-wider mb-3">Amount Collected from Customer</h3>
             <?php
             $basePrice = (float)$r['total_price'];
+            $basePriceForDelivery = max(0, $basePrice - $extensionPaid);
             $voucherAmt = (float)($r['voucher_applied'] ?? 0);
             $delCharge = (float)($r['delivery_charge'] ?? 0);
             $delManual = (float)($r['delivery_manual_amount'] ?? 0);
             $delDiscType = $r['delivery_discount_type'] ?? null;
             $delDiscVal = (float)($r['delivery_discount_value'] ?? 0);
-            $delBase = max(0, $basePrice - $voucherAmt) + $delCharge + $delManual;
+            $delBase = max(0, $basePriceForDelivery - $voucherAmt) + $delCharge + $delManual;
             $delDisc = $delDiscType === 'percent' ? round($delBase * min($delDiscVal,100)/100,2) : ($delDiscType==='amount'?min($delDiscVal,$delBase):0);
             $collectedAtDelivery = max(0, $delBase - $delDisc);
             ?>
             <?php if ($voucherAmt > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Voucher Used</span><span class="text-green-400">-$<?= number_format($voucherAmt,2) ?></span></div><?php endif; ?>
             <?php if ($advancePaid > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Advance Collected</span><span class="text-purple-300">+$<?= number_format($advancePaid,2) ?></span></div><?php endif; ?>
             <?php if ($deliveryPrepaid > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Delivery Charge Collected at Booking</span><span class="text-blue-300">+$<?= number_format($deliveryPrepaid,2) ?></span></div><?php endif; ?>
+            <?php if ($extensionPaid > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Extension Collected (Grace)</span><span class="text-sky-300">+$<?= number_format($extensionPaid,2) ?></span></div><?php endif; ?>
             <?php if ($delCharge > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Delivery Charge</span><span class="text-white">+$<?= number_format($delCharge,2) ?></span></div><?php endif; ?>
             <?php if ($delDisc > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Delivery Discount</span><span class="text-green-400">-$<?= number_format($delDisc,2) ?></span></div><?php endif; ?>
             <div class="flex justify-between items-center bg-mb-black/40 rounded-lg px-4 py-3 border border-mb-subtle/20">

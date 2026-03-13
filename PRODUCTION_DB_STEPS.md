@@ -11,6 +11,14 @@ This file tracks all database changes that need to be applied to **production** 
 
 ## Pending
 
+### 2026-03-13 - Vehicle Parts Due Notes
+**SQL file:** `migrations/releases/2026-03-13_vehicle_parts_due_notes.sql`
+**Notes:** Adds `parts_due_notes` column on vehicles to track upcoming parts replacements.
+
+### 2026-03-13 - Reservation Extensions (Grace)
+**SQL file:** `migrations/releases/2026-03-13_reservation_extension_grace.sql`
+**Notes:** Adds `reservation_extensions` table and `extension_paid_amount` on reservations to support paid date extensions (grace from today).
+
 ### 2026-03-12 - Ledger Void Entries
 **SQL file:** `migrations/releases/2026-03-12_ledger_void_entries.sql`
 **Notes:** Adds void metadata to ledger entries to allow soft-voiding mistakes while preserving audit history.

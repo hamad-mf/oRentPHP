@@ -41,13 +41,15 @@ $startDt = new DateTime($r['start_date']);
 $scheduledEndDt = new DateTime($r['end_date']);
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
+$extensionPaid = max(0, (float) ($r['extension_paid_amount'] ?? 0));
+$basePriceForDelivery = max(0, (float) $r['total_price'] - $extensionPaid);
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
 $deliveryPrepaid = max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
 // Account for delivery discount when showing what was actually collected at delivery
 $delivDiscType_ = $r['delivery_discount_type'] ?? null;
 $delivDiscVal_ = (float) ($r['delivery_discount_value'] ?? 0);
-$delivBase_ = max(0, (float) $r['total_price'] - $voucherApplied - $advancePaid) + $deliveryCharge + $deliveryManualAmount;
+$delivBase_ = max(0, $basePriceForDelivery - $voucherApplied - $advancePaid) + $deliveryCharge + $deliveryManualAmount;
 $delivDiscAmt_ = 0;
 if ($delivDiscType_ === 'percent') {
     $delivDiscAmt_ = round($delivBase_ * min($delivDiscVal_, 100) / 100, 2);
@@ -365,6 +367,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msg .= ' | Method: Multi Source';
             }
             $msg .= ' | Base collected at delivery: $' . number_format($baseCollectedAtDelivery, 2);
+            if ($extensionPaid > 0) {
+                $msg .= ' | Extension collected: $' . number_format($extensionPaid, 2);
+            }
             if ($advancePaid > 0) {
                 $msg .= ' | Advance collected: $' . number_format($advancePaid, 2);
             }
@@ -849,6 +854,12 @@ require_once __DIR__ . '/../includes/header.php';
                             <div class="flex justify-between text-blue-300">
                                 <span>Delivery Charge Collected at Booking</span>
                                 <span>+$<?= number_format($deliveryPrepaid, 2) ?></span>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($extensionPaid > 0): ?>
+                            <div class="flex justify-between text-sky-300">
+                                <span>Extension Collected (Grace)</span>
+                                <span>+$<?= number_format($extensionPaid, 2) ?></span>
                             </div>
                         <?php endif; ?>
                         <div class="flex justify-between text-mb-silver">

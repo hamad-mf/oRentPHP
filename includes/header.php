@@ -361,6 +361,7 @@ $_notifs = notif_all($pdo);
                 'expenses' => '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>',
                 'challans' => '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>',
                 'staff' => '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>',
+                'profile' => '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4a4 4 0 100 8 4 4 0 000-8zM4 20a8 8 0 0116 0v1H4v-1z"/></svg>',
                 'settings' => '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>',
                 'leads' => '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>',
                 'pipeline' => '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 0v10m0-10a2 2 0 012 2h2a2 2 0 012-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2z"/></svg>',
@@ -459,6 +460,10 @@ $_notifs = notif_all($pdo);
                 echo navLink("{$root}accounts/index.php", 'Accounts', $accountIcon, $currentDir === 'accounts' && $currentPage !== 'targets.php');
                 echo navLink("{$root}accounts/targets.php", 'Targets', $targetIcon, $currentDir === 'accounts' && $currentPage === 'targets.php');
             }
+            $hasStaffProfile = !empty($_currentUser['staff_id']);
+            if ($hasStaffProfile) {
+                echo navLink("{$root}staff/my_profile.php", 'My Profile', $icons['profile'], $currentDir === 'staff' && $currentPage === 'my_profile.php');
+            }
             if ($isAdmin || in_array('manage_staff', $cuPerms, true)) {
                 if ($isAdmin) {
                     $sActive = $currentDir === 'staff';
@@ -494,6 +499,7 @@ $_notifs = notif_all($pdo);
             $canReservations = $isAdmin || !empty(array_intersect(['add_reservations', 'do_delivery', 'do_return'], $cuPerms));
             $canGps = $canReservations;
             $canAccounts = $isAdmin || in_array('view_finances', $cuPerms, true);
+            $hasStaffProfile = !empty($_currentUser['staff_id']);
             $mobileAccountIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>';
             $mobileMenuCatalog = [
                 'dashboard' => ['href' => "{$root}index.php", 'label' => 'Dashboard', 'icon' => $icons['dashboard'], 'active' => $isDash, 'allowed' => true],
@@ -503,6 +509,7 @@ $_notifs = notif_all($pdo);
                 'accounts' => ['href' => "{$root}accounts/index.php", 'label' => 'Accounts', 'icon' => $mobileAccountIcon, 'active' => $currentDir === 'accounts', 'allowed' => $canAccounts],
                 'clients' => ['href' => "{$root}clients/index.php", 'label' => 'Clients', 'icon' => $icons['clients'], 'active' => $currentDir === 'clients', 'allowed' => $canClients],
                 'gps' => ['href' => "{$root}gps/index.php", 'label' => 'GPS', 'icon' => $icons['gps'], 'active' => $currentDir === 'gps', 'allowed' => $canGps],
+                'my_profile' => ['href' => "{$root}staff/my_profile.php", 'label' => 'My Profile', 'icon' => $icons['profile'], 'active' => $currentDir === 'staff' && $currentPage === 'my_profile.php', 'allowed' => $hasStaffProfile],
                 'settings' => ['href' => "{$root}settings/general.php", 'label' => 'Settings', 'icon' => $icons['settings'], 'active' => $currentDir === 'settings', 'allowed' => true],
             ];
 
