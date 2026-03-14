@@ -218,6 +218,14 @@ require_once __DIR__ . '/../includes/header.php';
                 Add Vehicle
             </a>
         <?php endif; ?>
+        <a href="quotation_builder.php"
+            class="bg-mb-surface border border-mb-subtle/20 text-mb-silver hover:text-white hover:border-white/20 px-5 py-2 rounded-full transition-colors flex items-center gap-2 text-sm font-medium flex-shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Create Quotation
+        </a>
         <!-- Share Catalog Button -->
         <button onclick="document.getElementById('catalogModal').classList.remove('hidden')"
             class="bg-mb-surface border border-mb-subtle/20 text-mb-silver hover:text-white hover:border-white/20 px-5 py-2 rounded-full transition-colors flex items-center gap-2 text-sm font-medium flex-shrink-0">

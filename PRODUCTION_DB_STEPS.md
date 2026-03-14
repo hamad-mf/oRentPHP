@@ -11,6 +11,14 @@ This file tracks all database changes that need to be applied to **production** 
 
 ## Pending
 
+### 2026-03-14 - Vehicle Storage Locations
+**SQL file:** `migrations/releases/2026-03-14_vehicle_storage_locations.sql`
+**Notes:** Adds `second_key_location` and `original_documents_location` columns on vehicles.
+
+### 2026-03-14 - Vehicle Pollution Expiry Date
+**SQL file:** `migrations/releases/2026-03-14_vehicle_pollution_expiry_date.sql`
+**Notes:** Adds `pollution_expiry_date` column on vehicles to track pollution certificate expiry.
+
 ### 2026-03-13 - Vehicle Parts Due Notes
 **SQL file:** `migrations/releases/2026-03-13_vehicle_parts_due_notes.sql`
 **Notes:** Adds `parts_due_notes` column on vehicles to track upcoming parts replacements.

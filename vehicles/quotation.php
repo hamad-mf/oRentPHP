@@ -20,33 +20,39 @@ $lateReturnRatePerHour = (float) settings_get($pdo, 'late_return_rate_per_hour',
 function fmt_rate(?float $val): string
 {
     $v = (float) ($val ?? 0);
-    return $v > 0 ? '$' . number_format($v, 2) : '—';
+    return $v > 0 ? '$' . number_format($v, 2) : '-';
 }
+
+$quoteRef = 'Q-' . date('Ymd') . '-' . str_pad((string) $id, 4, '0', STR_PAD_LEFT);
+$dateStr = strtoupper(date('d M Y'));
+$validUntil = strtoupper(date('d M Y', strtotime('+30 days')));
+
+$rateRows = [
+    ['label' => 'Daily', 'value' => (float) $v['daily_rate']],
+    ['label' => '1 Day Package', 'value' => (float) $v['rate_1day']],
+    ['label' => '7 Day Package', 'value' => (float) $v['rate_7day']],
+    ['label' => '15 Day Package', 'value' => (float) $v['rate_15day']],
+    ['label' => '30 Day Package', 'value' => (float) $v['rate_30day']],
+    ['label' => 'Monthly', 'value' => (float) $v['monthly_rate']],
+];
+$rateRows = array_values(array_filter($rateRows, static fn($row) => $row['value'] > 0));
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vehicle Quotation — <?= e($v['brand'] . ' ' . $v['model']) ?></title>
+    <title>Vehicle Quotation - <?= e($v['brand'] . ' ' . $v['model']) ?></title>
     <style>
         *{box-sizing:border-box;margin:0;padding:0}
-        body{font-family:'Segoe UI',Arial,sans-serif;background:#f5f5f5;color:#1a1a1a}
+        body{font-family:'Times New Roman',Times,serif;background:#f5f5f5;color:#1a1a1a}
         .action-bar{background:#111;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:100}
         .action-bar a,.action-bar button{color:#fff;background:#2b2b2b;border:1px solid #444;padding:8px 14px;border-radius:6px;text-decoration:none;font-size:13px}
         .action-bar a:hover,.action-bar button:hover{background:#3a3a3a}
-        .sheet{max-width:900px;margin:24px auto;background:#fff;border:1px solid #e5e5e5;border-radius:10px;overflow:hidden}
-        .header{padding:24px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;gap:20px}
-        .title{font-size:20px;font-weight:600}
-        .muted{color:#666;font-size:12px}
-        .section{padding:20px 24px;border-bottom:1px solid #f0f0f0}
-        .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
-        .label{font-size:12px;color:#777;text-transform:uppercase;letter-spacing:.03em}
-        .value{font-size:14px;color:#111;margin-top:4px}
-        table{width:100%;border-collapse:collapse;font-size:13px}
-        th,td{padding:10px;border-bottom:1px solid #eee;text-align:left}
-        th{font-size:12px;color:#555;text-transform:uppercase;letter-spacing:.03em}
-        .footer{padding:16px 24px;font-size:12px;color:#777}
+        .sheet{max-width:820px;margin:24px auto;background:#fff;border:1px solid #ccc;padding:32px 36px}
+        table{width:100%;border-collapse:collapse;font-size:11px}
+        th,td{padding:6px 10px;border-bottom:1px solid #eee;text-align:left}
+        th{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.5px}
         @media print{
             .action-bar{display:none}
             body{background:#fff}
@@ -61,78 +67,140 @@ function fmt_rate(?float $val): string
     </div>
 
     <div class="sheet">
-        <div class="header">
-            <div>
-                <div class="title">Vehicle Quotation</div>
-                <div class="muted">Generated on <?= date('d M Y, h:i A') ?></div>
-            </div>
-            <div class="muted" style="text-align:right;">
-                <?= e($v['brand'] . ' ' . $v['model']) ?><br>
-                <?= e($v['license_plate']) ?>
-            </div>
+        <!-- HEADER -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #111;padding-bottom:14px;margin-bottom:14px;">
+            <tr>
+                <td style="width:50%;vertical-align:middle;">
+                    <div style="font-size:26px;font-weight:bold;letter-spacing:-0.5px;line-height:1.1;">
+                        OrentinCars<br>
+                        <span style="font-size:13px;font-weight:normal;color:#444;">Orentin Cars Pvt. Ltd.</span>
+                    </div>
+                    <div style="margin-top:6px;font-size:11px;color:#444;line-height:1.7;">
+                        Kerala, India<br>
+                        Phone: 7591955531&nbsp;|&nbsp;7591955532<br>
+                        Orentincarspvtltd@gmail.com&nbsp;|&nbsp;orentincars.com
+                    </div>
+                </td>
+                <td style="width:50%;text-align:right;vertical-align:top;">
+                    <div style="font-size:22px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#111;">
+                        QUOTATION
+                    </div>
+                    <div style="margin-top:8px;font-size:11px;color:#444;line-height:1.8;">
+                        <table cellpadding="0" cellspacing="0" style="margin-left:auto;">
+                            <tr>
+                                <td style="padding-right:10px;color:#666;">Quote No.</td>
+                                <td style="font-weight:bold;"><?= e($quoteRef) ?></td>
+                            </tr>
+                            <tr>
+                                <td style="padding-right:10px;color:#666;">Date</td>
+                                <td><?= e($dateStr) ?></td>
+                            </tr>
+                            <tr>
+                                <td style="padding-right:10px;color:#666;">Valid Until</td>
+                                <td><?= e($validUntil) ?></td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- INFO BAR -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+            <tr>
+                <td style="width:50%;vertical-align:top;">
+                    <div style="font-size:10px;text-transform:uppercase;color:#666;letter-spacing:1px;margin-bottom:4px;">Prepared For</div>
+                    <div style="font-size:13px;font-weight:bold;">&nbsp;</div>
+                </td>
+                <td style="width:50%;vertical-align:top;">
+                    <table width="100%" cellpadding="3" cellspacing="0" style="border:1px solid #ccc;font-size:11px;">
+                        <thead>
+                            <tr style="background:#f0f0f0;">
+                                <th style="text-align:left;padding:5px 8px;border-bottom:1px solid #ccc;">Date Issued</th>
+                                <th style="text-align:left;padding:5px 8px;border-bottom:1px solid #ccc;">Quote No.</th>
+                                <th style="text-align:left;padding:5px 8px;border-bottom:1px solid #ccc;">Page</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding:5px 8px;"><?= e($dateStr) ?></td>
+                                <td style="padding:5px 8px;font-weight:bold;"><?= e($quoteRef) ?></td>
+                                <td style="padding:5px 8px;">1 OF 1</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <!-- NOTICE -->
+        <div style="background:#f7f7f7;border:1px solid #ddd;padding:7px 12px;font-size:10px;color:#555;text-align:center;margin-bottom:18px;line-height:1.6;">
+            THIS IS A QUOTATION ONLY - NOT AN INVOICE. PRICES ARE SUBJECT TO CHANGE WITHOUT NOTICE.<br>
+            QUOTATION IS VALID FOR 30 DAYS FROM DATE OF ISSUE UNLESS STATED OTHERWISE.
         </div>
 
-        <div class="section">
-            <div class="grid">
-                <div>
-                    <div class="label">Brand / Model</div>
-                    <div class="value"><?= e($v['brand'] . ' ' . $v['model']) ?></div>
-                </div>
-                <div>
-                    <div class="label">License Plate</div>
-                    <div class="value"><?= e($v['license_plate']) ?></div>
-                </div>
-                <div>
-                    <div class="label">Year</div>
-                    <div class="value"><?= e((string) $v['year']) ?></div>
-                </div>
-                <div>
-                    <div class="label">Color</div>
-                    <div class="value"><?= e((string) ($v['color'] ?? '—')) ?></div>
-                </div>
+        <!-- VEHICLE TABLE -->
+        <div style="margin-bottom:18px;">
+            <div style="background:#111;color:#fff;padding:5px 10px;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;margin-bottom:0;">
+                <?= e($v['brand'] . ' ' . $v['model']) ?><?= $v['year'] ? ' (' . e((string) $v['year']) . ')' : '' ?>
             </div>
-        </div>
-
-        <div class="section">
-            <div class="title" style="font-size:16px;margin-bottom:10px;">Rental Types & Rates</div>
-            <table>
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #ccc;border-top:none;font-size:11px;">
                 <thead>
-                    <tr>
-                        <th>Type</th>
-                        <th>Rate</th>
+                    <tr style="background:#f0f0f0;">
+                        <th style="text-align:left;padding:6px 10px;border-bottom:1px solid #ccc;width:60%;">RENTAL TYPE / DESCRIPTION</th>
+                        <th style="text-align:right;padding:6px 10px;border-bottom:1px solid #ccc;width:20%;">UNIT PRICE</th>
+                        <th style="text-align:right;padding:6px 10px;border-bottom:1px solid #ccc;width:20%;">AMOUNT</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td>Daily</td><td><?= fmt_rate($v['daily_rate']) ?></td></tr>
-                    <tr><td>1 Day Package</td><td><?= fmt_rate($v['rate_1day']) ?></td></tr>
-                    <tr><td>7 Day Package</td><td><?= fmt_rate($v['rate_7day']) ?></td></tr>
-                    <tr><td>15 Day Package</td><td><?= fmt_rate($v['rate_15day']) ?></td></tr>
-                    <tr><td>30 Day Package</td><td><?= fmt_rate($v['rate_30day']) ?></td></tr>
-                    <tr><td>Monthly</td><td><?= fmt_rate($v['monthly_rate']) ?></td></tr>
+                    <?php if (count($rateRows)): ?>
+                        <?php foreach ($rateRows as $i => $row): ?>
+                            <?php $bg = $i % 2 === 0 ? '#fff' : '#fafafa'; ?>
+                            <tr style="background:<?= $bg ?>;">
+                                <td style="padding:6px 10px;border-bottom:1px solid #eee;"><?= e($row['label']) ?></td>
+                                <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;"><?= fmt_rate($row['value']) ?></td>
+                                <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:bold;"><?= fmt_rate($row['value']) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr><td colspan="3" style="padding:10px;color:#999;text-align:center;font-style:italic;">No rental rates specified.</td></tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
 
-        <div class="section">
-            <div class="title" style="font-size:16px;margin-bottom:10px;">Delivery & Return Charges</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Charge</th>
-                        <th>Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td>Delivery Charge (Estimated)</td><td><?= fmt_rate($deliveryChargeDefault) ?></td></tr>
-                    <tr><td>Return Pickup Charge (Estimated)</td><td><?= fmt_rate($returnPickupChargeDefault) ?></td></tr>
-                    <tr><td>Late Return Rate (Per Hour, Estimated)</td><td><?= fmt_rate($lateReturnRatePerHour) ?></td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="footer">
-            This quotation is a simple rate guide. Final charges may vary based on rental duration, km overage, damages, and discounts.
-        </div>
+        <!-- FOOTER / CHARGES -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;">
+            <tr>
+                <td style="width:50%;vertical-align:top;padding-right:20px;">
+                    <div style="font-size:10px;color:#555;line-height:1.7;border:1px solid #ddd;padding:10px 12px;background:#fafafa;">
+                        <strong>Terms &amp; Conditions</strong><br>
+                        All rates are subject to availability and may change.<br>
+                        Delivery and return charges apply per booking.<br>
+                        Additional charges may apply as agreed.<br><br>
+                        <span style="font-style:italic;">We appreciate your business. Have a great day!</span>
+                    </div>
+                </td>
+                <td style="width:50%;vertical-align:top;">
+                    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #ccc;font-size:11px;">
+                        <tr>
+                            <td style="padding:6px 10px;border-bottom:1px solid #eee;background:#f7f7f7;">Delivery Charge</td>
+                            <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;background:#f7f7f7;"><?= fmt_rate($deliveryChargeDefault) ?></td>
+                        </tr>
+                        <tr>
+                            <td style="padding:6px 10px;border-bottom:1px solid #eee;">Return Charge</td>
+                            <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;"><?= fmt_rate($returnPickupChargeDefault) ?></td>
+                        </tr>
+                        <?php if ($lateReturnRatePerHour > 0): ?>
+                            <tr>
+                                <td style="padding:6px 10px;border-bottom:1px solid #eee;background:#f7f7f7;">Late Return (Per Hour)</td>
+                                <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;background:#f7f7f7;"><?= fmt_rate($lateReturnRatePerHour) ?></td>
+                            </tr>
+                        <?php endif; ?>
+                    </table>
+                </td>
+            </tr>
+        </table>
     </div>
 </body>
 </html>

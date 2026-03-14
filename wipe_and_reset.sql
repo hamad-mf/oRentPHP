@@ -76,6 +76,8 @@ CREATE TABLE vehicles (
     maintenance_expected_return DATE DEFAULT NULL,
     maintenance_workshop_name VARCHAR(255) DEFAULT NULL,
     parts_due_notes TEXT DEFAULT NULL,
+    second_key_location VARCHAR(255) DEFAULT NULL,
+    original_documents_location VARCHAR(255) DEFAULT NULL,
     daily_rate DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     monthly_rate DECIMAL(10,2) DEFAULT NULL,
     rate_1day DECIMAL(10,2) DEFAULT NULL,

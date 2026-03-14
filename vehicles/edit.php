@@ -66,6 +66,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $insuranceExpiryDate = trim((string) ($_POST['insurance_expiry_date'] ?? ''));
     $insuranceExpiryDate = $insuranceExpiryDate !== '' ? $insuranceExpiryDate : null;
+    $pollutionExpiryDate = trim((string) ($_POST['pollution_expiry_date'] ?? ''));
+    $pollutionExpiryDate = $pollutionExpiryDate !== '' ? $pollutionExpiryDate : null;
+    $secondKeyLocation = trim((string) ($_POST['second_key_location'] ?? ''));
+    $secondKeyLocation = $secondKeyLocation !== '' ? $secondKeyLocation : null;
+    $originalDocsLocation = trim((string) ($_POST['original_documents_location'] ?? ''));
+    $originalDocsLocation = $originalDocsLocation !== '' ? $originalDocsLocation : null;
 
     if (!$brand)
         $errors['brand'] = 'Brand is required.';
@@ -87,6 +93,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$dateObj || $dateObj->format('Y-m-d') !== $insuranceExpiryDate) {
             $errors['insurance_expiry_date'] = 'Invalid insurance expiry date.';
         }
+    }
+    if ($pollutionExpiryDate !== null) {
+        $dateObj = DateTime::createFromFormat('Y-m-d', $pollutionExpiryDate);
+        if (!$dateObj || $dateObj->format('Y-m-d') !== $pollutionExpiryDate) {
+            $errors['pollution_expiry_date'] = 'Invalid pollution expiry date.';
+        }
+    }
+    if ($secondKeyLocation !== null && mb_strlen($secondKeyLocation) > 255) {
+        $errors['second_key_location'] = 'Second key location is too long (max 255 characters).';
+    }
+    if ($originalDocsLocation !== null && mb_strlen($originalDocsLocation) > 255) {
+        $errors['original_documents_location'] = 'Original documents location is too long (max 255 characters).';
     }
 
     // Unique plate check (exclude current)
@@ -127,10 +145,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $upd->execute([$brand, $model, $year, $plate, $color, $vin, $status, $isEnteringMaintenance, $nowSql, $isMaintenance, $nowSql, $maintenanceExpectedReturn, $maintenanceWorkshopName, $daily, $monthly, $rate1, $rate7, $rate15, $rate30, $image, $id]);
 
         try {
-            $metaStmt = $pdo->prepare('UPDATE vehicles SET insurance_type = ?, insurance_expiry_date = ? WHERE id = ?');
-            $metaStmt->execute([$insuranceType, $insuranceExpiryDate, $id]);
+            $metaStmt = $pdo->prepare('UPDATE vehicles SET insurance_type = ?, insurance_expiry_date = ?, pollution_expiry_date = ? WHERE id = ?');
+            $metaStmt->execute([$insuranceType, $insuranceExpiryDate, $pollutionExpiryDate, $id]);
         } catch (Throwable $e) {
             app_log('ERROR', 'Vehicle edit insurance metadata save failed - ' . $e->getMessage(), [
+                'file' => $e->getFile() . ':' . $e->getLine(),
+                'screen' => 'vehicles/edit.php',
+                'vehicle_id' => $id,
+            ]);
+        }
+        try {
+            $locStmt = $pdo->prepare('UPDATE vehicles SET second_key_location = ?, original_documents_location = ? WHERE id = ?');
+            $locStmt->execute([$secondKeyLocation, $originalDocsLocation, $id]);
+        } catch (Throwable $e) {
+            app_log('ERROR', 'Vehicle edit storage location save failed - ' . $e->getMessage(), [
                 'file' => $e->getFile() . ':' . $e->getLine(),
                 'screen' => 'vehicles/edit.php',
                 'vehicle_id' => $id,
@@ -400,8 +428,30 @@ require_once __DIR__ . '/../includes/header.php';
             <!-- Vehicle Documents - div+onclick, NOT label-for (prevents black screen scroll bug) -->
             <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-4">
                 <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Vehicle Documents <span
-                        class="text-sm text-mb-subtle font-normal">- up to 5</span></h3>
+                        class="text-sm text-mb-subtle font-normal">— up to 5</span></h3>
                 <p class="text-mb-subtle text-sm">Upload photos of registration, insurance, or any other documents.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-mb-silver mb-2">Second Key Stored At <span
+                                class="text-mb-subtle text-xs">(optional)</span></label>
+                        <input type="text" name="second_key_location" value="<?= e($v['second_key_location'] ?? '') ?>"
+                            placeholder="Key cabinet A / Office safe"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                        <?php if (!empty($errors['second_key_location'])): ?>
+                            <p class="text-red-400 text-xs mt-1"><?= e($errors['second_key_location']) ?></p>
+                        <?php endif; ?>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-mb-silver mb-2">Original Documents Stored At <span
+                                class="text-mb-subtle text-xs">(optional)</span></label>
+                        <input type="text" name="original_documents_location" value="<?= e($v['original_documents_location'] ?? '') ?>"
+                            placeholder="Main office drawer / Bank locker"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                        <?php if (!empty($errors['original_documents_location'])): ?>
+                            <p class="text-red-400 text-xs mt-1"><?= e($errors['original_documents_location']) ?></p>
+                        <?php endif; ?>
+                    </div>
+                </div>
                 <div class="bg-mb-black/50 border-2 border-dashed border-mb-subtle/30 rounded-lg p-8 text-center hover:border-mb-accent/50 transition-colors cursor-pointer"
                     onclick="document.getElementById('documents').click()"
                     ondragover="event.preventDefault();this.classList.add('border-mb-accent')"
@@ -486,6 +536,16 @@ require_once __DIR__ . '/../includes/header.php';
                 <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Pollution Docs <span
                         class="text-sm text-mb-subtle font-normal">- optional, up to 5</span></h3>
                 <p class="text-mb-subtle text-sm">Upload pollution certificate images for this vehicle.</p>
+                <div>
+                    <label class="block text-sm text-mb-silver mb-2">Pollution Expiry Date <span
+                            class="text-mb-subtle text-xs">(optional)</span></label>
+                    <input type="date" name="pollution_expiry_date"
+                        value="<?= e($v['pollution_expiry_date'] ?? '') ?>"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                    <?php if (!empty($errors['pollution_expiry_date'])): ?>
+                        <p class="text-red-400 text-xs mt-1"><?= e($errors['pollution_expiry_date']) ?></p>
+                    <?php endif; ?>
+                </div>
                 <div class="bg-mb-black/50 border-2 border-dashed border-mb-subtle/30 rounded-lg p-8 text-center hover:border-mb-accent/50 transition-colors cursor-pointer"
                     onclick="document.getElementById('pollution_docs').click()"
                     ondragover="event.preventDefault();this.classList.add('border-mb-accent')"

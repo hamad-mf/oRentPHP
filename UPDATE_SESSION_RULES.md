@@ -102,3 +102,10 @@ Add one row per release.
 | 2026-03-13 | client_address_proof_required | Yes | None | N/A | Client address and proof document are now required on create form. |
 | 2026-03-13 | client_phone_unique | Yes | None | N/A | Prevent duplicate client phone numbers on create/edit. |
 | 2026-03-13 | vehicle_catalog_brand_share | Yes | None | N/A | Catalog branding updated, total fleet hidden, and single-vehicle share links auto-open the vehicle modal. |
+| 2026-03-14 | vehicle_pollution_expiry_date | Yes | `migrations/releases/2026-03-14_vehicle_pollution_expiry_date.sql` | Pending | Add pollution certificate expiry date to vehicles with create/edit inputs and details display. |
+| 2026-03-14 | vehicle_storage_locations | Yes | `migrations/releases/2026-03-14_vehicle_storage_locations.sql` | Pending | Add second key and original documents storage locations to vehicles, visible on create/edit/details. |
+| 2026-03-14 | vehicle_storage_inline_edit | Yes | None | N/A | Vehicle details page now supports inline editing of storage locations. |
+| 2026-03-14 | notifications_settings | Yes | None | N/A | Added Notifications settings tab to control which in-app notifications are generated. |
+| 2026-03-14 | vehicle_quotation_builder_link | Yes | None | N/A | Added Create Quotation button on Vehicles list to open manual quotation builder. |
+| 2026-03-14 | vehicle_quotation_pdf_style | Yes | None | N/A | Updated single-vehicle quotation PDF to match manual quotation builder style. |
+| 2026-03-14 | pipeline_global_search | Yes | None | N/A | Added global search filter for leads pipeline (filters across all stages). |
