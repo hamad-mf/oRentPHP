@@ -109,3 +109,6 @@ Add one row per release.
 | 2026-03-14 | vehicle_quotation_builder_link | Yes | None | N/A | Added Create Quotation button on Vehicles list to open manual quotation builder. |
 | 2026-03-14 | vehicle_quotation_pdf_style | Yes | None | N/A | Updated single-vehicle quotation PDF to match manual quotation builder style. |
 | 2026-03-14 | pipeline_global_search | Yes | None | N/A | Added global search filter for leads pipeline (filters across all stages). |
+| 2026-03-15 | pending_sql_idempotent_guards | Yes | None | N/A | Made pending SQL migrations safe to re-run using information_schema guards. |
+| 2026-03-16 | gps_daily_checks | Yes | `migrations/releases/2026-03-16_gps_daily_checks.sql` | Applied (phpMyAdmin) | Adds `gps_daily_checks` table to track 3 daily GPS check slots per active reservation. |
+| 2026-03-16 | gps_tracking_enhancements | Yes | None | N/A | Enhanced GPS tracking with per-day checks reset, date filtering, 5-day history pagination, timestamp saving, and duplicate history fixes. |

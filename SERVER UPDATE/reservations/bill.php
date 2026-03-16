@@ -27,15 +27,18 @@ $start = strtotime($r['start_date']);
 $end = strtotime($r['end_date']);
 $days = max(1, (int) ceil(($end - $start) / 86400) + 1); // inclusive: count both start & end day
 $basePrice = (float) $r['total_price'];
+$extensionPaid = max(0, (float) ($r['extension_paid_amount'] ?? 0));
+$basePriceForDelivery = max(0, $basePrice - $extensionPaid);
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
+$deliveryPrepaid = max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
 // Keep manual additional amount hidden in bill text, but include it in totals.
 // Delivery discount
 $delivDiscType = $r['delivery_discount_type'] ?? null;
 $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
-$delivBase = max(0, $basePrice - $voucherApplied - $advancePaid) + $deliveryCharge + $deliveryManualAmount;
+$delivBase = max(0, $basePriceForDelivery - $voucherApplied - $advancePaid) + $deliveryCharge + $deliveryManualAmount;
 $delivDiscountAmt = 0;
 if ($delivDiscType === 'percent') {
     $delivDiscountAmt = round($delivBase * min($delivDiscVal, 100) / 100, 2);
@@ -65,7 +68,7 @@ if ($discType === 'percent') {
 }
 $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
 $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
-$totalCollected = $advancePaid + $baseCollectedAtDelivery + $cashDueAtReturn;
+$totalCollected = $advancePaid + $deliveryPrepaid + $extensionPaid + $baseCollectedAtDelivery + $cashDueAtReturn;
 
 
 // Format datetime helper
@@ -686,6 +689,18 @@ function fdt(?string $dt): string
                             <td class="val">-$<?= number_format($advancePaid, 2) ?></td>
                         </tr>
                     <?php endif; ?>
+                    <?php if ($deliveryPrepaid > 0): ?>
+                        <tr style="color:#0284c7">
+                            <td>Delivery Charge Collected at Booking</td>
+                            <td class="val">+$<?= number_format($deliveryPrepaid, 2) ?></td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php if ($extensionPaid > 0): ?>
+                        <tr style="color:#0ea5e9">
+                            <td>Extension Collected (Grace)</td>
+                            <td class="val">+$<?= number_format($extensionPaid, 2) ?></td>
+                        </tr>
+                    <?php endif; ?>
                     <?php if ($deliveryCharge > 0): ?>
                         <tr style="color:#0369a1">
                             <td>Delivery Charge</td>
@@ -762,7 +777,7 @@ function fdt(?string $dt): string
                     <?php if ($isQuotation): ?>
                         <tr class="total-row" style="background:#f8fafc;color:#1e293b">
                             <td>Estimated Total</td>
-                            <td class="val">$<?= number_format($baseCollectedAtDelivery, 2) ?></td>
+                            <td class="val">$<?= number_format($baseCollectedAtDelivery + $deliveryPrepaid, 2) ?></td>
                         </tr>
                     <?php else: ?>
                         <tr class="total-row">

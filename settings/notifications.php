@@ -35,6 +35,14 @@ $notificationSettings = [
         'label' => 'Reservation Cancelled',
         'description' => 'Notify when a reservation is cancelled.',
     ],
+    'notify_emi_due' => [
+        'label' => 'EMI Due Alert',
+        'description' => 'Notify when an EMI payment is due within the next 2 days.',
+    ],
+    'notify_gps_pending' => [
+        'label' => 'GPS Check Pending',
+        'description' => 'Notify when active reservations have incomplete GPS checks for today.',
+    ],
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

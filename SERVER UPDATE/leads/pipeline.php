@@ -75,6 +75,10 @@ $filterStatus = trim((string) ($_GET['status_filter'] ?? ''));
 if ($filterStatus !== '' && !in_array($filterStatus, $stages, true)) {
     $filterStatus = '';
 }
+$filterSearch = trim((string) ($_GET['q'] ?? ''));
+if (strlen($filterSearch) > 100) {
+    $filterSearch = substr($filterSearch, 0, 100);
+}
 $sortOrder = trim((string) ($_GET['sort'] ?? 'newest'));
 if (!in_array($sortOrder, ['newest', 'oldest'], true)) {
     $sortOrder = 'newest';
@@ -122,6 +126,11 @@ if ($filterSource !== '') {
 if ($filterStatus !== '') {
     $where[] = 'l.status = ?';
     $params[] = $filterStatus;
+}
+if ($filterSearch !== '') {
+    $where[] = '(l.name LIKE ? OR l.phone LIKE ? OR l.alternative_number LIKE ? OR l.email LIKE ? OR l.vehicle_interest LIKE ?)';
+    $term = '%' . $filterSearch . '%';
+    $params = array_merge($params, [$term, $term, $term, $term, $term]);
 }
 
 $whereSql = implode(' AND ', $where);
@@ -182,6 +191,7 @@ $viewStateParams = array_filter(
         'date_to' => $filterDateTo,
         'source_filter' => $filterSource,
         'status_filter' => $filterStatus,
+        'q' => $filterSearch,
         'sort' => $sortOrder !== 'newest' ? $sortOrder : null,
         'page' => $page > 1 ? $page : null,
     ],
@@ -347,12 +357,26 @@ require_once __DIR__ . '/../includes/header.php';
         + (int) ($filterDateTo !== '')
         + (int) ($filterSource !== '')
         + (int) ($filterStatus !== '')
+        + (int) ($filterSearch !== '')
         + (int) ($sortOrder !== 'newest');
     $clearFiltersUrl = 'pipeline.php' . ($viewMode === 'list' ? '?view=list' : '');
     ?>
     <form method="GET" id="pipelineFilters"
         class="flex flex-wrap items-center gap-3 bg-mb-surface border border-mb-subtle/20 rounded-xl px-4 py-3">
         <input type="hidden" name="view" value="<?= e($viewMode) ?>">
+
+        <!-- Global Search -->
+        <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-mb-subtle flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M21 21l-4.35-4.35m1.35-4.65a6 6 0 11-12 0 6 6 0 0112 0z" />
+            </svg>
+            <input type="text" id="pipelineGlobalSearch" name="q" value="<?= e($filterSearch) ?>"
+                placeholder="Search all leads..."
+                class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-sm text-white placeholder:text-mb-subtle focus:outline-none focus:border-mb-accent transition-colors">
+        </div>
+
+        <div class="w-px h-5 bg-mb-subtle/20"></div>
 
         <!-- Staff Filter -->
         <div class="flex items-center gap-2">
@@ -617,6 +641,8 @@ require_once __DIR__ . '/../includes/header.php';
                             data-current-stage="<?= e($stage) ?>" data-lead-name="<?= e(strtolower((string) $l['name'])) ?>"
                             data-lead-phone="<?= e(strtolower((string) $l['phone'])) ?>"
                             data-lead-alt-phone="<?= e(strtolower((string) ($l['alternative_number'] ?? ''))) ?>"
+                            data-lead-email="<?= e(strtolower((string) ($l['email'] ?? ''))) ?>"
+                            data-lead-interest="<?= e(strtolower((string) ($l['vehicle_interest'] ?? ''))) ?>"
                             draggable="<?= $isMovable ? 'true' : 'false' ?>"
                             class="pipeline-card relative bg-mb-black/40 border border-mb-subtle/10 rounded-lg p-3 hover:border-mb-subtle/30 transition-all cursor-pointer group"
                             onclick="window.location='show.php?id=<?= (int) $l['id'] ?>'">
@@ -751,6 +777,7 @@ require_once __DIR__ . '/../includes/header.php';
             'date_to' => $filterDateTo,
             'source_filter' => $filterSource,
             'status_filter' => $filterStatus,
+            'q' => $filterSearch,
             'sort' => $sortOrder !== 'newest' ? $sortOrder : null,
         ],
         static fn($v) => $v !== null && $v !== ''
@@ -865,6 +892,7 @@ require_once __DIR__ . '/../includes/header.php';
 <script>
     const stageTransitions = <?= json_encode($stageTransitions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     const columnLeadSearchInputs = document.querySelectorAll('.columnLeadSearch');
+    const globalLeadSearchInput = document.getElementById('pipelineGlobalSearch');
     const pipelineColumns = document.querySelectorAll('.pipeline-column');
     const contactChoiceModal = document.getElementById('contactChoiceModal');
     const contactDialBtn = document.getElementById('contactDialBtn');
@@ -885,6 +913,7 @@ require_once __DIR__ . '/../includes/header.php';
     }
 
     function applyPipelineFilters() {
+        const globalTerm = normalizeSearchTerm(globalLeadSearchInput ? globalLeadSearchInput.value : '');
         pipelineColumns.forEach((column) => {
             const stageSearchInput = column.querySelector('.columnLeadSearch');
             const stageTerm = normalizeSearchTerm(stageSearchInput ? stageSearchInput.value : '');
@@ -895,8 +924,11 @@ require_once __DIR__ . '/../includes/header.php';
                 const leadName = card.dataset.leadName || '';
                 const leadPhone = card.dataset.leadPhone || '';
                 const leadAltPhone = card.dataset.leadAltPhone || '';
-                const matchesStage = !stageTerm || leadName.includes(stageTerm) || leadPhone.includes(stageTerm) || leadAltPhone.includes(stageTerm);
-                const shouldShow = matchesStage;
+                const leadEmail = card.dataset.leadEmail || '';
+                const leadInterest = card.dataset.leadInterest || '';
+                const matchesStage = !stageTerm || leadName.includes(stageTerm) || leadPhone.includes(stageTerm) || leadAltPhone.includes(stageTerm) || leadEmail.includes(stageTerm) || leadInterest.includes(stageTerm);
+                const matchesGlobal = !globalTerm || leadName.includes(globalTerm) || leadPhone.includes(globalTerm) || leadAltPhone.includes(globalTerm) || leadEmail.includes(globalTerm) || leadInterest.includes(globalTerm);
+                const shouldShow = matchesStage && matchesGlobal;
                 card.classList.toggle('hidden', !shouldShow);
                 if (shouldShow) {
                     visibleCount++;
@@ -1112,6 +1144,9 @@ require_once __DIR__ . '/../includes/header.php';
     columnLeadSearchInputs.forEach((input) => {
         input.addEventListener('input', applyPipelineFilters);
     });
+    if (globalLeadSearchInput) {
+        globalLeadSearchInput.addEventListener('input', applyPipelineFilters);
+    }
     applyPipelineFilters();
 
     if (contactCancelBtn) {

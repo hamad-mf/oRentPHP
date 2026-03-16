@@ -199,16 +199,35 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
                 <?php endif; ?>
                 <?php if (!empty($clientProofs)): ?>
-                    <div class="mt-3 space-y-2">
+                    <div class="mt-3 space-y-3">
                         <?php foreach ($clientProofs as $doc): ?>
-                            <div class="flex items-center justify-between gap-3 bg-mb-black/30 border border-mb-subtle/20 rounded-lg px-3 py-2">
-                                <div class="min-w-0">
-                                    <p class="text-white text-xs truncate"><?= e($doc['title'] ?: basename($doc['file_path'])) ?></p>
-                                    <p class="text-mb-subtle text-[10px] uppercase"><?= e($doc['type'] ?? '') ?></p>
+                            <?php 
+                            $docExt = strtolower(pathinfo($doc['file_path'], PATHINFO_EXTENSION));
+                            $isImage = in_array($docExt, ['jpg', 'jpeg', 'png']);
+                            ?>
+                            <?php if ($isImage): ?>
+                                <div class="bg-mb-black/30 border border-mb-subtle/20 rounded-lg p-3">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-white text-xs truncate mb-1"><?= e($doc['title'] ?: basename($doc['file_path'])) ?></p>
+                                            <p class="text-mb-subtle text-[10px] uppercase mb-2"><?= e($doc['type'] ?? '') ?></p>
+                                            <a href="<?= $root . e($doc['file_path']) ?>" target="_blank">
+                                                <img src="<?= $root . e($doc['file_path']) ?>" alt="Proof document"
+                                                    class="max-h-32 rounded-lg border border-mb-subtle/20 hover:opacity-80 transition-opacity">
+                                            </a>
+                                        </div>
+                                    </div>
                                 </div>
-                                <a href="<?= $root . e($doc['file_path']) ?>" target="_blank"
-                                    class="text-mb-accent text-xs hover:underline">View</a>
-                            </div>
+                            <?php else: ?>
+                                <div class="flex items-center justify-between gap-3 bg-mb-black/30 border border-mb-subtle/20 rounded-lg px-3 py-2">
+                                    <div class="min-w-0">
+                                        <p class="text-white text-xs truncate"><?= e($doc['title'] ?: basename($doc['file_path'])) ?></p>
+                                        <p class="text-mb-subtle text-[10px] uppercase"><?= e($doc['type'] ?? '') ?></p>
+                                    </div>
+                                    <a href="<?= $root . e($doc['file_path']) ?>" target="_blank"
+                                        class="text-mb-accent text-xs hover:underline">View</a>
+                                </div>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>

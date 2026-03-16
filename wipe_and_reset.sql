@@ -46,6 +46,7 @@ DROP TABLE IF EXISTS reservations;
 DROP TABLE IF EXISTS vehicle_images;
 DROP TABLE IF EXISTS documents;
 DROP TABLE IF EXISTS papers;
+DROP TABLE IF EXISTS gps_daily_checks;
 DROP TABLE IF EXISTS gps_tracking;
 DROP TABLE IF EXISTS vehicle_requests;
 DROP TABLE IF EXISTS leads;
@@ -154,6 +155,24 @@ CREATE TABLE gps_tracking (
     cancelled_at DATETIME DEFAULT NULL,
     cancellation_by INT DEFAULT NULL,
     refund_amount DECIMAL(10,2) DEFAULT NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE gps_daily_checks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    reservation_id INT NOT NULL,
+    vehicle_id INT NOT NULL,
+    check_date DATE NOT NULL,
+    check_slot TINYINT NOT NULL,
+    tracking_active TINYINT(1) NOT NULL DEFAULT 1,
+    last_location VARCHAR(255) DEFAULT NULL,
+    notes TEXT DEFAULT NULL,
+    updated_by INT DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_gps_daily_slot (reservation_id, check_date, check_slot),
+    INDEX idx_gps_daily_vehicle (vehicle_id),
+    INDEX idx_gps_daily_date (check_date),
+    INDEX idx_gps_daily_reservation (reservation_id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE clients (

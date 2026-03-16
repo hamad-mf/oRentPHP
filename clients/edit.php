@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                         $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
                         if (!in_array($ext, $allowed, true)) {
-                            $errors['proof_files'] = 'Only JPG, PNG, or PDF allowed.';
+                            $errors['proof_files'] = 'Only JPG or PNG images allowed.';
                             break;
                         }
                         if (($_FILES['proof_files']['size'][$i] ?? 0) > 5 * 1024 * 1024) {
@@ -111,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ext = strtolower(pathinfo($_FILES['proof_file']['name'], PATHINFO_EXTENSION));
                 $allowed = ['jpg', 'jpeg', 'png', 'pdf'];
                 if (!in_array($ext, $allowed)) {
-                    $errors['proof_file'] = 'Only JPG, PNG, or PDF allowed.';
+                    $errors['proof_file'] = 'Only JPG or PNG images allowed.';
                 } elseif ($_FILES['proof_file']['size'] > 5 * 1024 * 1024) {
                     $errors['proof_file'] = 'File must be under 5MB.';
                 } else {
@@ -243,7 +243,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
-                    <input id="proofFiles" type="file" name="proof_files[]" accept=".jpg,.jpeg,.png,.pdf" multiple data-max="<?= (int) $remainingProofSlots ?>"
+                    <input id="proofFiles" type="file" name="proof_files[]" accept=".jpg,.jpeg,.png" multiple data-max="<?= (int) $remainingProofSlots ?>"
                         class="block w-full text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-mb-accent hover:file:bg-mb-surface/80 cursor-pointer border border-mb-subtle/20 rounded-lg p-2" <?= $remainingProofSlots === 0 ? 'disabled' : '' ?>>
                     <p class="text-mb-subtle text-xs mt-1">You can add up to <?= $remainingProofSlots ?> more file(s).</p>
                     <div id="proofPreview" class="mt-3 space-y-2 hidden"></div>
@@ -260,7 +260,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 class="text-mb-accent text-xs hover:underline">View existing file</a>
                         </div>
                     <?php endif; ?>
-                    <input type="file" name="proof_file" accept=".jpg,.jpeg,.png,.pdf"
+                    <input type="file" name="proof_file" accept=".jpg,.jpeg,.png"
                         class="block w-full text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-mb-accent hover:file:bg-mb-surface/80 cursor-pointer border border-mb-subtle/20 rounded-lg p-2">
                     <p class="text-mb-subtle text-xs mt-1">Leave blank to keep existing file.</p>
                     <?php if ($errors['proof_file'] ?? ''): ?>

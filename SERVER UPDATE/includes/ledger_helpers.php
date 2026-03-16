@@ -9,6 +9,7 @@
  *   ledger_post_manual($pdo, $type, $category, $amount, $paymentMode, $description, $userId, $postedAt = null, $bankAccountId = null)
  *   ledger_get_accounts($pdo)
  *   ledger_get_entries($pdo, array $filters)
+ *   ledger_void_entry($pdo, $entryId, $userId, $reason)
  *   ledger_delete_manual_entry($pdo, $entryId, $userId)
  */
 
@@ -44,12 +45,16 @@ function ledger_ensure_schema(PDO $pdo): void
         source_id        INT           DEFAULT NULL,
         source_event     VARCHAR(50)   DEFAULT NULL,
         idempotency_key  VARCHAR(120)  DEFAULT NULL,
+        voided_at        DATETIME      DEFAULT NULL,
+        voided_by        INT           DEFAULT NULL,
+        void_reason      VARCHAR(255)  DEFAULT NULL,
         posted_at        DATETIME      DEFAULT CURRENT_TIMESTAMP,
         created_by       INT           DEFAULT NULL,
         created_at       TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
         UNIQUE KEY uq_idempotency (idempotency_key),
         INDEX idx_txn_type (txn_type),
         INDEX idx_posted_at (posted_at),
+        INDEX idx_voided_at (voided_at),
         INDEX idx_bank_account (bank_account_id),
         INDEX idx_source (source_type, source_id),
         FOREIGN KEY (bank_account_id) REFERENCES bank_accounts(id) ON DELETE SET NULL
@@ -208,6 +213,10 @@ function ledger_post_reservation_event(
 
     $event = strtolower(trim($event));
     switch ($event) {
+        case 'delivery_prepaid':
+            $category = 'Reservation Delivery (Prepaid)';
+            $label = 'Delivery (Prepaid)';
+            break;
         case 'delivery':
             $category = 'Reservation Delivery';
             $label = 'Delivery';
@@ -316,13 +325,23 @@ function ledger_is_security_deposit_event(?string $sourceEvent): bool
     return in_array((string) $sourceEvent, ['security_deposit_in', 'security_deposit_out'], true);
 }
 
+function ledger_non_voided_clause(string $alias = ''): string
+{
+    $prefix = trim($alias);
+    if ($prefix !== '') {
+        $prefix = rtrim($prefix, '.') . '.';
+    }
+    return $prefix . "voided_at IS NULL";
+}
+
 function ledger_kpi_exclusion_clause(string $alias = ''): string
 {
     $prefix = trim($alias);
     if ($prefix !== '') {
         $prefix = rtrim($prefix, '.') . '.';
     }
-    return "(" . $prefix . "source_event IS NULL OR " . $prefix . "source_event NOT IN ('security_deposit_in','security_deposit_out','transfer_out','transfer_in'))"
+    return ledger_non_voided_clause($alias)
+        . " AND (" . $prefix . "source_event IS NULL OR " . $prefix . "source_event NOT IN ('security_deposit_in','security_deposit_out','transfer_out','transfer_in'))"
         . " AND (" . $prefix . "source_type IS NULL OR " . $prefix . "source_type <> 'transfer')";
 }
 
@@ -433,6 +452,54 @@ function ledger_post_manual(
 //  ”  ”  Delete Manual Entry  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
 
 /**
+ * Void a ledger entry and reverse the bank balance impact.
+ * Keeps the row for audit; voided entries are excluded from totals.
+ */
+function ledger_void_entry(PDO $pdo, int $entryId, int $userId, string $reason): bool
+{
+    ledger_ensure_schema($pdo);
+    $reason = trim($reason);
+    if ($reason === '') {
+        return false;
+    }
+
+    $entry = $pdo->prepare("SELECT * FROM ledger_entries WHERE id = ? LIMIT 1");
+    $entry->execute([$entryId]);
+    $row = $entry->fetch();
+
+    if (!$row || !empty($row['voided_at'])) {
+        return false;
+    }
+    if (($row['source_type'] ?? '') === 'transfer' || in_array((string) ($row['source_event'] ?? ''), ['transfer_out', 'transfer_in'], true)) {
+        return false;
+    }
+
+    try {
+        $pdo->beginTransaction();
+
+        // Reverse bank balance
+        if (!empty($row['bank_account_id'])) {
+            $delta = ($row['txn_type'] === 'expense') ? abs($row['amount']) : -abs($row['amount']);
+            $pdo->prepare("UPDATE bank_accounts SET balance = balance + ? WHERE id = ?")
+                ->execute([$delta, $row['bank_account_id']]);
+        }
+
+        $pdo->prepare("UPDATE ledger_entries SET voided_at = ?, voided_by = ?, void_reason = ? WHERE id = ?")
+            ->execute([app_now_sql(), $userId > 0 ? $userId : null, $reason, $entryId]);
+
+        $pdo->commit();
+        app_log('ACTION', "Ledger: voided entry ID $entryId by user $userId");
+        return true;
+
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction())
+            $pdo->rollBack();
+        app_log('ERROR', "Ledger void failed: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
  * Delete a manual ledger entry and reverse the bank balance.
  * System entries (source_type != 'manual') cannot be deleted.
  */
@@ -440,7 +507,7 @@ function ledger_delete_manual_entry(PDO $pdo, int $entryId, int $userId): bool
 {
     ledger_ensure_schema($pdo);
 
-    $entry = $pdo->prepare("SELECT * FROM ledger_entries WHERE id = ? AND source_type = 'manual'");
+    $entry = $pdo->prepare("SELECT * FROM ledger_entries WHERE id = ? AND source_type = 'manual' AND voided_at IS NULL");
     $entry->execute([$entryId]);
     $row = $entry->fetch();
 
@@ -593,8 +660,8 @@ function ledger_transfer_cash_to_bank(
         return false;
     }
 
-    $cashIncome  = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income'")->fetchColumn();
-    $cashExpense = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense'")->fetchColumn();
+    $cashIncome  = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income' AND voided_at IS NULL")->fetchColumn();
+    $cashExpense = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense' AND voided_at IS NULL")->fetchColumn();
     $cashBalance = $cashIncome - $cashExpense;
 
     if ($cashBalance < $amount) {
@@ -683,6 +750,9 @@ function ledger_get_entries(PDO $pdo, array $f = []): array
         $where[] = "le.category = ?";
         $params[] = $f['category'];
     }
+    if (empty($f['include_voided'])) {
+        $where[] = ledger_non_voided_clause('le');
+    }
 
     $sql = "SELECT le.*, ba.name AS account_name, u.name AS posted_by_name
             FROM ledger_entries le
@@ -717,6 +787,7 @@ function ledger_build_query(array $f = []): array {
     if (!empty($f['date_to']))    { $where[] = "DATE(le.posted_at) <= ?"; $params[] = $f['date_to']; }
     if (!empty($f['source']))     { $where[] = "le.source_type = ?";      $params[] = $f['source']; }
     if (!empty($f['category']))   { $where[] = "le.category = ?";         $params[] = $f['category']; }
+    if (empty($f['include_voided'])) { $where[] = ledger_non_voided_clause('le'); }
     $base = "FROM ledger_entries le LEFT JOIN bank_accounts ba ON ba.id=le.bank_account_id LEFT JOIN users u ON u.id=le.created_by WHERE " . implode(' AND ', $where);
     return [
         'select' => "SELECT le.*, ba.name AS account_name, u.name AS posted_by_name ",

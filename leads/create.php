@@ -103,6 +103,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!in_array($status, $allowedInitialStatuses, true))
         $errors['status'] = 'Please select a valid initial lead status.';
 
+    if ($phone && !isset($errors['phone'])) {
+        $chk = $pdo->prepare('SELECT id FROM leads WHERE phone = ?');
+        $chk->execute([$phone]);
+        if ($chk->fetch())
+            $errors['phone'] = 'Phone number already exists in leads.';
+    }
+
     if (empty($errors)) {
         // Get assigned staff name for display + legacy field
         $assignedName = null;

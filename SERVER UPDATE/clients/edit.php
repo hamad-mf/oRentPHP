@@ -52,6 +52,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($chk->fetch())
             $errors['email'] = 'Email already used.';
     }
+    if ($phone && !isset($errors['phone'])) {
+        $chk = $pdo->prepare('SELECT id FROM clients WHERE phone=? AND id!=?');
+        $chk->execute([$phone, $id]);
+        if ($chk->fetch())
+            $errors['phone'] = 'Phone already used.';
+    }
     if (empty($errors)) {
         // Handle proof file upload(s)
         $proofUploads = [];

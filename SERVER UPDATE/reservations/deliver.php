@@ -46,11 +46,15 @@ try {
 require_once __DIR__ . '/../includes/settings_helpers.php';
 settings_ensure_table($pdo);
 $depositPct = (float) settings_get($pdo, 'deposit_percentage', '0');
-$deliveryChargeDefault = (float) settings_get($pdo, 'delivery_charge_default', '0');
+$deliveryPrepaid = max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
+$deliveryPrepaidMethod = $r['delivery_prepaid_payment_method'] ?? null;
+$deliveryChargeDefault = $deliveryPrepaid > 0 ? 0.0 : (float) settings_get($pdo, 'delivery_charge_default', '0');
 
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
-$baseCollectNow = max(0, (float) $r['total_price'] - $voucherApplied - $advancePaid);
+$extensionPaid = max(0, (float) ($r['extension_paid_amount'] ?? 0));
+$basePriceForDelivery = max(0, (float) $r['total_price'] - $extensionPaid);
+$baseCollectNow = max(0, $basePriceForDelivery - $voucherApplied - $advancePaid);
 $existingDeliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryCharge = max(0, (float) ($_POST['delivery_charge'] ?? ($existingDeliveryCharge > 0 ? $existingDeliveryCharge : $deliveryChargeDefault)));
 $existingDeliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
@@ -351,6 +355,18 @@ require_once __DIR__ . '/../includes/header.php';
                 class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white placeholder-mb-subtle focus:outline-none focus:border-mb-accent transition-colors"
                 maxlength="255">
         </div>
+        <?php if ($deliveryPrepaid > 0): ?>
+            <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                <p class="text-xs uppercase tracking-wider text-blue-400 mb-1">Collected at Reservation</p>
+                <div class="flex items-center justify-between text-sm text-blue-200">
+                    <span>Delivery Charge</span>
+                    <span>$<?= number_format($deliveryPrepaid, 2) ?></span>
+                </div>
+                <?php if ($deliveryPrepaidMethod): ?>
+                    <p class="text-xs text-mb-subtle mt-1">Method: <?= e(reservation_payment_method_label($deliveryPrepaidMethod)) ?></p>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
         <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
             <p class="text-xs uppercase tracking-wider text-green-400 mb-1">Charge At Delivery</p>
             <div class="space-y-2 text-sm">
@@ -371,7 +387,7 @@ require_once __DIR__ . '/../includes/header.php';
                     </div>
                 <?php endif; ?>
                 <div class="flex items-center justify-between text-mb-silver gap-3">
-                    <span>Delivery Charge</span>
+                    <span><?= $deliveryPrepaid > 0 ? 'Additional Delivery Charge' : 'Delivery Charge' ?></span>
                     <div class="relative w-44">
                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-mb-subtle text-xs">$</span>
                         <input type="number" name="delivery_charge" id="deliveryChargeInput" step="0.01" min="0"

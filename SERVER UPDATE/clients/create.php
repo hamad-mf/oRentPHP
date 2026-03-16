@@ -27,6 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['email'] = 'Invalid email format.';
     if (!$phone)
         $errors['phone'] = 'Phone is required.';
+    if (!$address)
+        $errors['address'] = 'Address is required.';
 
     if ($email && !isset($errors['email'])) {
         $chk = $pdo->prepare('SELECT id FROM clients WHERE email = ?');
@@ -34,13 +36,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($chk->fetch())
             $errors['email'] = 'Email already in use.';
     }
+    if ($phone && !isset($errors['phone'])) {
+        $chk = $pdo->prepare('SELECT id FROM clients WHERE phone = ?');
+        $chk->execute([$phone]);
+        if ($chk->fetch())
+            $errors['phone'] = 'Phone already in use.';
+    }
 
     if (empty($errors)) {
         // Handle proof file upload(s)
         $proofFile = null;
         $proofUploads = [];
         if ($supportsClientProofs) {
-            if (!empty($_FILES['proof_files']['name'][0])) {
+            if (empty($_FILES['proof_files']['name'][0])) {
+                $errors['proof_files'] = 'At least one proof document is required.';
+            } else {
                 $allowed = ['jpg', 'jpeg', 'png', 'pdf'];
                 $maxFiles = 5;
                 $selectedCount = 0;
@@ -80,7 +90,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         } else {
-            if (!empty($_FILES['proof_file']['name'])) {
+            if (empty($_FILES['proof_file']['name'])) {
+                $errors['proof_file'] = 'Proof document is required.';
+            } else {
                 $uploadDir = __DIR__ . '/../uploads/clients/';
                 if (!is_dir($uploadDir))
                     mkdir($uploadDir, 0775, true);
@@ -174,9 +186,12 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php endif; ?>
             </div>
             <div>
-                <label class="block text-sm text-mb-silver mb-2">Address</label>
-                <textarea name="address" rows="2" placeholder="Street, City, Country"
+                <label class="block text-sm text-mb-silver mb-2">Address <span class="text-red-400">*</span></label>
+                <textarea name="address" rows="2" placeholder="Street, City, Country" required
                     class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm resize-none"><?= htmlspecialchars($_POST['address'] ?? '', ENT_QUOTES) ?></textarea>
+                <?php if ($errors['address'] ?? ''): ?>
+                    <p class="text-red-400 text-xs mt-1"><?= e($errors['address']) ?></p>
+                <?php endif; ?>
             </div>
             <div>
                 <label class="block text-sm text-mb-silver mb-2">Notes</label>
@@ -186,18 +201,18 @@ require_once __DIR__ . '/../includes/header.php';
             <!-- Proof Document -->
             <div>
                 <?php if ($supportsClientProofs): ?>
-                    <label class="block text-sm text-mb-silver mb-2">ID / Proof Documents <span
-                            class="text-mb-subtle text-xs">(optional - up to 5 files, JPG/PNG/PDF, max 5MB each)</span></label>
-                    <input id="proofFiles" type="file" name="proof_files[]" accept=".jpg,.jpeg,.png,.pdf" multiple data-max="5"
+                    <label class="block text-sm text-mb-silver mb-2">ID / Proof Documents <span class="text-red-400">*</span> <span
+                            class="text-mb-subtle text-xs">(required - up to 5 files, JPG/PNG/PDF, max 5MB each)</span></label>
+                    <input id="proofFiles" type="file" name="proof_files[]" accept=".jpg,.jpeg,.png,.pdf" multiple data-max="5" required
                         class="block w-full text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-mb-accent hover:file:bg-mb-surface/80 cursor-pointer border border-mb-subtle/20 rounded-lg p-2">
                     <div id="proofPreview" class="mt-3 space-y-2 hidden"></div>
                     <p id="proofFilesError" class="text-red-400 text-xs mt-1 <?= ($errors['proof_files'] ?? '') ? '' : 'hidden' ?>">
                         <?= e($errors['proof_files'] ?? '') ?>
                     </p>
                 <?php else: ?>
-                    <label class="block text-sm text-mb-silver mb-2">ID / Proof Document <span
-                            class="text-mb-subtle text-xs">(optional - JPG, PNG or PDF, max 5MB)</span></label>
-                    <input type="file" name="proof_file" accept=".jpg,.jpeg,.png,.pdf"
+                    <label class="block text-sm text-mb-silver mb-2">ID / Proof Document <span class="text-red-400">*</span> <span
+                            class="text-mb-subtle text-xs">(required - JPG, PNG or PDF, max 5MB)</span></label>
+                    <input type="file" name="proof_file" accept=".jpg,.jpeg,.png,.pdf" required
                         class="block w-full text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-mb-accent hover:file:bg-mb-surface/80 cursor-pointer border border-mb-subtle/20 rounded-lg p-2">
                     <?php if ($errors['proof_file'] ?? ''): ?>
                         <p class="text-red-400 text-xs mt-1"><?= e($errors['proof_file']) ?></p>

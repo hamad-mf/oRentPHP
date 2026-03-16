@@ -71,6 +71,8 @@ require_once __DIR__ . '/../includes/header.php';
             Permissions</a>
         <a href="attendance.php"
             class="px-6 py-2 rounded-full text-sm font-medium transition-all bg-mb-accent text-white shadow-lg shadow-mb-accent/20">Attendance</a>
+        <a href="notifications.php"
+            class="px-6 py-2 rounded-full text-sm font-medium transition-all text-mb-silver hover:text-white">Notifications</a>
     </div>
 
     <div class="flex items-center gap-3 text-sm text-mb-subtle">

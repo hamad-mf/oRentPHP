@@ -34,14 +34,17 @@ $overdue = isOverdue($r['end_date'], $r['status']);
 
 // Totals calculation (match bill.php)
 $basePrice = (float) $r['total_price'];
+$extensionPaid = max(0, (float) ($r['extension_paid_amount'] ?? 0));
+$basePriceForDelivery = max(0, $basePrice - $extensionPaid);
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
+$deliveryPrepaid = max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
 // Delivery discount
 $delivDiscType = $r['delivery_discount_type'] ?? null;
 $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
-$delivBaseWithCharge = max(0, $basePrice - $voucherApplied - $advancePaid) + $deliveryCharge + $deliveryManualAmount;
+$delivBaseWithCharge = max(0, $basePriceForDelivery - $voucherApplied - $advancePaid) + $deliveryCharge + $deliveryManualAmount;
 $delivDiscountAmt = 0;
 if ($delivDiscType === 'percent') {
     $delivDiscountAmt = round($delivBaseWithCharge * min($delivDiscVal, 100) / 100, 2);
@@ -69,7 +72,7 @@ if ($discType === 'percent') {
 }
 $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
 $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
-$totalCollected = $advancePaid + $baseCollectedAtDelivery + $cashDueAtReturn;
+$totalCollected = $advancePaid + $deliveryPrepaid + $extensionPaid + $baseCollectedAtDelivery + $cashDueAtReturn;
 $refundAmount = max(0, (float) ($r['refund_amount'] ?? 0));
 $netCollected = max(0, $totalCollected - $refundAmount);
 
@@ -123,6 +126,10 @@ function fuelBar(int $pct): string
                 <a href="return.php?id=<?= $id ?>"
                     class="bg-mb-accent text-white px-5 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-sm font-medium">⏎
                     Process Return</a>
+            <?php endif; ?>
+            <?php if ($r['status'] === 'active' && (auth_has_perm('add_reservations') || auth_has_perm('do_delivery') || auth_has_perm('do_return'))): ?>
+                <a href="extend.php?id=<?= $id ?>"
+                    class="border border-mb-subtle/30 text-mb-silver px-4 py-2 rounded-full hover:border-white/30 hover:text-white transition-all text-sm">Extend</a>
             <?php endif; ?>
             <?php if ($r['status'] === 'active'): ?>
                 <a href="cancel.php?id=<?= $id ?>" onclick="return confirm('Cancel this active reservation?')" class="border border-red-500/30 text-red-400 px-4 py-2 rounded-full hover:bg-red-500/10 transition-colors text-sm"> Cancel Reservation</a>
@@ -231,6 +238,18 @@ function fuelBar(int $pct): string
                     <div class="flex justify-between text-sm">
                         <span class="text-purple-400/80">Advance Collected</span>
                         <span class="text-purple-400/80">-$<?= number_format($advancePaid, 2) ?></span>
+                    </div>
+                <?php endif; ?>
+                <?php if ($deliveryPrepaid > 0): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-blue-400/80">Delivery Charge Collected at Booking</span>
+                        <span class="text-blue-400/80">+$<?= number_format($deliveryPrepaid, 2) ?></span>
+                    </div>
+                <?php endif; ?>
+                <?php if ($extensionPaid > 0): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-sky-400/80">Extension Collected (Grace)</span>
+                        <span class="text-sky-400/80">+$<?= number_format($extensionPaid, 2) ?></span>
                     </div>
                 <?php endif; ?>
                 <?php if ($delivDiscountAmt > 0): ?>

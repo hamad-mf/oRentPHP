@@ -11,9 +11,21 @@ This file tracks all database changes that need to be applied to **production** 
 
 ## Pending
 
+### 2026-03-16 - EMI Due Notifications
+**SQL file:** `migrations/releases/2026-03-16_notifications_emi_due.sql`
+**Notes:** Adds `emi_due` to notifications `type` ENUM to support EMI due date alerts. Required for EMI notification feature.
+
+### 2026-03-16 - GPS Daily Checks
+**SQL file:** `migrations/releases/2026-03-16_gps_daily_checks.sql`
+**Notes:** Adds `gps_daily_checks` table to track 3 daily GPS check slots per active reservation.
+
 ### 2026-03-14 - Vehicle Storage Locations
 **SQL file:** `migrations/releases/2026-03-14_vehicle_storage_locations.sql`
 **Notes:** Adds `second_key_location` and `original_documents_location` columns on vehicles.
+
+### 2026-03-16 - GPS Tracking Enhancements
+**SQL file:** `None` (no schema changes needed)
+**Notes:** Enhanced GPS tracking with per-day checks reset, date filtering, 5-day history pagination, timestamp saving, and duplicate history fixes. Uses existing `gps_daily_checks` table structure - no SQL migration required.
 
 ### 2026-03-14 - Vehicle Pollution Expiry Date
 **SQL file:** `migrations/releases/2026-03-14_vehicle_pollution_expiry_date.sql`

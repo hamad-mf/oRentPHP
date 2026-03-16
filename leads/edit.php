@@ -178,6 +178,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['status'] = 'Cannot manually close to Lost. Leads auto-close after ' . $autoCloseAfter . ' follow-ups when this setting is enabled.';
     }
 
+    if ($phone && !isset($errors['phone'])) {
+        $chk = $pdo->prepare('SELECT id FROM leads WHERE phone = ? AND id != ?');
+        $chk->execute([$phone, $id]);
+        if ($chk->fetch())
+            $errors['phone'] = 'Phone number already exists in another lead.';
+    }
+
     if (empty($errors)) {
         $nowSql = app_now_sql();
         if ($supportsAlternativeNumber) {

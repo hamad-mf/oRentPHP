@@ -46,6 +46,8 @@ require_once __DIR__ . '/../includes/header.php';
         <a href="staff_permissions.php"
             class="px-6 py-2 rounded-full text-sm font-medium transition-all text-mb-silver hover:text-white">Staff
             Permissions</a>
+        <a href="notifications.php"
+            class="px-6 py-2 rounded-full text-sm font-medium transition-all text-mb-silver hover:text-white">Notifications</a>
     </div>
 
     <div class="flex items-center gap-3 text-sm text-mb-subtle">

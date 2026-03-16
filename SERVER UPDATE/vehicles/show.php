@@ -39,6 +39,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
     redirect("show.php?id=$id");
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') === 'save_parts_due') {
+    if ($id <= 0) {
+        flash('error', 'Invalid vehicle request.');
+        redirect('index.php');
+    }
+
+    if (!auth_has_perm('add_vehicles')) {
+        flash('error', 'You do not have permission to update vehicle parts notes.');
+        redirect("show.php?id=$id");
+    }
+
+    $partsDueNotes = trim((string) ($_POST['parts_due_notes'] ?? ''));
+    if (mb_strlen($partsDueNotes) > 5000) {
+        flash('error', 'Parts notes are too long (max 5000 characters).');
+        redirect("show.php?id=$id");
+    }
+
+    try {
+        $upd = $pdo->prepare('UPDATE vehicles SET parts_due_notes = ? WHERE id = ?');
+        $upd->execute([$partsDueNotes !== '' ? $partsDueNotes : null, $id]);
+        app_log('ACTION', "Updated vehicle parts due notes (ID: $id)");
+        flash('success', $partsDueNotes === '' ? 'Vehicle parts notes cleared.' : 'Vehicle parts notes updated.');
+    } catch (Throwable $e) {
+        app_log('ERROR', 'Vehicle parts notes update failed - ' . $e->getMessage(), [
+            'file' => $e->getFile() . ':' . $e->getLine(),
+            'screen' => 'vehicles/show.php',
+            'vehicle_id' => $id,
+        ]);
+        flash('error', 'Unable to save parts notes. Please apply latest vehicle migration and try again.');
+    }
+
+    redirect("show.php?id=$id");
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') === 'save_storage') {
+    if ($id <= 0) {
+        flash('error', 'Invalid vehicle request.');
+        redirect('index.php');
+    }
+
+    if (!auth_has_perm('add_vehicles')) {
+        flash('error', 'You do not have permission to update storage details.');
+        redirect("show.php?id=$id");
+    }
+
+    $secondKeyLocation = trim((string) ($_POST['second_key_location'] ?? ''));
+    $originalDocsLocation = trim((string) ($_POST['original_documents_location'] ?? ''));
+
+    if (mb_strlen($secondKeyLocation) > 255) {
+        flash('error', 'Second key location is too long (max 255 characters).');
+        redirect("show.php?id=$id");
+    }
+    if (mb_strlen($originalDocsLocation) > 255) {
+        flash('error', 'Original documents location is too long (max 255 characters).');
+        redirect("show.php?id=$id");
+    }
+
+    try {
+        $upd = $pdo->prepare('UPDATE vehicles SET second_key_location = ?, original_documents_location = ? WHERE id = ?');
+        $upd->execute([
+            $secondKeyLocation !== '' ? $secondKeyLocation : null,
+            $originalDocsLocation !== '' ? $originalDocsLocation : null,
+            $id
+        ]);
+        app_log('ACTION', "Updated vehicle storage details (ID: $id)");
+        flash('success', 'Vehicle storage details updated.');
+    } catch (Throwable $e) {
+        app_log('ERROR', 'Vehicle storage details update failed - ' . $e->getMessage(), [
+            'file' => $e->getFile() . ':' . $e->getLine(),
+            'screen' => 'vehicles/show.php',
+            'vehicle_id' => $id,
+        ]);
+        flash('error', 'Unable to save storage details. Please apply latest vehicle migration and try again.');
+    }
+
+    redirect("show.php?id=$id");
+}
+
 $vStmt = $pdo->prepare('SELECT * FROM vehicles WHERE id = ?');
 $vStmt->execute([$id]);
 $v = $vStmt->fetch();
@@ -102,6 +180,7 @@ $badge = ['available' => 'bg-green-500/10 text-green-400 border-green-500/30', '
 $badgeCls = $badge[$v['status']] ?? 'bg-gray-500/10 text-gray-400';
 $canEditCondition = auth_has_perm('add_vehicles');
 $conditionNotes = (string) ($v['condition_notes'] ?? '');
+$partsDueNotes = (string) ($v['parts_due_notes'] ?? '');
 $insuranceTypeRaw = strtolower(trim((string) ($v['insurance_type'] ?? '')));
 if ($insuranceTypeRaw === 'thrid class') {
     $insuranceTypeRaw = 'third class';
@@ -144,6 +223,29 @@ if ($insuranceExpired) {
     $insuranceStatusLabel = 'Active';
     $insuranceStatusClass = 'text-green-400';
 }
+$pollutionExpiryRaw = trim((string) ($v['pollution_expiry_date'] ?? ''));
+$pollutionExpiryLabel = 'Not set';
+$pollutionExpired = false;
+if ($pollutionExpiryRaw !== '') {
+    $expiryDateObj = DateTime::createFromFormat('Y-m-d', $pollutionExpiryRaw);
+    if ($expiryDateObj && $expiryDateObj->format('Y-m-d') === $pollutionExpiryRaw) {
+        $pollutionExpiryLabel = date('d M Y', strtotime($pollutionExpiryRaw));
+        $pollutionExpired = $pollutionExpiryRaw < date('Y-m-d');
+    }
+}
+$pollutionStatusLabel = 'Not set';
+$pollutionStatusClass = 'text-mb-subtle';
+if ($pollutionExpired) {
+    $pollutionStatusLabel = 'Expired';
+    $pollutionStatusClass = 'text-red-400';
+} elseif ($pollutionExpiryRaw !== '') {
+    $pollutionStatusLabel = 'Active';
+    $pollutionStatusClass = 'text-green-400';
+}
+$secondKeyLocation = trim((string) ($v['second_key_location'] ?? ''));
+$originalDocsLocation = trim((string) ($v['original_documents_location'] ?? ''));
+$secondKeyLabel = $secondKeyLocation !== '' ? $secondKeyLocation : 'Not set';
+$originalDocsLabel = $originalDocsLocation !== '' ? $originalDocsLocation : 'Not set';
 $maintenanceSinceLabel = '';
 if (($v['status'] ?? '') === 'maintenance') {
     $maintenanceStartRaw = (string) ($v['maintenance_started_at'] ?? '');
@@ -292,7 +394,24 @@ if (($v['status'] ?? '') === 'maintenance') {
                         </div>
                     </div>
                 </div>
-
+                <div class="rounded-xl border p-4 <?= $pollutionExpired ? 'bg-red-500/10 border-red-500/40' : 'bg-mb-black/30 border-mb-subtle/20' ?>">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-sm text-white">Pollution Certificate</p>
+                        <?php if ($pollutionExpired): ?>
+                            <span class="text-[10px] uppercase tracking-wide text-red-300">Attention</span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <p class="text-mb-subtle uppercase">Expiry</p>
+                            <p class="text-white mt-0.5"><?= e($pollutionExpiryLabel) ?></p>
+                        </div>
+                        <div>
+                            <p class="text-mb-subtle uppercase">Status</p>
+                            <p class="mt-0.5 font-medium <?= e($pollutionStatusClass) ?>"><?= e($pollutionStatusLabel) ?></p>
+                        </div>
+                    </div>
+                </div>
                 <!-- Stats -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                     <div class="bg-mb-black/40 rounded-xl p-4">
@@ -326,6 +445,9 @@ if (($v['status'] ?? '') === 'maintenance') {
                     <a href="edit.php?id=<?= $v['id'] ?>"
                         class="bg-mb-accent text-white px-5 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-sm font-medium">Edit
                         Vehicle</a>
+                    <a href="quotation.php?id=<?= $v['id'] ?>" target="_blank"
+                        class="border border-amber-500/30 text-amber-400 px-5 py-2 rounded-full hover:bg-amber-500/10 transition-colors text-sm font-medium">Generate
+                        Quotation</a>
                     <button type="button" onclick="document.getElementById('vehicleShareModal').classList.remove('hidden')"
                         class="border border-mb-subtle/30 text-mb-silver px-5 py-2 rounded-full hover:border-white/30 hover:text-white transition-all text-sm font-medium">Share
                         Vehicle Catalog</button>
@@ -338,6 +460,57 @@ if (($v['status'] ?? '') === 'maintenance') {
                     <?php endif; ?>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-mb-subtle/10 flex items-center justify-between">
+            <h3 class="text-white font-light">Storage Details</h3>
+            <div class="flex items-center gap-3">
+                <span class="text-xs text-mb-subtle">Optional</span>
+                <?php if ($canEditCondition): ?>
+                    <button type="button" id="storageEditToggle"
+                        class="text-xs text-mb-accent hover:text-mb-accent/80 border border-mb-accent/30 px-3 py-1 rounded-full transition-colors">Edit</button>
+                <?php endif; ?>
+            </div>
+        </div>
+        <div class="p-6 space-y-4">
+            <div id="storageReadOnly" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div>
+                    <p class="text-mb-subtle uppercase text-xs">Second Key</p>
+                    <p class="text-white mt-1"><?= e($secondKeyLabel) ?></p>
+                </div>
+                <div>
+                    <p class="text-mb-subtle uppercase text-xs">Original Documents</p>
+                    <p class="text-white mt-1"><?= e($originalDocsLabel) ?></p>
+                </div>
+            </div>
+            <?php if ($canEditCondition): ?>
+                <form method="POST" id="storageEditForm" class="space-y-4 hidden">
+                    <input type="hidden" name="action" value="save_storage">
+                    <input type="hidden" name="id" value="<?= (int) $id ?>">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-mb-silver mb-2">Second Key Stored At</label>
+                            <input type="text" name="second_key_location" value="<?= e($secondKeyLocation) ?>"
+                                placeholder="Key cabinet A / Office safe"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-mb-silver mb-2">Original Documents Stored At</label>
+                            <input type="text" name="original_documents_location" value="<?= e($originalDocsLocation) ?>"
+                                placeholder="Main office drawer / Bank locker"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-end gap-2">
+                        <button type="button" id="storageEditCancel"
+                            class="px-4 py-2 rounded-full border border-mb-subtle/30 text-mb-silver hover:text-white hover:border-white/30 transition-colors text-xs">Cancel</button>
+                        <button type="submit"
+                            class="px-5 py-2 rounded-full bg-mb-accent text-white hover:bg-mb-accent/80 transition-colors text-xs font-medium">Save</button>
+                    </div>
+                </form>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -372,6 +545,42 @@ if (($v['status'] ?? '') === 'maintenance') {
                     <p class="text-sm text-mb-silver whitespace-pre-line"><?= e($conditionNotes) ?></p>
                 <?php else: ?>
                     <p class="text-sm text-mb-subtle italic">No condition notes added yet.</p>
+                <?php endif; ?>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-mb-subtle/10 flex items-center justify-between">
+            <h3 class="text-white font-light">Parts Due (Upcoming Changes)</h3>
+            <span class="text-xs text-mb-subtle">Optional</span>
+        </div>
+        <div class="p-6">
+            <?php if ($canEditCondition): ?>
+                <form method="POST" class="space-y-3">
+                    <input type="hidden" name="action" value="save_parts_due">
+                    <input type="hidden" name="id" value="<?= (int) $id ?>">
+                    <textarea name="parts_due_notes" rows="5" maxlength="5000"
+                        placeholder="List parts that need replacement soon (e.g., brake pads, tires, battery, oil service) with any dates or notes."
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white placeholder-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm"><?= e($partsDueNotes) ?></textarea>
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-xs text-mb-subtle">Use this to track upcoming maintenance parts for this vehicle.</p>
+                        <div class="flex items-center gap-2">
+                            <?php if ($partsDueNotes !== ''): ?>
+                                <button type="submit" name="parts_due_notes" value=""
+                                    class="px-4 py-2 rounded-full border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors text-xs">Clear</button>
+                            <?php endif; ?>
+                            <button type="submit"
+                                class="px-5 py-2 rounded-full bg-mb-accent text-white hover:bg-mb-accent/80 transition-colors text-xs font-medium">Save
+                                Parts Notes</button>
+                        </div>
+                    </div>
+                </form>
+            <?php else: ?>
+                <?php if ($partsDueNotes !== ''): ?>
+                    <p class="text-sm text-mb-silver whitespace-pre-line"><?= e($partsDueNotes) ?></p>
+                <?php else: ?>
+                    <p class="text-sm text-mb-subtle italic">No upcoming parts notes added yet.</p>
                 <?php endif; ?>
             <?php endif; ?>
         </div>
@@ -730,6 +939,29 @@ function nativeShareVehicleCatalog() {
         copyVehicleCatalogLink();
     }
 }
+</script>
+<script>
+(function () {
+    const toggleBtn = document.getElementById('storageEditToggle');
+    const form = document.getElementById('storageEditForm');
+    const readOnly = document.getElementById('storageReadOnly');
+    const cancelBtn = document.getElementById('storageEditCancel');
+    if (!toggleBtn || !form || !readOnly) return;
+
+    function showForm() {
+        form.classList.remove('hidden');
+        readOnly.classList.add('hidden');
+    }
+    function hideForm() {
+        form.classList.add('hidden');
+        readOnly.classList.remove('hidden');
+    }
+
+    toggleBtn.addEventListener('click', showForm);
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', hideForm);
+    }
+})();
 </script>
 
 <!-- Vehicle Expenses -->

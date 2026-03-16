@@ -11,17 +11,73 @@ $notifyResCreated = settings_get($pdo, 'notify_res_created', '1') !== '0';
 $notifyResDelivered = settings_get($pdo, 'notify_res_delivered', '1') !== '0';
 $notifyResReturned = settings_get($pdo, 'notify_res_returned', '1') !== '0';
 $notifyResCancelled = settings_get($pdo, 'notify_res_cancelled', '1') !== '0';
+$notifyEmiDue = settings_get($pdo, 'notify_emi_due', '1') !== '0';
 
 // Auto-create table if not exists
 $pdo->exec("CREATE TABLE IF NOT EXISTS notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    type ENUM('due_today','due_soon','overdue','info') NOT NULL DEFAULT 'info',
+    type ENUM('due_today','due_soon','overdue','info','emi_due') NOT NULL DEFAULT 'info',
     message TEXT NOT NULL,
     reservation_id INT DEFAULT NULL,
     is_read TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (reservation_id) REFERENCES reservations(id) ON DELETE CASCADE
 ) ENGINE=InnoDB");
+
+// Auto-generate EMI due notifications (idempotent - won't duplicate today)
+if ($notifyEmiDue) {
+    $todayDate = app_today_sql();
+    // Look for EMIs due in next 2 days that are still pending
+    $cutoffDate = date('Y-m-d', strtotime($todayDate . ' +2 days'));
+    
+    $emiStmt = $pdo->prepare("
+        SELECT 
+            s.id AS schedule_id,
+            s.due_date,
+            s.amount,
+            s.installment_no,
+            i.id AS investment_id,
+            i.title AS investment_title,
+            i.lender
+        FROM emi_schedules s
+        JOIN emi_investments i ON i.id = s.investment_id
+        WHERE s.status = 'pending'
+          AND s.due_date <= ?
+          AND s.due_date >= ?
+        ORDER BY s.due_date ASC
+    ");
+    $emiStmt->execute([$cutoffDate, $todayDate]);
+    $emiRows = $emiStmt->fetchAll();
+    
+    foreach ($emiRows as $emi) {
+        $dueDate = $emi['due_date'];
+        $daysLeft = (int) floor((strtotime($dueDate) - strtotime($todayDate)) / 86400);
+        
+        // Build notification message
+        $lender = $emi['lender'] ? " ({$emi['lender']})" : '';
+        $amount = number_format($emi['amount'], 2);
+        
+        if ($daysLeft === 0) {
+            $msg = "💰 EMI Due Today: {$emi['investment_title']}{$lender} - EMI #{$emi['installment_no']} of \${$amount} is due today!";
+        } else {
+            $msg = "⏰ EMI Due Soon: {$emi['investment_title']}{$lender} - EMI #{$emi['installment_no']} of \${$amount} due in {$daysLeft} day(s) ({$dueDate}).";
+        }
+        
+        // Only insert if no EMI notification exists for this schedule today
+        $exists = $pdo->prepare("
+            SELECT id FROM notifications 
+            WHERE type = 'emi_due' 
+              AND message LIKE ? 
+              AND DATE(created_at) = ?
+            LIMIT 1
+        ");
+        $exists->execute(["%EMI #{$emi['installment_no']}%{$emi['investment_title']}%", $todayDate]);
+        if (!$exists->fetch()) {
+            $pdo->prepare("INSERT INTO notifications (type, message, reservation_id) VALUES ('emi_due', ?, NULL)")
+                ->execute([$msg]);
+        }
+    }
+}
 
 $dueAlertsEnabled = $notifyDueSoon || $notifyDueToday || $notifyOverdue;
 // Auto-generate notifications for due-soon reservations (idempotent – won't duplicate today)

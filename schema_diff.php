@@ -21,6 +21,7 @@ $codex = [
     'emi_investments' => ['id', 'title', 'lender', 'total_cost', 'down_payment', 'loan_amount', 'emi_amount', 'tenure_months', 'start_date', 'notes', 'down_payment_account_id', 'down_payment_ledger_id', 'created_at'],
     'emi_schedules' => ['id', 'investment_id', 'installment_no', 'due_date', 'amount', 'status', 'paid_date', 'bank_account_id', 'ledger_entry_id', 'notes'],
     'expenses' => ['id', 'title', 'amount', 'category', 'expense_date', 'notes', 'created_at'],
+    'gps_daily_checks' => ['id', 'reservation_id', 'vehicle_id', 'check_date', 'check_slot', 'tracking_active', 'last_location', 'notes', 'updated_by', 'updated_at', 'created_at'],
     'gps_tracking' => ['id', 'reservation_id', 'vehicle_id', 'tracker_id', 'last_location', 'tracking_active', 'last_seen', 'notes', 'updated_by', 'updated_at'],
     'inspection_photos' => ['id', 'inspection_id', 'view_name', 'file_path', 'created_at'],
     'investments' => ['id', 'title', 'amount', 'type', 'description', 'investment_date', 'created_at'],
