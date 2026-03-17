@@ -11,6 +11,10 @@ This file tracks all database changes that need to be applied to **production** 
 
 ## Pending
 
+### 2026-03-17 - Hope Window Daily Targets
+**SQL file:** `migrations/releases/2026-03-17_hope_window_daily_targets.sql`
+**Notes:** Adds `hope_daily_targets` table for per-day target overrides in Hope Window.
+
 ### 2026-03-16 - EMI Due Notifications
 **SQL file:** `migrations/releases/2026-03-16_notifications_emi_due.sql`
 **Notes:** Adds `emi_due` to notifications `type` ENUM to support EMI due date alerts. Required for EMI notification feature.

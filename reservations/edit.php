@@ -634,12 +634,12 @@ function calcPrice() {
         }
     } else if (type === 'monthly') {
         const monthly = parseFloat(opt.dataset.monthly || 0);
-        if (s && e && e > s) days = (Math.ceil((e - s) / 86400000) || 1) + 1; // inclusive
+        if (s && e && e > s) days = Math.ceil((e - s) / 86400000) || 1; // inclusive
         rate  = monthly > 0 ? monthly : daily;
         total = rate * (days / 30 || 1);
     } else {
         if (!s || !e || e <= s) return;
-        days  = (Math.ceil((e - s) / 86400000) || 1) + 1; // inclusive: both start & end day
+        days  = Math.ceil((e - s) / 86400000) || 1; // inclusive: both start & end day
         rate  = daily;
         total = days * daily;
     }

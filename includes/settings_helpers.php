@@ -37,6 +37,7 @@ function mobile_bottom_nav_catalog(): array
         'pipeline' => 'Pipeline',
         'reservations' => 'Bookings',
         'accounts' => 'Accounts',
+        'hope_window' => 'Hope Window',
         'clients' => 'Clients',
         'gps' => 'GPS',
         'settings' => 'Settings',

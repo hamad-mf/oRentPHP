@@ -297,6 +297,9 @@ function lead_import_inquiry_type(string $rawValue, string $default): string
     if ($norm === '') {
         return $default;
     }
+    if (str_contains($norm, 'wedding')) {
+        return 'wedding_rental';
+    }
     if (str_contains($norm, 'week')) {
         return 'weekly';
     }
@@ -427,7 +430,7 @@ if (($_GET['action'] ?? '') === 'template') {
     lead_import_download_template($leadSourcesMap);
 }
 
-$allowedInquiryTypes = ['daily', 'weekly', 'monthly', 'other'];
+$allowedInquiryTypes = ['daily', 'weekly', 'monthly', 'wedding_rental', 'other'];
 $allowedInitialStatuses = ['new', 'contacted', 'future'];
 $stage = $_POST['stage'] ?? $_GET['stage'] ?? 'upload';
 
@@ -917,6 +920,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <option value="daily" selected>Daily</option>
                             <option value="weekly">Weekly</option>
                             <option value="monthly">Monthly</option>
+                            <option value="wedding_rental">Wedding Rental</option>
                             <option value="other">Other</option>
                         </select>
                     </div>

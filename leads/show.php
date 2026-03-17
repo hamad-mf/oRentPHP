@@ -169,8 +169,13 @@ require_once __DIR__ . '/../includes/header.php';
 
         <!-- Follow-ups Panel -->
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
-            <div class="px-6 py-4 border-b border-mb-subtle/10">
+            <div class="px-6 py-4 border-b border-mb-subtle/10 flex items-center justify-between">
                 <h3 class="text-white font-light">Follow-ups</h3>
+                <?php if (!empty($followups)): ?>
+                    <span class="text-xs text-mb-subtle">
+                        <span class="text-green-400 font-medium"><?= $completedFollowups ?></span> / <?= count($followups) ?> completed
+                    </span>
+                <?php endif; ?>
             </div>
             <div class="p-6 space-y-3">
                 <?php if (empty($followups)): ?>

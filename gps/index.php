@@ -682,11 +682,10 @@ require_once __DIR__ . '/../includes/header.php';
                                         <!-- Date Filter -->
                                         <div class="mb-4 pb-4 border-b border-mb-subtle/20">
                                             <div>
-                                                <?php $resFilterBase = 'index.php?reservation_filter=' . $reservationId . ($tracking ? '&tracking=' . e($tracking) : '') . ($search ? '&search=' . e($search) : ''); ?>
                                                 <input type="date" id="date-start-<?= $reservationId ?>" value="<?= e($startDate) ?>" style="width: 125px; height: 34px; background: #1a1a1a; border: 1px solid #444; color: white; padding: 4px 8px; border-radius: 4px; font-size: 13px; display: inline-block; vertical-align: middle;">
                                                 <span style="color: #666; margin: 0 4px; display: inline-block; vertical-align: middle;">→</span>
                                                 <input type="date" id="date-end-<?= $reservationId ?>" value="<?= e($endDate) ?>" style="width: 125px; height: 34px; background: #1a1a1a; border: 1px solid #444; color: white; padding: 4px 8px; border-radius: 4px; font-size: 13px; display: inline-block; vertical-align: middle;">
-                                                <button type="button" onclick="window.location.href='<?= $resFilterBase ?>&start_date=' + document.getElementById('date-start-<?= $reservationId ?>').value + '&end_date=' + document.getElementById('date-end-<?= $reservationId ?>').value" style="background: #0ea5e9; color: white; padding: 6px 14px; border-radius: 4px; font-size: 13px; border: none; cursor: pointer; margin-left: 6px; display: inline-block; vertical-align: middle; height: 34px;">
+                                                <button type="button" onclick="filterReservationHistory(<?= $reservationId ?>)" style="background: #0ea5e9; color: white; padding: 6px 14px; border-radius: 4px; font-size: 13px; border: none; cursor: pointer; margin-left: 6px; display: inline-block; vertical-align: middle; height: 34px;">
                                                     Filter
                                                 </button>
                                                 <a href="index.php<?= $tracking ? '?tracking=' . e($tracking) : '' ?><?= $search ? ($tracking ? '&' : '?') . 'search=' . e($search) : '' ?>" style="color: #888; font-size: 13px; text-decoration: none; margin-left: 8px; display: inline-block; vertical-align: middle;">
@@ -835,12 +834,6 @@ require_once __DIR__ . '/../includes/header.php';
                     </tbody>
                 </table>
             </div>
-            <div class="px-6 py-4 border-t border-mb-subtle/10 text-right">
-                <button type="submit" <?= $saveDisabled ?>
-                    class="bg-mb-accent text-white px-5 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-xs font-medium disabled:opacity-60 disabled:cursor-not-allowed">
-                    Save All
-                </button>
-            </div>
         <?php endif; ?>
         </form>
     </div>
@@ -857,6 +850,25 @@ echo render_pagination($pgGps, $_qp);
 
 $extraScripts = <<<JS
 <script>
+// Filter reservation history by date
+function filterReservationHistory(reservationId) {
+    const startDate = document.getElementById('date-start-' + reservationId).value;
+    const endDate = document.getElementById('date-end-' + reservationId).value;
+    
+    // Get current URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Update date parameters
+    urlParams.set('start_date', startDate);
+    urlParams.set('end_date', endDate);
+    
+    // Remove page parameter to go to page 1
+    urlParams.delete('page');
+    
+    // Navigate to new URL
+    window.location.href = 'index.php?' + urlParams.toString();
+}
+
 // Save a single reservation via AJAX
 function saveSingleReservation(reservationId) {
     const form = document.getElementById('gpsBulkForm');

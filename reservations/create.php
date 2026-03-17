@@ -848,13 +848,13 @@ function calcPrice() {
     } else if (type === 'monthly') {
         const monthly = parseFloat(opt.dataset.monthly || 0);
         // Inclusive: count both start & end day
-        if (s && e && e > s) days = (Math.ceil((e - s) / 86400000) || 1) + 1;
+        if (s && e && e > s) days = Math.ceil((e - s) / 86400000) || 1;
         rate  = monthly > 0 ? monthly : daily;
         total = rate * (days / 30 || 1);
     } else {
         // Daily: inclusive counting — 20th to 25th = 6 days
         if (!s || !e || e <= s) return;
-        days  = (Math.ceil((e - s) / 86400000) || 1) + 1;
+        days  = Math.ceil((e - s) / 86400000) || 1;
         rate  = daily;
         total = days * daily;
     }

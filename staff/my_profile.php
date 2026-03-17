@@ -22,15 +22,30 @@ if (!$staff)
     redirect('index.php');
 
 $userId = (int) ($staff['user_id'] ?? 0);
+$tz = new DateTimeZone('Asia/Kolkata');
+$now = new DateTime('now', $tz);
+$currentMonth = (int) $now->format('n');
+$currentYear = (int) $now->format('Y');
+
+function staff_period_label(int $month, int $year): string
+{
+    if ($month < 1 || $month > 12 || $year < 1) {
+        return 'Unknown Period';
+    }
+    $dt = DateTime::createFromFormat('!Y-n', sprintf('%04d-%d', $year, $month));
+    return $dt ? $dt->format('M Y') : 'Unknown Period';
+}
 
 // --- Staff Advance Feature ---
 $advanceBalance = 0.0;
 $advanceHistory = [];
+$advanceCurrent = [];
+$advanceByPeriod = [];
 $hasAdvanceTable = false;
 try {
     $hasAdvanceTable = (bool) $pdo->query("SHOW TABLES LIKE 'payroll_advances'")->fetchColumn();
     if ($hasAdvanceTable && $userId) {
-        $advStmt = $pdo->prepare("SELECT id, amount, remaining_amount, status, note, given_at FROM payroll_advances WHERE user_id = ? ORDER BY given_at DESC LIMIT 10");
+        $advStmt = $pdo->prepare("SELECT id, amount, remaining_amount, status, note, given_at, month, year FROM payroll_advances WHERE user_id = ? ORDER BY given_at DESC LIMIT 50");
         $advStmt->execute([$userId]);
         $advanceHistory = $advStmt->fetchAll();
         $balStmt = $pdo->prepare("SELECT COALESCE(SUM(remaining_amount),0) FROM payroll_advances WHERE user_id = ? AND remaining_amount > 0 AND status IN ('pending','partially_recovered')");
@@ -38,10 +53,36 @@ try {
         $advanceBalance = (float) $balStmt->fetchColumn();
     }
 } catch (Exception $advEx) {}
+if (!empty($advanceHistory)) {
+    foreach ($advanceHistory as $adv) {
+        $advMonth = (int) ($adv['month'] ?? 0);
+        $advYear = (int) ($adv['year'] ?? 0);
+        if ($advMonth < 1 || $advYear < 1) {
+            $givenTs = $adv['given_at'] ? strtotime($adv['given_at']) : false;
+            if ($givenTs !== false) {
+                $advMonth = (int) date('n', $givenTs);
+                $advYear = (int) date('Y', $givenTs);
+            }
+        }
+        $adv['_period_month'] = $advMonth;
+        $adv['_period_year'] = $advYear;
+        if ($advMonth === $currentMonth && $advYear === $currentYear) {
+            $advanceCurrent[] = $adv;
+        } else {
+            $key = sprintf('%04d-%02d', $advYear, $advMonth);
+            $advanceByPeriod[$key][] = $adv;
+        }
+    }
+    if (!empty($advanceByPeriod)) {
+        krsort($advanceByPeriod);
+    }
+}
 
 // --- Staff Incentive Feature ---
 $hasIncentiveTable = false;
 $incentiveHistory = [];
+$incentiveCurrent = [];
+$incentiveByPeriod = [];
 $totalIncentives = 0.0;
 try {
     $hasIncentiveTable = (bool) $pdo->query("SHOW TABLES LIKE 'staff_incentives'")->fetchColumn();
@@ -54,6 +95,21 @@ try {
         $totalIncentives = (float) $incSumStmt->fetchColumn();
     }
 } catch (Exception $incEx) {}
+if (!empty($incentiveHistory)) {
+    foreach ($incentiveHistory as $inc) {
+        $incMonth = (int) ($inc['month'] ?? 0);
+        $incYear = (int) ($inc['year'] ?? 0);
+        if ($incMonth === $currentMonth && $incYear === $currentYear) {
+            $incentiveCurrent[] = $inc;
+        } else {
+            $key = sprintf('%04d-%02d', $incYear, $incMonth);
+            $incentiveByPeriod[$key][] = $inc;
+        }
+    }
+    if (!empty($incentiveByPeriod)) {
+        krsort($incentiveByPeriod);
+    }
+}
 
 // Permissions
 $perms = [];
@@ -237,15 +293,20 @@ $s = getFlash('success');
                     <?php endif; ?>
                 </div>
                 <p class="text-xs text-mb-subtle">For new advances, please contact admin/HR.</p>
-                <?php if (!empty($advanceHistory)): ?>
-                    <div class="mt-4 pt-4 border-t border-mb-subtle/10 space-y-2.5">
-                        <p class="text-xs text-mb-subtle uppercase tracking-wider mb-2">Recent Advances</p>
-                        <?php foreach ($advanceHistory as $adv): ?>
+                <div class="mt-4 pt-4 border-t border-mb-subtle/10 space-y-3">
+                    <p class="text-xs text-mb-subtle uppercase tracking-wider">This Month (<?= staff_period_label($currentMonth, $currentYear) ?>)</p>
+                    <?php if (empty($advanceCurrent)): ?>
+                        <p class="text-xs text-mb-subtle italic">No advances for this month.</p>
+                    <?php else: ?>
+                        <?php foreach ($advanceCurrent as $adv): ?>
                             <div class="flex items-start justify-between gap-2 text-xs">
                                 <div>
                                     <span class="<?= $adv['status'] === 'recovered' ? 'text-green-400' : 'text-orange-300' ?>">$<?= number_format($adv['amount'], 2) ?></span>
                                     <?php if ($adv['note']): ?><span class="text-mb-subtle ml-1">— <?= e($adv['note']) ?></span><?php endif; ?>
-                                    <p class="text-mb-subtle/60 mt-0.5"><?= date('d M Y', strtotime($adv['given_at'])) ?></p>
+                                    <p class="text-mb-subtle/60 mt-0.5">
+                                        Period: <?= staff_period_label((int) ($adv['_period_month'] ?? 0), (int) ($adv['_period_year'] ?? 0)) ?>
+                                        <?php if (!empty($adv['given_at'])): ?> · Given <?= date('d M Y', strtotime($adv['given_at'])) ?><?php endif; ?>
+                                    </p>
                                 </div>
                                 <span class="mt-0.5 shrink-0 px-1.5 py-0.5 rounded text-[10px] <?= $adv['status'] === 'recovered' ? 'bg-green-500/10 text-green-400' : ($adv['status'] === 'partially_recovered' ? 'bg-yellow-500/10 text-yellow-400' : 'bg-orange-500/10 text-orange-300') ?>">
                                     <?= $adv['status'] === 'partially_recovered' ? 'Partial' : ucfirst($adv['status']) ?>
@@ -253,8 +314,40 @@ $s = getFlash('success');
                                 </span>
                             </div>
                         <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
+                    <?php endif; ?>
+
+                    <?php if (!empty($advanceByPeriod)): ?>
+                        <details class="pt-2">
+                            <summary class="cursor-pointer text-xs text-mb-subtle hover:text-white transition-colors">Other Months</summary>
+                            <div class="mt-3 space-y-3">
+                                <?php foreach ($advanceByPeriod as $periodKey => $items): ?>
+                                    <?php
+                                    $periodMonth = (int) ($items[0]['_period_month'] ?? 0);
+                                    $periodYear = (int) ($items[0]['_period_year'] ?? 0);
+                                    ?>
+                                    <div class="pt-2 border-t border-mb-subtle/10">
+                                        <p class="text-xs text-mb-subtle uppercase tracking-wider mb-2"><?= staff_period_label($periodMonth, $periodYear) ?></p>
+                                        <?php foreach ($items as $adv): ?>
+                                            <div class="flex items-start justify-between gap-2 text-xs mb-2">
+                                                <div>
+                                                    <span class="<?= $adv['status'] === 'recovered' ? 'text-green-400' : 'text-orange-300' ?>">$<?= number_format($adv['amount'], 2) ?></span>
+                                                    <?php if ($adv['note']): ?><span class="text-mb-subtle ml-1">— <?= e($adv['note']) ?></span><?php endif; ?>
+                                                    <p class="text-mb-subtle/60 mt-0.5">
+                                                        <?php if (!empty($adv['given_at'])): ?>Given <?= date('d M Y', strtotime($adv['given_at'])) ?><?php endif; ?>
+                                                    </p>
+                                                </div>
+                                                <span class="mt-0.5 shrink-0 px-1.5 py-0.5 rounded text-[10px] <?= $adv['status'] === 'recovered' ? 'bg-green-500/10 text-green-400' : ($adv['status'] === 'partially_recovered' ? 'bg-yellow-500/10 text-yellow-400' : 'bg-orange-500/10 text-orange-300') ?>">
+                                                    <?= $adv['status'] === 'partially_recovered' ? 'Partial' : ucfirst($adv['status']) ?>
+                                                    <?php if ($adv['status'] !== 'recovered'): ?>(rem: $<?= number_format($adv['remaining_amount'], 2) ?>)<?php endif; ?>
+                                                </span>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </details>
+                    <?php endif; ?>
+                </div>
             </div>
         <?php endif; ?>
 
@@ -270,23 +363,56 @@ $s = getFlash('success');
                     <?php endif; ?>
                 </div>
                 <p class="text-xs text-mb-subtle">Incentives are managed by admin/HR.</p>
-                <?php if (!empty($incentiveHistory)): ?>
-                    <div class="mt-4 pt-4 border-t border-mb-subtle/10 space-y-2.5">
-                        <p class="text-xs text-mb-subtle uppercase tracking-wider mb-2">Incentive History</p>
-                        <?php foreach ($incentiveHistory as $inc): ?>
+                <div class="mt-4 pt-4 border-t border-mb-subtle/10 space-y-3">
+                    <p class="text-xs text-mb-subtle uppercase tracking-wider">This Month (<?= staff_period_label($currentMonth, $currentYear) ?>)</p>
+                    <?php if (empty($incentiveCurrent)): ?>
+                        <p class="text-xs text-mb-subtle italic">No incentives for this month.</p>
+                    <?php else: ?>
+                        <?php foreach ($incentiveCurrent as $inc): ?>
                             <div class="flex items-start justify-between gap-2 text-xs">
                                 <div>
                                     <span class="text-green-400">$<?= number_format($inc['amount'], 2) ?></span>
                                     <?php if ($inc['note']): ?><span class="text-mb-subtle ml-1">— <?= e($inc['note']) ?></span><?php endif; ?>
-                                    <p class="text-mb-subtle/60 mt-0.5"><?= date('M Y', strtotime($inc['created_at'])) ?></p>
+                                    <p class="text-mb-subtle/60 mt-0.5">
+                                        Period: <?= staff_period_label((int) ($inc['month'] ?? 0), (int) ($inc['year'] ?? 0)) ?>
+                                        <?php if (!empty($inc['created_at'])): ?> · Added <?= date('d M Y', strtotime($inc['created_at'])) ?><?php endif; ?>
+                                    </p>
                                 </div>
                             </div>
                         <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
+                    <?php endif; ?>
+
+                    <?php if (!empty($incentiveByPeriod)): ?>
+                        <details class="pt-2">
+                            <summary class="cursor-pointer text-xs text-mb-subtle hover:text-white transition-colors">Other Months</summary>
+                            <div class="mt-3 space-y-3">
+                                <?php foreach ($incentiveByPeriod as $periodKey => $items): ?>
+                                    <?php
+                                    $periodMonth = (int) ($items[0]['month'] ?? 0);
+                                    $periodYear = (int) ($items[0]['year'] ?? 0);
+                                    ?>
+                                    <div class="pt-2 border-t border-mb-subtle/10">
+                                        <p class="text-xs text-mb-subtle uppercase tracking-wider mb-2"><?= staff_period_label($periodMonth, $periodYear) ?></p>
+                                        <?php foreach ($items as $inc): ?>
+                                            <div class="flex items-start justify-between gap-2 text-xs mb-2">
+                                                <div>
+                                                    <span class="text-green-400">$<?= number_format($inc['amount'], 2) ?></span>
+                                                    <?php if ($inc['note']): ?><span class="text-mb-subtle ml-1">— <?= e($inc['note']) ?></span><?php endif; ?>
+                                                    <p class="text-mb-subtle/60 mt-0.5">
+                                                        <?php if (!empty($inc['created_at'])): ?>Added <?= date('d M Y', strtotime($inc['created_at'])) ?><?php endif; ?>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </details>
+                    <?php endif; ?>
+                </div>
             </div>
         <?php endif; ?>
-<?php if ($userId): ?>
+<?php if (false): ?>
                 <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5">
                     <h3 class="text-white text-sm font-medium mb-4 border-l-2 border-mb-accent pl-3">Permissions</h3>
                     <?php if ($staff['user_role'] === 'admin'): ?>

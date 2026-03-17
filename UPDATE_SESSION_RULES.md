@@ -112,3 +112,11 @@ Add one row per release.
 | 2026-03-15 | pending_sql_idempotent_guards | Yes | None | N/A | Made pending SQL migrations safe to re-run using information_schema guards. |
 | 2026-03-16 | gps_daily_checks | Yes | `migrations/releases/2026-03-16_gps_daily_checks.sql` | Applied (phpMyAdmin) | Adds `gps_daily_checks` table to track 3 daily GPS check slots per active reservation. |
 | 2026-03-16 | gps_tracking_enhancements | Yes | None | N/A | Enhanced GPS tracking with per-day checks reset, date filtering, 5-day history pagination, timestamp saving, and duplicate history fixes. |
+| 2026-03-17 | lead_inquiry_wedding_rental | Yes | None | N/A | Added Wedding Rental inquiry type option for lead create/edit/import. |
+| 2026-03-17 | pipeline_inquiry_filter | Yes | None | N/A | Added inquiry type filter on leads pipeline. |
+| 2026-03-17 | staff_dashboard_remove_greeting | Yes | None | N/A | Removed greeting line from staff dashboard header. |
+| 2026-03-17 | staff_my_profile_hide_permissions | Yes | None | N/A | Hid permissions section on staff My Profile page. |
+| 2026-03-17 | staff_my_profile_month_sections | Yes | None | N/A | Staff My Profile now shows advances/incentives grouped by current month, with other months collapsed. |
+| 2026-03-17 | hope_window_page | Yes | `migrations/releases/2026-03-17_hope_window_daily_targets.sql` | Pending | Added Hope Window page with per-day target overrides and expected income from ledger entries. |
+| 2026-03-17 | hope_window_highlight_today | Yes | None | N/A | Highlighted today row in Hope Window daily list. |
+| 2026-03-18 | hope_window_expected_schedule | Yes | None | N/A | Hope Window expected income now projected from reservation schedule (booking, delivery, return, extensions) instead of ledger-only. |

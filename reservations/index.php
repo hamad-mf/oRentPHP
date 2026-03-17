@@ -55,8 +55,13 @@ if ($search !== '') {
     $params = array_merge($params, ["%$search%", "%$search%", "%$search%"]);
 }
 if ($status !== '') {
-    $where[] = 'r.status = ?';
-    $params[] = $status;
+    if ($status === 'overdue') {
+        $where[] = "r.status = 'active' AND DATE(r.end_date) < ?";
+        $params[] = $todayDate;
+    } else {
+        $where[] = 'r.status = ?';
+        $params[] = $status;
+    }
 }
 if ($fromDate !== '') {
     $where[] = 'DATE(r.end_date) >= ?';
@@ -85,6 +90,7 @@ $counts = [
     'pending' => $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='pending'")->fetchColumn(),
     'confirmed' => $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='confirmed'")->fetchColumn(),
     'active' => $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='active'")->fetchColumn(),
+    'overdue' => $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='active' AND DATE(end_date) < '$todayDate'")->fetchColumn(),
     'completed' => $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='completed'")->fetchColumn(),
     'cancelled' => $pdo->query("SELECT COUNT(*) FROM reservations WHERE status='cancelled'")->fetchColumn(),
 ];
@@ -131,7 +137,7 @@ require_once __DIR__ . '/../includes/header.php';
     <?php if (!$dueToday): ?>
         <div class="flex items-center gap-1 bg-mb-surface border border-mb-subtle/20 rounded-xl p-1 w-fit flex-wrap">
             <?php
-            $tabs = ['' => 'All', 'pending' => 'Pending', 'confirmed' => 'Confirmed', 'active' => 'Active', 'completed' => 'Completed', 'cancelled' => 'Cancelled'];
+            $tabs = ['' => 'All', 'pending' => 'Pending', 'confirmed' => 'Confirmed', 'active' => 'Active', 'overdue' => 'Overdue', 'completed' => 'Completed', 'cancelled' => 'Cancelled'];
             foreach ($tabs as $val => $lbl):
                 $active = $status === $val;
                 $cnt = $counts[$val === '' ? 'all' : $val];
@@ -253,18 +259,20 @@ require_once __DIR__ . '/../includes/header.php';
                                     $extensionPaid = max(0, (float) ($r['extension_paid_amount'] ?? 0));
                                     $basePriceForDelivery = max(0, $basePrice - $extensionPaid);
                                     $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
+                                    $advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
                                     $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
                                     $deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
+                                    $deliveryPrepaid = max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
                                     $delivDiscType = $r['delivery_discount_type'] ?? null;
                                     $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
-                                    $delivBase = max(0, $basePriceForDelivery - $voucherApplied) + $deliveryCharge + $deliveryManualAmount;
+                                    $delivBaseWithCharge = max(0, $basePriceForDelivery - $voucherApplied - $advancePaid) + $deliveryCharge + $deliveryManualAmount;
                                     $delivDiscountAmt = 0;
                                     if ($delivDiscType === 'percent') {
-                                        $delivDiscountAmt = round($delivBase * min($delivDiscVal, 100) / 100, 2);
+                                        $delivDiscountAmt = round($delivBaseWithCharge * min($delivDiscVal, 100) / 100, 2);
                                     } elseif ($delivDiscType === 'amount') {
-                                        $delivDiscountAmt = min($delivDiscVal, $delivBase);
+                                        $delivDiscountAmt = min($delivDiscVal, $delivBaseWithCharge);
                                     }
-                                    $baseCollectedAtDelivery = max(0, $delivBase - $delivDiscountAmt);
+                                    $baseCollectedAtDelivery = max(0, $delivBaseWithCharge - $delivDiscountAmt);
 
                                     $returnVoucherApplied = max(0, (float) ($r['return_voucher_applied'] ?? 0));
                                     $overdueAmt = (float) $r['overdue_amount'];
@@ -284,7 +292,7 @@ require_once __DIR__ . '/../includes/header.php';
                                     }
                                     $amountDueAtReturn = max(0, $returnChargesBeforeDiscount - $discountAmt);
                                     $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
-                                    $totalCollected = $baseCollectedAtDelivery + $extensionPaid + $cashDueAtReturn;
+                                    $totalCollected = $advancePaid + $deliveryPrepaid + $extensionPaid + $baseCollectedAtDelivery + $cashDueAtReturn;
                                     $netCollected = $totalCollected;
                                     if (($r['status'] ?? '') === 'cancelled') {
                                         $refundAmt = max(0, (float) ($r['refund_amount'] ?? 0));
