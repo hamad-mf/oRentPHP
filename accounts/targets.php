@@ -75,12 +75,13 @@ if ($selM < 1 || $selM > 12 || $selY < 2020 || $selY > 2099) {
 $period = period_from_my($selM, $selY);
 $startDate = $period['start'];
 $endDate = $period['end'] . ' 23:59:59';
+$activePStart = $period['start'];
+$activePEnd = $period['end'];
 
 $tS = $pdo->prepare("SELECT * FROM monthly_targets WHERE period_start=? LIMIT 1");
 $tS->execute([$startDate]);
 $targetRow     = $tS->fetch();
 $monthlyTarget = (float)($targetRow['target_amount'] ?? 0);
-$periodDays    = (int)((strtotime($endDate) - strtotime($startDate)) / 86400) + 1;
 $periodDays    = (int)((strtotime($activePEnd) - strtotime($activePStart)) / 86400) + 1;
 $dailyTarget   = ($periodDays > 0 && $monthlyTarget > 0) ? round($monthlyTarget / $periodDays, 2) : 0;
 

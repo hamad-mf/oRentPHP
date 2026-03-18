@@ -304,8 +304,7 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
 
     <div class="flex items-center justify-between">
         <div>
-            <h2 class="text-white text-2xl font-light">Good <?= (int)$istNow->format('H')<12?'Morning':((int)$istNow->format('H')<17?'Afternoon':'Evening') ?>, <?= e(explode(' ',$_cuMe['name']??'')[0]) ?> &#x1F44B;</h2>
-            <p class="text-mb-subtle text-sm mt-1"><?= $istNow->format('l, d M Y') ?></p>
+            <p class="text-mb-subtle text-sm"><?= $istNow->format('l, d M Y') ?></p>
         </div>
     </div>
 

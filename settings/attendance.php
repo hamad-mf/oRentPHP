@@ -32,8 +32,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             settings_set($pdo, $k, $parsed->format('h:i') . ' ' . $ampm);
         }
     }
+    // Overtime settings
+    $otThreshold = $_POST['att_overtime_threshold_hours'] ?? '';
+    if (is_numeric($otThreshold) && (float)$otThreshold >= 0) {
+        settings_set($pdo, 'att_overtime_threshold_hours', (string)(float)$otThreshold);
+    }
+    $otRate = $_POST['att_overtime_rate_per_hour'] ?? '';
+    if (is_numeric($otRate) && (float)$otRate >= 0) {
+        settings_set($pdo, 'att_overtime_rate_per_hour', (string)(float)$otRate);
+    }
     app_log('ACTION', 'Updated attendance settings');
-flash('success', 'Attendance settings saved.');
+    flash('success', 'Attendance settings saved.');
     redirect('attendance.php');
 }
 
@@ -46,6 +55,10 @@ foreach ($keys as $k) {
     $vals[$k . '_hhmm'] = $dt ? $dt->format('h:i') : '08:00';
     $vals[$k . '_ampm'] = $dt ? $dt->format('A') : 'AM';
 }
+
+// Load overtime settings
+$otThresholdHours = (float) settings_get($pdo, 'att_overtime_threshold_hours', '12');
+$otRatePerHour    = (float) settings_get($pdo, 'att_overtime_rate_per_hour', '0');
 
 $pageTitle = 'Settings';
 require_once __DIR__ . '/../includes/header.php';
@@ -143,6 +156,30 @@ require_once __DIR__ . '/../includes/header.php';
                         </div>
                     </div>
                 <?php endforeach; ?>
+            </div>
+        </div>
+
+        <!-- Overtime Settings -->
+        <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-5">
+            <div>
+                <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Overtime Settings</h3>
+                <p class="text-xs text-mb-subtle mt-2 ml-5">If a staff member works more than the threshold hours in a single day, they will earn additional overtime pay at the configured hourly rate.<br>Partial hours are calculated proportionally (e.g., 59 extra minutes = 59/60 &times; rate).</p>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-mb-silver mb-2">Daily Threshold (hours)</label>
+                    <input type="number" name="att_overtime_threshold_hours" value="<?= e($otThresholdHours) ?>" min="0" step="0.5"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm"
+                        placeholder="12">
+                    <p class="text-[11px] text-mb-subtle mt-1">Staff working beyond this many hours will earn overtime.</p>
+                </div>
+                <div>
+                    <label class="block text-sm text-mb-silver mb-2">Rate per Hour (&#8377;)</label>
+                    <input type="number" name="att_overtime_rate_per_hour" value="<?= e($otRatePerHour) ?>" min="0" step="1"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm"
+                        placeholder="100">
+                    <p class="text-[11px] text-mb-subtle mt-1">Amount paid for each extra hour (0 = disabled).</p>
+                </div>
             </div>
         </div>
 

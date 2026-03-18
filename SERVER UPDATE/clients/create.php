@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                         $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
                         if (!in_array($ext, $allowed, true)) {
-                            $errors['proof_files'] = 'Only JPG, PNG, or PDF allowed.';
+                            $errors['proof_files'] = 'Only JPG or PNG images allowed.';
                             break;
                         }
                         if (($_FILES['proof_files']['size'][$i] ?? 0) > 5 * 1024 * 1024) {
@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ext = strtolower(pathinfo($_FILES['proof_file']['name'], PATHINFO_EXTENSION));
                 $allowed = ['jpg', 'jpeg', 'png', 'pdf'];
                 if (!in_array($ext, $allowed)) {
-                    $errors['proof_file'] = 'Only JPG, PNG, or PDF allowed.';
+                    $errors['proof_file'] = 'Only JPG or PNG images allowed.';
                 } elseif ($_FILES['proof_file']['size'] > 5 * 1024 * 1024) {
                     $errors['proof_file'] = 'File must be under 5MB.';
                 } else {
@@ -202,8 +202,8 @@ require_once __DIR__ . '/../includes/header.php';
             <div>
                 <?php if ($supportsClientProofs): ?>
                     <label class="block text-sm text-mb-silver mb-2">ID / Proof Documents <span class="text-red-400">*</span> <span
-                            class="text-mb-subtle text-xs">(required - up to 5 files, JPG/PNG/PDF, max 5MB each)</span></label>
-                    <input id="proofFiles" type="file" name="proof_files[]" accept=".jpg,.jpeg,.png,.pdf" multiple data-max="5" required
+                            class="text-mb-subtle text-xs">(required - up to 5 files, JPG/PNG images only, max 5MB each)</span></label>
+                    <input id="proofFiles" type="file" name="proof_files[]" accept=".jpg,.jpeg,.png" multiple data-max="5" required
                         class="block w-full text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-mb-accent hover:file:bg-mb-surface/80 cursor-pointer border border-mb-subtle/20 rounded-lg p-2">
                     <div id="proofPreview" class="mt-3 space-y-2 hidden"></div>
                     <p id="proofFilesError" class="text-red-400 text-xs mt-1 <?= ($errors['proof_files'] ?? '') ? '' : 'hidden' ?>">
@@ -211,8 +211,8 @@ require_once __DIR__ . '/../includes/header.php';
                     </p>
                 <?php else: ?>
                     <label class="block text-sm text-mb-silver mb-2">ID / Proof Document <span class="text-red-400">*</span> <span
-                            class="text-mb-subtle text-xs">(required - JPG, PNG or PDF, max 5MB)</span></label>
-                    <input type="file" name="proof_file" accept=".jpg,.jpeg,.png,.pdf" required
+                            class="text-mb-subtle text-xs">(required - JPG or PNG images only, max 5MB)</span></label>
+                    <input type="file" name="proof_file" accept=".jpg,.jpeg,.png" required
                         class="block w-full text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-mb-accent hover:file:bg-mb-surface/80 cursor-pointer border border-mb-subtle/20 rounded-lg p-2">
                     <?php if ($errors['proof_file'] ?? ''): ?>
                         <p class="text-red-400 text-xs mt-1"><?= e($errors['proof_file']) ?></p>

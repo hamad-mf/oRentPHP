@@ -10,6 +10,23 @@ gps_tracking_ensure_schema($pdo);
 
 $search = trim($_GET['search'] ?? '');
 $status = $_GET['status'] ?? '';
+$startDate = $_GET['start_date'] ?? '';
+$endDate = $_GET['end_date'] ?? '';
+
+// Validate and format dates
+if ($startDate) {
+    $startDate = date('Y-m-d', strtotime($startDate));
+}
+if ($endDate) {
+    $endDate = date('Y-m-d', strtotime($endDate));
+}
+
+// Default to last 5 days if no dates specified
+if (!$startDate && !$endDate) {
+    $endDate = date('Y-m-d');
+    $startDate = date('Y-m-d', strtotime('-4 days'));
+}
+
 $allowedStatuses = ['', 'pending', 'confirmed', 'active', 'completed'];
 if (!in_array($status, $allowedStatuses, true)) {
     $status = '';
@@ -39,6 +56,13 @@ if ($status !== '') {
     $params[] = $status;
 }
 
+$where[] = 'd.check_date >= ?';
+$params[] = $startDate;
+if ($endDate) {
+    $where[] = 'd.check_date <= ?';
+    $params[] = $endDate;
+}
+
 $hasUsersTable = false;
 try {
     $hasUsersTable = (int) $pdo->query("
@@ -57,27 +81,28 @@ try {
 $updatedBySelect = $hasUsersTable
     ? ", u.name AS updated_by_name"
     : ", NULL AS updated_by_name";
-$updatedByJoin = $hasUsersTable ? "LEFT JOIN users u ON u.id = g.updated_by" : "";
+$updatedByJoin = $hasUsersTable ? "LEFT JOIN users u ON u.id = d.updated_by" : "";
 
 $whereSql = " WHERE " . implode(' AND ', $where);
 $baseFrom = "
-    FROM reservations r
+    FROM gps_daily_checks d
+    JOIN reservations r ON r.id = d.reservation_id
     JOIN clients c ON c.id = r.client_id
-    JOIN vehicles v ON v.id = r.vehicle_id
-    LEFT JOIN gps_tracking g ON g.reservation_id = r.id
+    JOIN vehicles v ON v.id = d.vehicle_id
     $updatedByJoin
 ";
 
 $sql = "
     SELECT
-        g.id AS gps_id,
-        r.id AS reservation_id,
-        g.last_location,
-        g.tracking_active,
-        g.notes,
-        g.last_seen,
-        g.updated_at,
-        g.updated_by,
+        d.id AS gps_id,
+        d.reservation_id,
+        d.check_date,
+        d.check_slot,
+        d.last_location,
+        d.tracking_active,
+        d.notes,
+        d.updated_at,
+        d.updated_by,
         r.status,
         r.delivery_location AS res_delivery_location,
         c.name AS client_name,
@@ -88,7 +113,7 @@ $sql = "
         $updatedBySelect
     $baseFrom
     $whereSql
-    ORDER BY r.id DESC, g.id DESC
+    ORDER BY d.check_date DESC, d.reservation_id DESC, d.check_slot ASC
 ";
 
 $countSql = "SELECT COUNT(*) $baseFrom $whereSql";
@@ -122,6 +147,27 @@ require_once __DIR__ . '/../includes/header.php';
         <?php endforeach; ?>
     </div>
 
+    <form method="GET" class="flex flex-wrap items-center gap-3 mb-6">
+        <?php if ($status): ?><input type="hidden" name="status" value="<?= e($status) ?>"><?php endif; ?>
+        <?php if ($search): ?><input type="hidden" name="search" value="<?= e($search) ?>"><?php endif; ?>
+        <div>
+            <label class="block text-sm text-mb-silver mb-2">Start Date</label>
+            <input type="date" name="start_date" value="<?= e($startDate) ?>" 
+                class="bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
+        </div>
+        <div>
+            <label class="block text-sm text-mb-silver mb-2">End Date</label>
+            <input type="date" name="end_date" value="<?= e($endDate) ?>" 
+                class="bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
+        </div>
+        <button type="submit" class="bg-mb-accent text-white px-6 py-2 rounded-lg hover:bg-mb-accent/80 transition-colors text-sm">
+            Filter
+        </button>
+        <a href="history.php" class="text-mb-subtle hover:text-white text-sm transition-colors">
+            Clear Dates
+        </a>
+    </form>
+    
     <form method="GET" class="flex flex-wrap items-center gap-3">
         <?php if ($status): ?><input type="hidden" name="status" value="<?= e($status) ?>"><?php endif; ?>
         <div class="relative flex-1 min-w-[220px] max-w-sm">
@@ -138,8 +184,8 @@ require_once __DIR__ . '/../includes/header.php';
 
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
         <div class="px-6 py-4 border-b border-mb-subtle/10">
-            <h3 class="text-white font-light text-lg">Location Change History</h3>
-            <p class="text-mb-subtle text-xs mt-1">Complete log of all location updates across all reservations.</p>
+            <h3 class="text-white font-light text-lg">GPS Daily Check History</h3>
+            <p class="text-mb-subtle text-xs mt-1">Daily GPS checks from <?= e($startDate) ?> to <?= e($endDate) ?></p>
         </div>
         <?php if (empty($rows)): ?>
             <div class="py-20 text-center">
@@ -151,6 +197,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <thead class="border-b border-mb-subtle/10 bg-mb-black/30">
                         <tr class="text-mb-subtle text-xs uppercase">
                             <th class="px-6 py-4 text-left">Date</th>
+                            <th class="px-6 py-4 text-left">Slot</th>
                             <th class="px-6 py-4 text-left">Reservation</th>
                             <th class="px-6 py-4 text-left">Client</th>
                             <th class="px-6 py-4 text-left">Vehicle</th>
@@ -177,6 +224,25 @@ require_once __DIR__ . '/../includes/header.php';
                             <tr class="hover:bg-mb-black/30 transition-colors">
                                 <td class="px-6 py-3 text-mb-silver text-xs whitespace-nowrap">
                                     <?= $updatedAt ? e(date('d M Y, h:i A', strtotime((string) $updatedAt))) : '&mdash;' ?>
+                                </td>
+                                <td class="px-6 py-3">
+                                    <?php
+                                    $slotLabels = [
+                                        1 => 'Morning (6AM-12PM)',
+                                        2 => 'Afternoon (12PM-6PM)',
+                                        3 => 'Evening (6PM-10PM)'
+                                    ];
+                                    $slotColors = [
+                                        1 => 'bg-blue-500/10 text-blue-400',
+                                        2 => 'bg-yellow-500/10 text-yellow-400',
+                                        3 => 'bg-purple-500/10 text-purple-400'
+                                    ];
+                                    $slotLabel = $slotLabels[(int)$row['check_slot']] ?? 'Slot ' . $row['check_slot'];
+                                    $slotColor = $slotColors[(int)$row['check_slot']] ?? 'bg-green-500/10 text-green-400';
+                                    ?>
+                                    <span class="px-2 py-1 rounded-full text-xs <?= $slotColor ?>">
+                                        <?= $slotLabel ?>
+                                    </span>
                                 </td>
                                 <td class="px-6 py-3">
                                     <a href="../reservations/show.php?id=<?= (int) $row['reservation_id'] ?>"

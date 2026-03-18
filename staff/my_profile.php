@@ -95,6 +95,21 @@ try {
         $totalIncentives = (float) $incSumStmt->fetchColumn();
     }
 } catch (Exception $incEx) {}
+// --- Overtime Pay History ---
+$overtimeHistory = [];
+$totalOvertimePaid = 0.0;
+try {
+    $hasOtCol = (bool) $pdo->query("SHOW COLUMNS FROM payroll LIKE 'overtime_pay'")->fetchColumn();
+    if ($hasOtCol && $userId) {
+        $otStmt = $pdo->prepare("SELECT month, year, overtime_pay, status FROM payroll WHERE user_id = ? AND overtime_pay > 0 ORDER BY year DESC, month DESC");
+        $otStmt->execute([$userId]);
+        $overtimeHistory = $otStmt->fetchAll();
+        $otSumStmt = $pdo->prepare("SELECT COALESCE(SUM(overtime_pay),0) FROM payroll WHERE user_id = ? AND overtime_pay > 0");
+        $otSumStmt->execute([$userId]);
+        $totalOvertimePaid = (float) $otSumStmt->fetchColumn();
+    }
+} catch (Exception $otEx) {}
+
 if (!empty($incentiveHistory)) {
     foreach ($incentiveHistory as $inc) {
         $incMonth = (int) ($inc['month'] ?? 0);
@@ -121,6 +136,9 @@ if ($userId) {
 
 $allPerms = [
     'add_vehicles' => 'Add / Edit Vehicles',
+    'view_all_vehicles' => 'View Full Vehicle List',
+    'view_vehicle_availability' => 'View Vehicle Availability',
+    'view_vehicle_requests' => 'View Vehicle Requests',
     'add_reservations' => 'Add / Edit Reservations',
     'do_delivery' => 'Perform Deliveries',
     'do_return' => 'Perform Returns',
@@ -409,6 +427,35 @@ $s = getFlash('success');
                             </div>
                         </details>
                     <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($overtimeHistory) && $userId): ?>
+            <!-- Overtime Pay Card -->
+            <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-white text-sm font-medium border-l-2 border-purple-400 pl-3">Overtime Pay</h3>
+                    <?php if ($totalOvertimePaid > 0): ?>
+                        <span class="text-xs bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2.5 py-1 rounded-full">Total: $<?= number_format($totalOvertimePaid, 2) ?></span>
+                    <?php endif; ?>
+                </div>
+                <p class="text-xs text-mb-subtle">Auto-calculated from attendance when payroll is generated.</p>
+                <div class="mt-4 pt-4 border-t border-mb-subtle/10 space-y-2.5">
+                    <p class="text-xs text-mb-subtle uppercase tracking-wider mb-2">Overtime History</p>
+                    <?php foreach ($overtimeHistory as $otRow):
+                        $otMonthLabel = date('M Y', mktime(0,0,0,(int)$otRow['month'],1,(int)$otRow['year']));
+                    ?>
+                        <div class="flex items-center justify-between gap-2 text-xs">
+                            <div>
+                                <span class="text-purple-400">$<?= number_format((float)$otRow['overtime_pay'], 2) ?></span>
+                                <p class="text-mb-subtle/60 mt-0.5"><?= $otMonthLabel ?></p>
+                            </div>
+                            <span class="shrink-0 px-1.5 py-0.5 rounded text-[10px] <?= $otRow['status'] === 'Paid' ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400' ?>">
+                                <?= e($otRow['status']) ?>
+                            </span>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
             </div>
         <?php endif; ?>

@@ -1,6 +1,10 @@
 ﻿<?php
 require_once __DIR__ . '/../config/db.php';
 $pdo = db();
+if (!auth_has_perm('add_vehicles') && !auth_has_perm('view_vehicle_requests')) {
+    flash('error', 'You do not have permission to view vehicle requests.');
+    redirect('index.php');
+}
 require_once __DIR__ . '/../includes/settings_helpers.php';
 $perPage = get_per_page($pdo);
 $page    = max(1, (int) ($_GET['page'] ?? 1));

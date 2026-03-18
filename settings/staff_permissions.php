@@ -5,6 +5,9 @@ $pdo = db();
 
 $allPerms = [
     'add_vehicles'      => 'Add / Edit Vehicles',
+    'view_all_vehicles' => 'View Full Vehicle List',
+    'view_vehicle_availability' => 'View Vehicle Availability',
+    'view_vehicle_requests'     => 'View Vehicle Requests',
     'add_reservations'  => 'Add / Edit Reservations',
     'do_delivery'       => 'Perform Deliveries',
     'do_return'         => 'Perform Returns',
@@ -22,6 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($staffUsers as $uid) {
         $uid = (int)$uid;
         $userPerms = $submitted[$uid] ?? [];
+        
+        // Validate and sync permissions based on dependency rules
+        $userPerms = validate_and_sync_permissions($userPerms);
 
         $pdo->prepare("DELETE FROM staff_permissions WHERE user_id = ?")->execute([$uid]);
         $ip = $pdo->prepare("INSERT INTO staff_permissions (user_id, permission) VALUES (?,?)");
@@ -117,17 +123,31 @@ $s = getFlash('success');
                             <p class="text-mb-subtle/50 text-xs italic pl-1">Admin accounts have all permissions by default.</p>
                         <?php else: ?>
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                <?php foreach ($allPerms as $key => $label):
-                                    $checked = in_array($key, $permMap[$uid] ?? [], true);
+                                <?php 
+                                    $dependencies = get_permission_dependencies();
+                                    foreach ($allPerms as $key => $label):
+                                        $checked = in_array($key, $permMap[$uid] ?? [], true);
+                                        $hasDependents = isset($dependencies[$key]);
+                                        $dependentLabels = $hasDependents ? array_map(fn($d) => $allPerms[$d] ?? $d, $dependencies[$key]) : [];
                                 ?>
-                                    <label class="flex items-center gap-2 p-2.5 bg-mb-black/40 border border-mb-subtle/10 rounded-lg hover:border-mb-accent/30 cursor-pointer transition-colors group <?= !$u['is_active'] ? 'opacity-50' : '' ?>">
+                                    <label class="flex items-center gap-2 p-2.5 bg-mb-black/40 border border-mb-subtle/10 rounded-lg hover:border-mb-accent/30 cursor-pointer transition-colors group <?= !$u['is_active'] ? 'opacity-50' : '' ?> permission-checkbox" 
+                                        data-perm="<?= $key ?>" 
+                                        <?php if ($hasDependents): ?>data-requires="<?= implode(',', array_keys($dependencies[$key])) ?>" title="Requires: <?= implode(', ', $dependentLabels) ?>"<?php endif; ?>>
                                         <input type="checkbox" name="perms[<?= $uid ?>][]" value="<?= $key ?>"
                                             <?= $checked ? 'checked' : '' ?>
                                             <?= !$u['is_active'] ? 'disabled' : '' ?>
-                                            class="w-3.5 h-3.5 rounded accent-mb-accent">
+                                            class="w-3.5 h-3.5 rounded accent-mb-accent perm-input">
                                         <span class="text-xs text-mb-silver group-hover:text-white transition-colors leading-snug"><?= e($label) ?></span>
+                                        <?php if ($hasDependents): ?>
+                                            <svg class="w-3 h-3 text-mb-accent/50 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Has dependencies">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                        <?php endif; ?>
                                     </label>
                                 <?php endforeach; ?>
+                            </div>
+                            <div id="perm-notice-<?= $uid ?>" class="mt-3 p-3 bg-mb-accent/10 border border-mb-accent/30 rounded-lg text-mb-accent text-xs hidden">
+                                <!-- Permission dependency warnings will be inserted here by JavaScript -->
                             </div>
                         <?php endif; ?>
                     </div>
@@ -143,5 +163,77 @@ $s = getFlash('success');
         </form>
     <?php endif; ?>
 </div>
+
+<script>
+// Permission dependency rules
+const permDependencies = {
+    'add_vehicles': ['view_all_vehicles'],
+};
+
+// Permission labels
+const permLabels = {
+    'add_vehicles': 'Add / Edit Vehicles',
+    'view_all_vehicles': 'View Full Vehicle List',
+    'view_vehicle_availability': 'View Vehicle Availability',
+    'view_vehicle_requests': 'View Vehicle Requests',
+    'add_reservations': 'Add / Edit Reservations',
+    'do_delivery': 'Perform Deliveries',
+    'do_return': 'Perform Returns',
+    'add_leads': 'Add / Edit Leads',
+    'manage_clients': 'Manage Clients',
+    'view_finances': 'View Financial Data',
+    'manage_staff': 'View Staff Section',
+};
+
+function syncPermissions(changedCheckbox) {
+    const userId = changedCheckbox.name.match(/perms\[(\d+)\]/)[1];
+    const formCheckboxes = document.querySelectorAll(`input[name^="perms[${userId}]"]`);
+    const noticeEl = document.getElementById(`perm-notice-${userId}`);
+    const selectedPerms = Array.from(formCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+    let warnings = [];
+
+    // If a permission with dependencies is checked, ensure dependencies are also checked
+    for (const perm of selectedPerms) {
+        if (permDependencies[perm]) {
+            for (const depPerm of permDependencies[perm]) {
+                const depCheckbox = document.querySelector(`input[name="perms[${userId}][]"][value="${depPerm}"]`);
+                if (depCheckbox && !depCheckbox.checked) {
+                    depCheckbox.checked = true;
+                    warnings.push(`✓ Enabled "${permLabels[depPerm]}" (required for "${permLabels[perm]}")`);
+                }
+            }
+        }
+    }
+
+    // If a dependency is unchecked, uncheck permissions that depend on it
+    for (const perm in permDependencies) {
+        for (const depPerm of permDependencies[perm]) {
+            const depCheckbox = document.querySelector(`input[name="perms[${userId}][]"][value="${depPerm}"]`);
+            if (depCheckbox && !depCheckbox.checked) {
+                const permCheckbox = document.querySelector(`input[name="perms[${userId}][]"][value="${perm}"]`);
+                if (permCheckbox && permCheckbox.checked) {
+                    permCheckbox.checked = false;
+                    warnings.push(`✗ Disabled "${permLabels[perm]}" (requires disabled "${permLabels[depPerm]}")`);
+                }
+            }
+        }
+    }
+
+    // Show warnings if any
+    if (warnings.length > 0) {
+        noticeEl.innerHTML = warnings.map(w => `<div>${w}</div>`).join('');
+        noticeEl.classList.remove('hidden');
+    } else {
+        noticeEl.classList.add('hidden');
+    }
+}
+
+// Add event listeners to all permission checkboxes
+document.querySelectorAll('.perm-input').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        syncPermissions(this);
+    });
+});
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

@@ -3,6 +3,10 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/vehicle_helpers.php';
 
 $pdo = db();
+if (!auth_has_perm('add_vehicles') && !auth_has_perm('view_vehicle_availability')) {
+    flash('error', 'You do not have permission to view vehicle availability.');
+    redirect('index.php');
+}
 require_once __DIR__ . '/../includes/settings_helpers.php';
 vehicle_ensure_schema($pdo);
 

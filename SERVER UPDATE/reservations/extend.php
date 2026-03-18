@@ -497,14 +497,14 @@ function calcExtension() {
     } else if (type === 'monthly') {
         setEndInputsDisabled(false);
         if (!end || end <= base) { updateOutputs(0, 0, 0); return; }
-        days = Math.ceil((end - base) / 86400000) + 1;
+        days = Math.ceil((end - base) / 86400000) || 1;
         const monthRate = MONTHLY > 0 ? MONTHLY : DAILY;
         total = monthRate * (days / 30 || 1);
         rate = days > 0 ? (total / days) : 0;
     } else {
         setEndInputsDisabled(false);
         if (!end || end <= base) { updateOutputs(0, 0, 0); return; }
-        days = Math.ceil((end - base) / 86400000) + 1;
+        days = Math.ceil((end - base) / 86400000) || 1;
         rate = DAILY;
         total = days * DAILY;
     }

@@ -421,11 +421,15 @@ $_notifs = notif_all($pdo);
                 } catch (Throwable $e) {}
             }
             $cuPerms = $_currentUser['permissions'] ?? [];
+            $canVehiclesFull = $isAdmin || in_array('add_vehicles', $cuPerms, true) || in_array('view_all_vehicles', $cuPerms, true);
+            $canVehiclesAvailability = $isAdmin || in_array('add_vehicles', $cuPerms, true) || in_array('view_vehicle_availability', $cuPerms, true);
+            $canVehiclesRequests = $isAdmin || in_array('add_vehicles', $cuPerms, true) || in_array('view_vehicle_requests', $cuPerms, true);
+            $canVehiclesMenu = $canVehiclesFull || $canVehiclesAvailability || $canVehiclesRequests || !empty($_currentUser['staff_id']);
 
             $isDash = $currentPage === 'index.php' && $moduleIdx === null;
             echo navLink("{$root}index.php", 'Dashboard', $icons['dashboard'], $isDash);
 
-            if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
+            if ($canVehiclesMenu) {
                 $vActive = $currentDir === 'vehicles';
                 $vCls = $vActive
                     ? 'bg-mb-black text-white border-l-2 border-mb-accent'
@@ -437,8 +441,12 @@ $_notifs = notif_all($pdo);
                 </div>';
                 echo '<div id="submenu-vehicles" class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1 sidebar-submenu ' . ($vActive ? 'open' : '') . '">';
                 echo '<a href="' . $root . 'vehicles/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'vehicles' && $currentPage !== 'availability.php' && $currentPage !== 'requests.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle List</a>';
-                echo '<a href="' . $root . 'vehicles/availability.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'availability.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Availability</a>';
-                echo '<a href="' . $root . 'vehicles/requests.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'requests.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Requests</a>';
+                if ($canVehiclesAvailability) {
+                    echo '<a href="' . $root . 'vehicles/availability.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'availability.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Availability</a>';
+                }
+                if ($canVehiclesRequests) {
+                    echo '<a href="' . $root . 'vehicles/requests.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'requests.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Requests</a>';
+                }
                 echo '</div>';
             }
             if ($isAdmin || array_intersect(['add_reservations', 'do_delivery', 'do_return'], $cuPerms)) {
@@ -495,11 +503,11 @@ $_notifs = notif_all($pdo);
                 $payrollIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>';
                 echo navLink("{$root}payroll/index.php", 'Payroll', $payrollIcon, $currentDir === 'payroll');
                 $investIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
-                echo navLink("{$root}investments/index.php", 'Investments', $investIcon, $currentDir === 'investments');
+                echo navLink("{$root}investments/index.php", 'EMI Management', $investIcon, $currentDir === 'investments');
             }
             echo navLink("{$root}settings/general.php", 'Settings', $icons['settings'], $currentDir === 'settings');
 
-            $canVehicles = $isAdmin || in_array('add_vehicles', $cuPerms, true);
+            $canVehicles = $canVehiclesMenu;
             $canClients = $isAdmin || in_array('manage_clients', $cuPerms, true);
             $canPipeline = $isAdmin || in_array('add_leads', $cuPerms, true);
             $canReservations = $isAdmin || !empty(array_intersect(['add_reservations', 'do_delivery', 'do_return'], $cuPerms));

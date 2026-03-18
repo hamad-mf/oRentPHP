@@ -11,6 +11,21 @@ $search = trim($_GET['search'] ?? '');
 $status = $_GET['status'] ?? '';
 $rentedDate = trim($_GET['rented_date'] ?? '');
 $overdueOnly = ((int) ($_GET['overdue'] ?? 0)) === 1;
+// Only allow full list view with these two permissions
+$canViewFullVehicles = auth_has_perm('add_vehicles') || auth_has_perm('view_all_vehicles');
+// But allow staff with any vehicle permission to access the page itself
+$canAccessVehicles = $canViewFullVehicles || auth_has_perm('view_vehicle_availability') || auth_has_perm('view_vehicle_requests');
+$canViewVehicleDetails = $canAccessVehicles;
+if (!$canAccessVehicles) {
+    flash('error', 'You do not have permission to view vehicles.');
+    redirect('index.php');
+}
+$restrictedView = !$canViewFullVehicles;
+if ($restrictedView) {
+    $status = 'available';
+    $overdueOnly = false;
+    $rentedDate = '';
+}
 
 $where = ['1=1'];
 $params = [];
@@ -99,6 +114,12 @@ $overdueCount = (int) $pdo->query("SELECT COUNT(*)
     ) latest ON latest.max_id = r1.id
     WHERE r1.end_date IS NOT NULL
       AND r1.end_date < NOW()")->fetchColumn();
+if ($restrictedView) {
+    $totalCount = $available;
+    $rented = 0;
+    $maintenance = 0;
+    $overdueCount = 0;
+}
 
 $success = getFlash('success');
 $error = getFlash('error');
@@ -146,44 +167,60 @@ require_once __DIR__ . '/../includes/header.php';
     <?php endif; ?>
 
     <!-- Fleet Status Bar -->
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <?php
-        $statusCards = [
-            ['label' => 'Total Fleet', 'count' => $totalCount, 'color' => 'text-white', 'filter' => '', 'overdue' => 0, 'active' => ($status === '' && !$overdueOnly)],
-            ['label' => 'Available', 'count' => $available, 'color' => 'text-green-400', 'filter' => 'available', 'overdue' => 0, 'active' => ($status === 'available' && !$overdueOnly)],
-            ['label' => 'Rented', 'count' => $rented, 'color' => 'text-mb-accent', 'filter' => 'rented', 'overdue' => 0, 'active' => ($status === 'rented' && !$overdueOnly)],
-            ['label' => 'Workshop', 'count' => $maintenance, 'color' => 'text-red-400', 'filter' => 'maintenance', 'overdue' => 0, 'active' => ($status === 'maintenance' && !$overdueOnly)],
-            ['label' => 'Overdue', 'count' => $overdueCount, 'color' => $overdueCount > 0 ? 'text-red-400' : 'text-white', 'filter' => '', 'overdue' => 1, 'active' => $overdueOnly],
-        ];
-        $borderActive = ['' => 'border-white/30', 'available' => 'border-green-500/50', 'rented' => 'border-mb-accent/50', 'maintenance' => 'border-red-500/50', 'overdue' => 'border-red-500/50'];
-        foreach ($statusCards as $card):
-            $isOverdueCard = !empty($card['overdue']);
-            $href = '?' . http_build_query(array_filter([
-                'status' => $card['filter'],
-                'search' => $search,
-                'rented_date' => $isOverdueCard ? null : $rentedDate,
-                'overdue' => $isOverdueCard ? 1 : null,
-            ], static fn($v) => $v !== null && $v !== ''));
-            $activeKey = $isOverdueCard ? 'overdue' : $card['filter'];
-            $activeBorder = $card['active'] ? ($borderActive[$activeKey] ?? 'border-white/20') : '';
-            $warningClasses = ($isOverdueCard && (int) $card['count'] > 0) ? 'bg-red-500/5 border-red-500/40 hover:border-red-500/70' : '';
-            ?>
-            <a href="<?= $href ?>"
-                class="bg-mb-surface border border-mb-subtle/20 rounded-lg p-4 text-center hover:border-white/20 transition-all <?= $activeBorder ?> <?= $warningClasses ?>">
-                <p class="text-3xl font-light <?= $card['color'] ?>">
-                    <?= $card['count'] ?>
+    <?php if ($restrictedView): ?>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="bg-mb-surface border border-mb-subtle/20 rounded-lg p-4 text-center">
+                <p class="text-3xl font-light text-green-400">
+                    <?= $available ?>
                 </p>
                 <p class="text-mb-silver text-xs uppercase mt-1">
-                    <?= $card['label'] ?>
+                    Available Vehicles
                 </p>
-                <?php if ($isOverdueCard): ?>
-                    <p class="text-[10px] mt-1 <?= (int) $card['count'] > 0 ? 'text-red-400/70 animate-pulse' : 'text-mb-subtle' ?>">
-                        <?= (int) $card['count'] > 0 ? 'Action needed' : 'No overdue returns' ?>
+                <p class="text-[10px] mt-1 text-mb-subtle">
+                    Showing available fleet only
+                </p>
+            </div>
+        </div>
+    <?php else: ?>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <?php
+            $statusCards = [
+                ['label' => 'Total Fleet', 'count' => $totalCount, 'color' => 'text-white', 'filter' => '', 'overdue' => 0, 'active' => ($status === '' && !$overdueOnly)],
+                ['label' => 'Available', 'count' => $available, 'color' => 'text-green-400', 'filter' => 'available', 'overdue' => 0, 'active' => ($status === 'available' && !$overdueOnly)],
+                ['label' => 'Rented', 'count' => $rented, 'color' => 'text-mb-accent', 'filter' => 'rented', 'overdue' => 0, 'active' => ($status === 'rented' && !$overdueOnly)],
+                ['label' => 'Workshop', 'count' => $maintenance, 'color' => 'text-red-400', 'filter' => 'maintenance', 'overdue' => 0, 'active' => ($status === 'maintenance' && !$overdueOnly)],
+                ['label' => 'Overdue', 'count' => $overdueCount, 'color' => $overdueCount > 0 ? 'text-red-400' : 'text-white', 'filter' => '', 'overdue' => 1, 'active' => $overdueOnly],
+            ];
+            $borderActive = ['' => 'border-white/30', 'available' => 'border-green-500/50', 'rented' => 'border-mb-accent/50', 'maintenance' => 'border-red-500/50', 'overdue' => 'border-red-500/50'];
+            foreach ($statusCards as $card):
+                $isOverdueCard = !empty($card['overdue']);
+                $href = '?' . http_build_query(array_filter([
+                    'status' => $card['filter'],
+                    'search' => $search,
+                    'rented_date' => $isOverdueCard ? null : $rentedDate,
+                    'overdue' => $isOverdueCard ? 1 : null,
+                ], static fn($v) => $v !== null && $v !== ''));
+                $activeKey = $isOverdueCard ? 'overdue' : $card['filter'];
+                $activeBorder = $card['active'] ? ($borderActive[$activeKey] ?? 'border-white/20') : '';
+                $warningClasses = ($isOverdueCard && (int) $card['count'] > 0) ? 'bg-red-500/5 border-red-500/40 hover:border-red-500/70' : '';
+                ?>
+                <a href="<?= $href ?>"
+                    class="bg-mb-surface border border-mb-subtle/20 rounded-lg p-4 text-center hover:border-white/20 transition-all <?= $activeBorder ?> <?= $warningClasses ?>">
+                    <p class="text-3xl font-light <?= $card['color'] ?>">
+                        <?= $card['count'] ?>
                     </p>
-                <?php endif; ?>
-            </a>
-        <?php endforeach; ?>
-    </div>
+                    <p class="text-mb-silver text-xs uppercase mt-1">
+                        <?= $card['label'] ?>
+                    </p>
+                    <?php if ($isOverdueCard): ?>
+                        <p class="text-[10px] mt-1 <?= (int) $card['count'] > 0 ? 'text-red-400/70 animate-pulse' : 'text-mb-subtle' ?>">
+                            <?= (int) $card['count'] > 0 ? 'Action needed' : 'No overdue returns' ?>
+                        </p>
+                    <?php endif; ?>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
 
     <!-- Toolbar -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -201,9 +238,11 @@ require_once __DIR__ . '/../includes/header.php';
                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
             </div>
-            <input type="date" name="rented_date" value="<?= e($rentedDate) ?>"
-                class="bg-mb-surface border border-mb-subtle/20 rounded-full py-2 px-4 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors"
-                title="Filter by rented start date">
+            <?php if (!$restrictedView): ?>
+                <input type="date" name="rented_date" value="<?= e($rentedDate) ?>"
+                    class="bg-mb-surface border border-mb-subtle/20 rounded-full py-2 px-4 text-white text-sm focus:outline-none focus:border-mb-accent transition-colors"
+                    title="Filter by rented start date">
+            <?php endif; ?>
             <button type="submit" class="text-mb-silver hover:text-white text-sm transition-colors">Search</button>
             <?php if ($search || $status || $rentedDate || $overdueOnly): ?><a href="index.php"
                     class="text-mb-subtle hover:text-white text-sm transition-colors">Clear</a>
@@ -218,14 +257,16 @@ require_once __DIR__ . '/../includes/header.php';
                 Add Vehicle
             </a>
         <?php endif; ?>
-        <a href="quotation_builder.php"
-            class="bg-mb-surface border border-mb-subtle/20 text-mb-silver hover:text-white hover:border-white/20 px-5 py-2 rounded-full transition-colors flex items-center gap-2 text-sm font-medium flex-shrink-0">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Create Quotation
-        </a>
+        <?php if (auth_has_perm('add_vehicles')): ?>
+            <a href="quotation_builder.php"
+                class="bg-mb-surface border border-mb-subtle/20 text-mb-silver hover:text-white hover:border-white/20 px-5 py-2 rounded-full transition-colors flex items-center gap-2 text-sm font-medium flex-shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Create Quotation
+            </a>
+        <?php endif; ?>
         <!-- Share Catalog Button -->
         <button onclick="document.getElementById('catalogModal').classList.remove('hidden')"
             class="bg-mb-surface border border-mb-subtle/20 text-mb-silver hover:text-white hover:border-white/20 px-5 py-2 rounded-full transition-colors flex items-center gap-2 text-sm font-medium flex-shrink-0">
@@ -266,7 +307,11 @@ require_once __DIR__ . '/../includes/header.php';
                     <?= $available ?> Available
                 </span>
                 <span class="text-xs px-2.5 py-1 rounded-full bg-mb-black/50 text-mb-silver border border-mb-subtle/20">
-                    <?= $totalCount ?> Total Vehicles
+                    <?php if ($restrictedView): ?>
+                        <?= $available ?> Available Vehicles
+                    <?php else: ?>
+                        <?= $totalCount ?> Total Vehicles
+                    <?php endif; ?>
                 </span>
                 <span
                     class="text-xs px-2.5 py-1 rounded-full bg-mb-black/50 text-mb-silver border border-mb-subtle/20">No
@@ -330,36 +375,43 @@ require_once __DIR__ . '/../includes/header.php';
                 $maintenanceLabel = '';
                 $maintenanceSinceLabel = '';
                 $maintenanceWorkshopLabel = trim((string) ($v['maintenance_workshop_name'] ?? ''));
-                $insuranceType = strtolower(trim((string) ($v['insurance_type'] ?? '')));
-                if ($insuranceType === 'thrid class') {
-                    $insuranceType = 'third class';
-                } elseif ($insuranceType === 'bumber to bumber') {
-                    $insuranceType = 'bumper to bumper';
-                }
-                $insuranceExpiryDate = trim((string) ($v['insurance_expiry_date'] ?? ''));
-                $insuranceExpired = false;
-                if ($insuranceExpiryDate !== '') {
-                    $expDateObj = DateTime::createFromFormat('Y-m-d', $insuranceExpiryDate);
-                    if ($expDateObj && $expDateObj->format('Y-m-d') === $insuranceExpiryDate) {
-                        $insuranceExpired = $insuranceExpiryDate < date('Y-m-d');
+                $insuranceAlert = false;
+                $insuranceAlertLabel = '';
+                if (!$restrictedView) {
+                    $insuranceType = strtolower(trim((string) ($v['insurance_type'] ?? '')));
+                    if ($insuranceType === 'thrid class') {
+                        $insuranceType = 'third class';
+                    } elseif ($insuranceType === 'bumber to bumber') {
+                        $insuranceType = 'bumper to bumper';
+                    }
+                    $insuranceExpiryDate = trim((string) ($v['insurance_expiry_date'] ?? ''));
+                    $insuranceExpired = false;
+                    if ($insuranceExpiryDate !== '') {
+                        $expDateObj = DateTime::createFromFormat('Y-m-d', $insuranceExpiryDate);
+                        if ($expDateObj && $expDateObj->format('Y-m-d') === $insuranceExpiryDate) {
+                            $insuranceExpired = $insuranceExpiryDate < date('Y-m-d');
+                        }
+                    }
+                    $isThirdClassInsurance = ($insuranceType === 'third class');
+                    $insuranceAlert = $insuranceExpired || $isThirdClassInsurance;
+                    if ($insuranceExpired && $isThirdClassInsurance) {
+                        $insuranceAlertLabel = 'Insurance expired • Third class';
+                    } elseif ($insuranceExpired) {
+                        $insuranceAlertLabel = 'Insurance expired';
+                    } elseif ($isThirdClassInsurance) {
+                        $insuranceAlertLabel = 'Third class insurance';
                     }
                 }
-                $isThirdClassInsurance = ($insuranceType === 'third class');
-                $insuranceAlert = $insuranceExpired || $isThirdClassInsurance;
-                $insuranceAlertLabel = '';
-                if ($insuranceExpired && $isThirdClassInsurance) {
-                    $insuranceAlertLabel = 'Insurance expired • Third class';
-                } elseif ($insuranceExpired) {
-                    $insuranceAlertLabel = 'Insurance expired';
-                } elseif ($isThirdClassInsurance) {
-                    $insuranceAlertLabel = 'Third class insurance';
+                $cardShellClasses = 'relative bg-mb-surface rounded-xl border overflow-hidden group transition-all duration-300 flex flex-col';
+                if ($canViewVehicleDetails) {
+                    $cardShellClasses .= ' cursor-pointer';
                 }
-                $cardShellClasses = 'relative bg-mb-surface rounded-xl border overflow-hidden group transition-all duration-300 flex flex-col cursor-pointer';
                 if ($insuranceAlert) {
                     $cardShellClasses .= ' border-red-500/70 ring-2 ring-red-500/50 shadow-[0_0_18px_rgba(239,68,68,0.25)]';
                 } else {
                     $cardShellClasses .= ' border-mb-subtle/20 hover:border-mb-accent/30';
                 }
+                $cardClickAttr = $canViewVehicleDetails ? "onclick=\"window.location='show.php?id={$v['id']}'\"" : '';
                 if (($v['status'] ?? '') === 'rented' && !empty($v['rented_end_date'])) {
                     $endTs = strtotime((string) $v['rented_end_date']);
                     $nowTs = time();
@@ -428,8 +480,7 @@ require_once __DIR__ . '/../includes/header.php';
                     }
                 }
                 ?>
-                <div onclick="window.location='show.php?id=<?= $v['id'] ?>'"
-                    class="<?= e($cardShellClasses) ?>">
+                <div <?= $cardClickAttr ?> class="<?= e($cardShellClasses) ?>">
                     <?php if ($insuranceAlert): ?>
                         <div class="pointer-events-none absolute inset-0 rounded-xl border-2 border-red-500/80 animate-pulse z-20"></div>
                     <?php endif; ?>
@@ -449,24 +500,26 @@ require_once __DIR__ . '/../includes/header.php';
                                 </svg>
                             </div>
                         <?php endif; ?>
-                        <div class="absolute top-3 right-3">
-                            <span
-                                class="px-2 py-1 rounded-full text-xs font-medium border backdrop-blur-sm flex items-center gap-1.5 <?= $badgeCls ?>">
-                                <span class="w-1.5 h-1.5 rounded-full <?= $dotCls ?>"></span>
-                                <?= $statusLabel ?>
-                            </span>
-                        </div>
-                        <?php if ($v['doc_count'] > 0): ?>
-                            <div class="absolute top-3 left-3">
+                        <?php if (!$restrictedView): ?>
+                            <div class="absolute top-3 right-3">
                                 <span
-                                    class="px-2 py-1 rounded-full text-xs bg-black/50 text-mb-silver border border-white/10 backdrop-blur-sm flex items-center gap-1">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    <?= $v['doc_count'] ?>
+                                    class="px-2 py-1 rounded-full text-xs font-medium border backdrop-blur-sm flex items-center gap-1.5 <?= $badgeCls ?>">
+                                    <span class="w-1.5 h-1.5 rounded-full <?= $dotCls ?>"></span>
+                                    <?= $statusLabel ?>
                                 </span>
                             </div>
+                            <?php if ($v['doc_count'] > 0): ?>
+                                <div class="absolute top-3 left-3">
+                                    <span
+                                        class="px-2 py-1 rounded-full text-xs bg-black/50 text-mb-silver border border-white/10 backdrop-blur-sm flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <?= $v['doc_count'] ?>
+                                    </span>
+                                </div>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </div>
                     <!-- Content -->
@@ -559,13 +612,17 @@ require_once __DIR__ . '/../includes/header.php';
                         </div>
                         <div class="mt-4 flex items-center justify-between border-t border-mb-subtle/10 pt-4"
                             onclick="event.stopPropagation()">
-                            <a href="show.php?id=<?= $v['id'] ?>"
-                                class="text-sm text-mb-silver hover:text-white transition-colors flex items-center gap-1">
-                                View Details
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                                </svg>
-                            </a>
+                            <?php if ($canViewVehicleDetails): ?>
+                                <a href="show.php?id=<?= $v['id'] ?>"
+                                    class="text-sm text-mb-silver hover:text-white transition-colors flex items-center gap-1">
+                                    View Details
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </a>
+                            <?php else: ?>
+                                <span class="text-xs text-mb-subtle">Details hidden</span>
+                            <?php endif; ?>
                             <div class="flex items-center gap-2">
                                 <?php if (auth_has_perm('add_vehicles')): ?>
                                     <a href="edit.php?id=<?= $v['id'] ?>"

@@ -103,6 +103,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!in_array($status, $allowedInitialStatuses, true))
         $errors['status'] = 'Please select a valid initial lead status.';
 
+    if ($phone && !isset($errors['phone'])) {
+        $chk = $pdo->prepare('SELECT id FROM leads WHERE phone = ?');
+        $chk->execute([$phone]);
+        if ($chk->fetch())
+            $errors['phone'] = 'Phone number already exists in leads.';
+    }
+
     if (empty($errors)) {
         // Get assigned staff name for display + legacy field
         $assignedName = null;
@@ -229,7 +236,7 @@ require_once __DIR__ . '/../includes/header.php';
                             class="text-red-400">*</span></label>
                     <select name="inquiry_type"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
-                        <?php foreach (['daily' => 'Daily Rental', 'weekly' => 'Weekly Rental', 'monthly' => 'Monthly Rental', 'other' => 'Other'] as $v => $l): ?>
+                        <?php foreach (['daily' => 'Daily Rental', 'weekly' => 'Weekly Rental', 'monthly' => 'Monthly Rental', 'wedding_rental' => 'Wedding Rental', 'other' => 'Other'] as $v => $l): ?>
                             <option value="<?= $v ?>" <?= ($_POST['inquiry_type'] ?? 'daily') === $v ? 'selected' : '' ?>>
                                 <?= $l ?>
                             </option>

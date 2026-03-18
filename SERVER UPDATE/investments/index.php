@@ -11,7 +11,7 @@ $page = max(1, (int) ($_GET['page'] ?? 1));
 ledger_ensure_schema($pdo);
 investment_ensure_schema($pdo);
 
-// Fetch all investments with paid count
+// Fetch all EMIs with paid count
 $listSql = "SELECT
                 i.*,
                 COUNT(s.id) AS total_emis,
@@ -25,7 +25,7 @@ $countSql = "SELECT COUNT(*) FROM emi_investments";
 $pgInvest = paginate_query($pdo, $listSql, $countSql, [], $page, $perPage);
 $investments = $pgInvest['rows'];
 
-$pageTitle = 'Investments';
+$pageTitle = 'EMI Management';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 <div class="space-y-6">
@@ -48,7 +48,7 @@ require_once __DIR__ . '/../includes/header.php';
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
-            <h2 class="text-white font-light text-xl">Investments</h2>
+            <h2 class="text-white font-light text-xl">EMI Management</h2>
             <p class="text-mb-subtle text-sm mt-0.5">Track vehicle purchases and EMI payments</p>
         </div>
         <a href="create.php"
@@ -66,7 +66,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
                     d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p class="text-mb-subtle">No investments yet.</p>
+            <p class="text-mb-subtle">No EMIs yet.</p>
             <a href="create.php"
                 class="inline-block mt-4 bg-mb-accent text-white px-5 py-2 rounded-full text-sm hover:bg-mb-accent/80 transition-colors">Add
                 your first investment</a>

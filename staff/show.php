@@ -40,6 +40,34 @@ try {
     $bankAccounts = $pdo->query("SELECT id, name FROM bank_accounts WHERE is_active=1 ORDER BY name")->fetchAll();
 } catch (Exception $advEx) {}
 
+// --- Calculate Total Paid by Company ---
+$totalCompanyPaid = 0.0;
+try {
+    if ($userId) {
+        $pySum = (float) $pdo->query("SELECT COALESCE(SUM(payable_salary), 0) FROM payroll WHERE user_id = {$userId} AND status = 'Paid'")->fetchColumn();
+        $advSum = 0.0;
+        if ($hasAdvanceTable) {
+            $advSum = (float) $pdo->query("SELECT COALESCE(SUM(amount), 0) FROM payroll_advances WHERE user_id = {$userId}")->fetchColumn();
+        }
+        $totalCompanyPaid = $pySum + $advSum;
+    }
+} catch (Exception $tEx) {}
+// --- Overtime Pay History ---
+$overtimeHistory = [];
+$totalOvertimePaid = 0.0;
+try {
+    $hasOtCol = (bool) $pdo->query("SHOW COLUMNS FROM payroll LIKE 'overtime_pay'")->fetchColumn();
+    if ($hasOtCol && $userId) {
+        $otStmt = $pdo->prepare("SELECT month, year, overtime_pay, status FROM payroll WHERE user_id = ? AND overtime_pay > 0 ORDER BY year DESC, month DESC");
+        $otStmt->execute([$userId]);
+        $overtimeHistory = $otStmt->fetchAll();
+        $otSumStmt = $pdo->prepare("SELECT COALESCE(SUM(overtime_pay),0) FROM payroll WHERE user_id = ? AND overtime_pay > 0");
+        $otSumStmt->execute([$userId]);
+        $totalOvertimePaid = (float) $otSumStmt->fetchColumn();
+    }
+} catch (Exception $otEx) {}
+
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'give_advance_from_profile') {
     $advAmt   = (float) ($_POST['advance_amount'] ?? 0);
     $advBank  = (int)   ($_POST['bank_account_id'] ?? 0);
@@ -211,6 +239,14 @@ $s = getFlash('success');
                             <span class="text-xs bg-red-500/10 text-red-400 px-2.5 py-1 rounded-full">Disabled</span>
                         <?php endif; ?>
                     </div>
+                <?php endif; ?>
+
+                <?php if ($userId): ?>
+                <div class="mt-4 bg-green-500/10 border border-green-500/20 rounded-xl p-4">
+                    <p class="text-[10px] text-green-400 uppercase tracking-widest mb-1 font-medium">Total Paid by Company</p>
+                    <p class="text-2xl text-green-400 font-light">$<?= number_format($totalCompanyPaid, 2) ?></p>
+                    <p class="text-[10px] text-green-400/60 mt-1 leading-tight">All paid payrolls + advances given</p>
+                </div>
                 <?php endif; ?>
 
                 <?php if (($_currentUser['role'] ?? '') === 'admin'): ?>
@@ -437,6 +473,34 @@ $s = getFlash('success');
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($overtimeHistory) && $userId): ?>
+            <!-- Overtime Pay Card -->
+            <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-white text-sm font-medium border-l-2 border-purple-400 pl-3">Overtime Pay</h3>
+                    <?php if ($totalOvertimePaid > 0): ?>
+                        <span class="text-xs bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2.5 py-1 rounded-full">Total: $<?= number_format($totalOvertimePaid, 2) ?></span>
+                    <?php endif; ?>
+                </div>
+                <p class="text-xs text-mb-subtle">Auto-calculated from attendance when payroll is generated.</p>
+                <div class="mt-4 pt-4 border-t border-mb-subtle/10 space-y-2.5">
+                    <?php foreach ($overtimeHistory as $otRow):
+                        $otMonthLabel = date('M Y', mktime(0,0,0,(int)$otRow['month'],1,(int)$otRow['year']));
+                    ?>
+                        <div class="flex items-center justify-between gap-2 text-xs">
+                            <div>
+                                <span class="text-purple-400">$<?= number_format((float)$otRow['overtime_pay'], 2) ?></span>
+                                <p class="text-mb-subtle/60 mt-0.5"><?= $otMonthLabel ?></p>
+                            </div>
+                            <span class="shrink-0 px-1.5 py-0.5 rounded text-[10px] <?= $otRow['status'] === 'Paid' ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400' ?>">
+                                <?= e($otRow['status']) ?>
+                            </span>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
         <?php endif; ?>
 <?php if ($userId): ?>

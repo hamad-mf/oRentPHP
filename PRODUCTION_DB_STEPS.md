@@ -11,77 +11,7 @@ This file tracks all database changes that need to be applied to **production** 
 
 ## Pending
 
-### 2026-03-18 - Hope Window Predictions
-**SQL file:** `migrations/releases/2026-03-18_hope_window_predictions.sql`
-**Notes:** Adds `hope_daily_predictions` table for manual prediction entries in Hope Window.
-
-### 2026-03-17 - Hope Window Daily Targets
-**SQL file:** `migrations/releases/2026-03-17_hope_window_daily_targets.sql`
-**Notes:** Adds `hope_daily_targets` table for per-day target overrides in Hope Window.
-
-### 2026-03-16 - EMI Due Notifications
-**SQL file:** `migrations/releases/2026-03-16_notifications_emi_due.sql`
-**Notes:** Adds `emi_due` to notifications `type` ENUM to support EMI due date alerts. Required for EMI notification feature.
-
-### 2026-03-16 - GPS Daily Checks
-**SQL file:** `migrations/releases/2026-03-16_gps_daily_checks.sql`
-**Notes:** Adds `gps_daily_checks` table to track 3 daily GPS check slots per active reservation.
-
-### 2026-03-14 - Vehicle Storage Locations
-**SQL file:** `migrations/releases/2026-03-14_vehicle_storage_locations.sql`
-**Notes:** Adds `second_key_location` and `original_documents_location` columns on vehicles.
-
-### 2026-03-16 - GPS Tracking Enhancements
-**SQL file:** `None` (no schema changes needed)
-**Notes:** Enhanced GPS tracking with per-day checks reset, date filtering, 5-day history pagination, timestamp saving, and duplicate history fixes. Uses existing `gps_daily_checks` table structure - no SQL migration required.
-
-### 2026-03-14 - Vehicle Pollution Expiry Date
-**SQL file:** `migrations/releases/2026-03-14_vehicle_pollution_expiry_date.sql`
-**Notes:** Adds `pollution_expiry_date` column on vehicles to track pollution certificate expiry.
-
-### 2026-03-13 - Vehicle Parts Due Notes
-**SQL file:** `migrations/releases/2026-03-13_vehicle_parts_due_notes.sql`
-**Notes:** Adds `parts_due_notes` column on vehicles to track upcoming parts replacements.
-
-### 2026-03-13 - Reservation Extensions (Grace)
-**SQL file:** `migrations/releases/2026-03-13_reservation_extension_grace.sql`
-**Notes:** Adds `reservation_extensions` table and `extension_paid_amount` on reservations to support paid date extensions (grace from today).
-
-### 2026-03-12 - Ledger Void Entries
-**SQL file:** `migrations/releases/2026-03-12_ledger_void_entries.sql`
-**Notes:** Adds void metadata to ledger entries to allow soft-voiding mistakes while preserving audit history.
-
-### 2026-03-12 - Reservation Delivery Charge Prepaid
-**SQL file:** `migrations/releases/2026-03-12_delivery_prepaid_charge.sql`
-**Notes:** Adds prepaid delivery charge fields on reservations to collect delivery charge at booking time.
-
-### 2026-03-11 - Client Proof Documents
-**SQL file:** `migrations/releases/2026-03-11_client_proofs.sql`
-**Notes:** Adds `client_proofs` table for storing up to 5 proof documents per client.
-
-### 2026-03-11 - Reservation Notes
-**SQL file:** `migrations/releases/2026-03-11_reservation_notes.sql`
-**Notes:** Adds optional `note` column to reservations table. Note can be added during reservation creation and displayed on reservation details page.
-
-### 2026-03-11 - Staff Admin Dashboard Toggle
-**SQL file:** `migrations/releases/2026-03-11_staff_admin_dashboard_toggle.sql`
-**Notes:** Adds `enable_admin_dashboard` column to staff table. When enabled, staff can view full admin dashboard.
-
-### 2026-03-11 - Staff Incentives
-**SQL file:** `migrations/releases/2026-03-11_staff_incentives.sql`
-**Notes:** Creates `staff_incentives` table for tracking monthly incentives per staff member. Allows adding incentives from staff profile and auto-includes them in payroll generation.
-
-### 2026-03-10 - Reservation Advance Payment
-**SQL file:** `migrations/releases/2026-03-10_reservation_advance_payment.sql`
-**Notes:** Adds `advance_paid`, `advance_payment_method`, `advance_bank_account_id` columns to the `reservations` table. Required before deploying the advance payment feature.
-
-### 2026-03-09 - Configurable Expense Categories (No DB change needed)
-**SQL file:** `None`
-**Notes:** Expense categories are now managed in Settings > Expense Categories and stored in existing `system_settings` table (`expense_categories` key).
-
-### 2026-03-06 - Lead Auto-Close After Follow-ups (No DB change needed)
-**SQL file:** `None`
-**Notes:** Auto-close lead to Lost after X follow-ups. Uses existing `system_settings` table. Configure in Settings > General.
+_(nothing pending — all migrations applied as of 2026-03-19)_
 
 ---
 
@@ -99,3 +29,19 @@ This file tracks all database changes that need to be applied to **production** 
 | 2026-03-08 | vehicle_insurance_metadata | `migrations/releases/2026-03-08_vehicle_insurance_metadata.sql` | Added insurance type and expiry date to vehicles. |
 | 2026-03-08 | vehicle_condition_notes | `migrations/releases/2026-03-08_vehicle_condition_notes.sql` | Added condition notes field to vehicles. |
 | 2026-03-08 | client_rating_review | `migrations/releases/2026-03-08_client_rating_review.sql` | Added `rating_review` cache column to clients table. |
+| 2026-03-10 | reservation_advance_payment | `migrations/releases/2026-03-10_reservation_advance_payment.sql` | Added `advance_paid`, `advance_payment_method`, `advance_bank_account_id` columns to reservations. |
+| 2026-03-11 | client_proofs | `migrations/releases/2026-03-11_client_proofs.sql` | Created `client_proofs` table for storing up to 5 proof documents per client. |
+| 2026-03-11 | reservation_notes | `migrations/releases/2026-03-11_reservation_notes.sql` | Added optional `note` column to reservations table. |
+| 2026-03-11 | staff_admin_dashboard_toggle | `migrations/releases/2026-03-11_staff_admin_dashboard_toggle.sql` | Added `enable_admin_dashboard` column to staff table. |
+| 2026-03-11 | staff_incentives | `migrations/releases/2026-03-11_staff_incentives.sql` | Created `staff_incentives` table for tracking monthly incentives per staff member. |
+| 2026-03-12 | delivery_prepaid_charge | `migrations/releases/2026-03-12_delivery_prepaid_charge.sql` | Added prepaid delivery charge fields on reservations. |
+| 2026-03-12 | ledger_void_entries | `migrations/releases/2026-03-12_ledger_void_entries.sql` | Added void metadata to ledger entries for soft-voiding. |
+| 2026-03-13 | reservation_extension_grace | `migrations/releases/2026-03-13_reservation_extension_grace.sql` | Added `reservation_extensions` table and `extension_paid_amount` on reservations. |
+| 2026-03-13 | vehicle_parts_due_notes | `migrations/releases/2026-03-13_vehicle_parts_due_notes.sql` | Added `parts_due_notes` column on vehicles. |
+| 2026-03-14 | vehicle_pollution_expiry_date | `migrations/releases/2026-03-14_vehicle_pollution_expiry_date.sql` | Added `pollution_expiry_date` column on vehicles. |
+| 2026-03-14 | vehicle_storage_locations | `migrations/releases/2026-03-14_vehicle_storage_locations.sql` | Added `second_key_location` and `original_documents_location` columns on vehicles. |
+| 2026-03-16 | gps_daily_checks | `migrations/releases/2026-03-16_gps_daily_checks.sql` | Added `gps_daily_checks` table for 3 daily GPS check slots per active reservation. |
+| 2026-03-16 | notifications_emi_due | `migrations/releases/2026-03-16_notifications_emi_due.sql` | Added `emi_due` to notifications `type` ENUM. |
+| 2026-03-17 | hope_window_daily_targets | `migrations/releases/2026-03-17_hope_window_daily_targets.sql` | Added `hope_daily_targets` table for per-day target overrides in Hope Window. |
+| 2026-03-18 | hope_window_predictions | `migrations/releases/2026-03-18_hope_window_predictions.sql` | Added `hope_daily_predictions` table for manual prediction entries in Hope Window. |
+| 2026-03-19 | payroll_overtime_pay | `migrations/releases/2026-03-18_payroll_overtime_pay.sql` | Added `overtime_pay` column to `payroll` table. |

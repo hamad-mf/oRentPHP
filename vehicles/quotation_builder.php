@@ -2,6 +2,10 @@
 require_once __DIR__ . '/../config/db.php';
 
 auth_check();
+if (!auth_has_perm('add_vehicles')) {
+    flash('error', 'You do not have permission to create quotations.');
+    redirect('index.php');
+}
 
 $pageTitle = 'Create Quotation';
 require_once __DIR__ . '/../includes/header.php';

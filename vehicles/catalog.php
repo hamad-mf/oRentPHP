@@ -10,22 +10,36 @@ $pdo = db();
 
 $vehicleId = max(0, (int)($_GET['vehicle_id'] ?? 0));
 $singleVehicleMode = $vehicleId > 0;
-$filter = $_GET['type'] ?? 'available'; // available | all
 $search = trim($_GET['q'] ?? '');
+
+// Date-based availability: default to today
+$today = date('Y-m-d');
+$filterDate = trim($_GET['date'] ?? '');
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $filterDate)) {
+    $filterDate = $today;
+}
 
 $where = ['1=1'];
 $params = [];
 
 if ($singleVehicleMode) {
-    // Strictly lock this catalog page to a single vehicle when shared with vehicle_id.
     $where[] = "v.id = ?";
     $params[] = $vehicleId;
-    $filter = 'all';
     $search = '';
 } else {
-    if ($filter === 'available') {
-        $where[] = "v.status = 'available'";
-    }
+    // Show all non-maintenance vehicles that have no active booking on the picked date
+    $where[] = "v.status != 'maintenance'";
+
+    // Exclude vehicles with an active reservation overlapping the selected date
+    $where[] = "v.id NOT IN (
+        SELECT r.vehicle_id FROM reservations r
+        WHERE r.status NOT IN ('cancelled','returned')
+          AND DATE(r.start_date) <= ?
+          AND DATE(r.end_date) >= ?
+    )";
+    $params[] = $filterDate;
+    $params[] = $filterDate;
+
     if ($search !== '') {
         $where[] = "(v.brand LIKE ? OR v.model LIKE ? OR v.license_plate LIKE ? OR v.color LIKE ?)";
         $params[] = "%$search%";
@@ -41,7 +55,7 @@ $stmt->execute($params);
 $vehicles = $stmt->fetchAll();
 $selectedVehicle = $singleVehicleMode ? ($vehicles[0] ?? null) : null;
 
-$totalAvailable = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='available'")->fetchColumn();
+// $totalAvailable is now derived from count($vehicles) since results are already date-filtered
 
 // Load all vehicle images for the modal
 try {
@@ -67,9 +81,9 @@ $shareUrl = $singleVehicleMode
     : $catalogBaseUrl;
 
 $pageTitle = 'Vehicle Catalog — Available Fleet';
-$metaDescription = "Browse our premium rental fleet. {$totalAvailable} vehicles available now.";
+$metaDescription = "Browse our premium rental fleet. {".count($vehicles)." vehicles available now.";
 $ogTitle = 'Vehicle Catalog — Available Fleet';
-$ogDescription = "Browse {$totalAvailable} available vehicles from our premium rental fleet.";
+$ogDescription = "Browse " . count($vehicles) . " available vehicles from our premium rental fleet.";
 if ($singleVehicleMode && $selectedVehicle) {
     $name = trim((string)($selectedVehicle['brand'] ?? '') . ' ' . (string)($selectedVehicle['model'] ?? ''));
     $pageTitle = $name . ' — Vehicle Catalog';
@@ -507,6 +521,17 @@ if ($singleVehicleMode && $selectedVehicle) {
             background: #ef4444;
         }
 
+        .status-free-later {
+            background: rgba(20, 184, 166, 0.18);
+            color: #5eead4;
+            border: 1px solid rgba(20, 184, 166, 0.35);
+        }
+
+        .dot-free-later {
+            background: #14b8a6;
+            animation: pulse 2s infinite;
+        }
+
         .card-body {
             padding: 1.25rem;
             flex: 1;
@@ -709,7 +734,7 @@ if ($singleVehicleMode && $selectedVehicle) {
                     <span class="badge badge-green">
                         <span
                             style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#22c55e;margin-right:4px;animation:pulse 2s infinite"></span>
-                        <?= $totalAvailable ?> Available Now
+                        <?= count($vehicles) ?> Available <?= ($filterDate === $today) ? "Today" : "on " . date("d M Y", strtotime($filterDate)) ?>
                     </span>
                 </div>
             </div>
@@ -725,24 +750,47 @@ if ($singleVehicleMode && $selectedVehicle) {
         <!-- ── Toolbar ── -->
         <div class="toolbar">
             <?php if (!$singleVehicleMode): ?>
-                <div class="search-box">
-                    <form method="GET">
-                        <input type="hidden" name="type" value="<?= e($filter) ?>">
+                <form method="GET" style="display:contents">
+                    <!-- Date picker -->
+                    <div class="search-box" style="max-width:220px">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <input type="date" name="date" value="<?= e($filterDate) ?>"
+                            style="padding-left:2.75rem;cursor:pointer"
+                            id="catalog-date">
+                    </div>
+                    <!-- Keyword search -->
+                    <div class="search-box">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                         <input type="text" name="q" value="<?= e($search) ?>" placeholder="Search brand, model or plate…"
                             autocomplete="off">
-                    </form>
-                </div>
-
-                <div class="filter-tabs">
-                    <a href="?type=available<?= $search ? '&q=' . urlencode($search) : '' ?>"
-                        class="filter-tab <?= $filter !== 'all' ? 'active' : '' ?>">Available</a>
-                    <a href="?type=all<?= $search ? '&q=' . urlencode($search) : '' ?>"
-                        class="filter-tab <?= $filter === 'all' ? 'active' : '' ?>">All Vehicles</a>
-                </div>
+                    </div>
+                    <!-- Search submit button -->
+                    <button type="submit" style="
+                        background:var(--accent);
+                        color:#fff;
+                        border:none;
+                        border-radius:999px;
+                        padding:0.65rem 1.5rem;
+                        font-size:0.875rem;
+                        font-family:inherit;
+                        font-weight:500;
+                        cursor:pointer;
+                        white-space:nowrap;
+                        transition: background 0.2s;
+                    " onmouseover="this.style.background='#4f52d4'" onmouseout="this.style.background='var(--accent)'">
+                        Check Availability
+                    </button>
+                </form>
+                <?php $isToday = ($filterDate === $today); ?>
+                <span style="font-size:0.8rem;color:var(--muted);white-space:nowrap">
+                    📅 Available <?= $isToday ? 'today' : 'on <strong>' . e(date('d M Y', strtotime($filterDate))) . '</strong>' ?>
+                </span>
             <?php endif; ?>
 
             <span class="result-count">
@@ -765,19 +813,18 @@ if ($singleVehicleMode && $selectedVehicle) {
             <?php else: ?>
                 <div class="vehicle-grid">
                     <?php foreach ($vehicles as $v):
-                        $statusClass = match ($v['status']) {
-                            'available' => 'status-available',
-                            'rented' => 'status-rented',
-                            'maintenance' => 'status-maintenance',
-                            default => 'status-available',
-                        };
-                        $dotClass = match ($v['status']) {
-                            'available' => 'dot-available',
-                            'rented' => 'dot-rented',
-                            'maintenance' => 'dot-maintenance',
-                            default => 'dot-available',
-                        };
-                        $statusLabel = ucfirst($v['status']);
+                        // All cars shown are available on the picked date.
+                        // Distinguish idle (green) from currently-rented-but-free-then (teal)
+                        if ($v['status'] === 'available') {
+                            $statusClass = 'status-available';
+                            $dotClass    = 'dot-available';
+                            $statusLabel = 'Available';
+                        } else {
+                            // rented now, but free on $filterDate
+                            $statusClass = 'status-free-later';
+                            $dotClass    = 'dot-free-later';
+                            $statusLabel = 'Available';
+                        }
                         ?>
                         <div class="vehicle-card" onclick="openModal(this.dataset.vid)" data-vid="<?= (int)$v['id'] ?>" style="cursor:pointer">
                             <div class="card-image">

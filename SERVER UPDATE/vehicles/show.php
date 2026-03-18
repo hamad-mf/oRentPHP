@@ -4,6 +4,16 @@ require_once __DIR__ . '/../includes/ledger_helpers.php';
 
 $id = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
 $pdo = db();
+// Allow staff to view detail pages with any vehicle permission, or admins
+$canViewVehicleDetails = ($_SESSION['user']['role'] ?? '') === 'admin' || 
+                         auth_has_perm('add_vehicles') || 
+                         auth_has_perm('view_all_vehicles') || 
+                         auth_has_perm('view_vehicle_availability') || 
+                         auth_has_perm('view_vehicle_requests');
+if (!$canViewVehicleDetails) {
+    flash('error', 'You do not have permission to view vehicle details.');
+    redirect('index.php');
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') === 'save_condition') {
     if ($id <= 0) {
@@ -175,6 +185,9 @@ $vehicleCatalogUrl = $scheme . '://' . $host . ($basePath !== '' ? '/' . $basePa
 
 $pageTitle = e($v['brand']) . ' ' . e($v['model']);
 require_once __DIR__ . '/../includes/header.php';
+
+// Determine if current user is admin or staff
+$isAdmin = ($_SESSION['user']['role'] ?? '') === 'admin';
 
 $badge = ['available' => 'bg-green-500/10 text-green-400 border-green-500/30', 'rented' => 'bg-sky-500/10 text-sky-400 border-sky-500/30', 'maintenance' => 'bg-red-500/10 text-red-400 border-red-500/30'];
 $badgeCls = $badge[$v['status']] ?? 'bg-gray-500/10 text-gray-400';
@@ -372,6 +385,7 @@ if (($v['status'] ?? '') === 'maintenance') {
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
+                <?php if ($isAdmin): ?>
                 <div class="rounded-xl border p-4 <?= $insuranceRisk ? 'bg-red-500/10 border-red-500/40' : 'bg-mb-black/30 border-mb-subtle/20' ?>">
                     <div class="flex items-center justify-between mb-2">
                         <p class="text-sm text-white">Insurance Details</p>
@@ -412,6 +426,7 @@ if (($v['status'] ?? '') === 'maintenance') {
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
                 <!-- Stats -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                     <div class="bg-mb-black/40 rounded-xl p-4">
@@ -442,26 +457,36 @@ if (($v['status'] ?? '') === 'maintenance') {
 
                 <!-- Actions -->
                 <div class="flex items-center gap-3 flex-wrap">
-                    <a href="edit.php?id=<?= $v['id'] ?>"
-                        class="bg-mb-accent text-white px-5 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-sm font-medium">Edit
-                        Vehicle</a>
+                    <?php if ($isAdmin): ?>
+                        <a href="edit.php?id=<?= $v['id'] ?>"
+                            class="bg-mb-accent text-white px-5 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-sm font-medium">Edit
+                            Vehicle</a>
+                    <?php endif; ?>
                     <a href="quotation.php?id=<?= $v['id'] ?>" target="_blank"
                         class="border border-amber-500/30 text-amber-400 px-5 py-2 rounded-full hover:bg-amber-500/10 transition-colors text-sm font-medium">Generate
                         Quotation</a>
                     <button type="button" onclick="document.getElementById('vehicleShareModal').classList.remove('hidden')"
                         class="border border-mb-subtle/30 text-mb-silver px-5 py-2 rounded-full hover:border-white/30 hover:text-white transition-all text-sm font-medium">Share
                         Vehicle Catalog</button>
-                    <button type="button" onclick="document.getElementById('addExpenseModal').classList.remove('hidden')"
-                        class="border border-amber-500/30 text-amber-400 px-5 py-2 rounded-full hover:bg-amber-500/10 transition-colors text-sm font-medium">Add Expense</button>
-                    <?php if ($v['status'] !== 'rented'): ?>
-                        <a href="delete.php?id=<?= $v['id'] ?>"
-                            onclick="return confirm('Remove this vehicle from the fleet?')"
-                            class="border border-red-500/30 text-red-400 px-5 py-2 rounded-full hover:bg-red-500/10 transition-colors text-sm">Delete</a>
+                    <?php if ($isAdmin): ?>
+                        <button type="button" onclick="document.getElementById('addExpenseModal').classList.remove('hidden')"
+                            class="border border-amber-500/30 text-amber-400 px-5 py-2 rounded-full hover:bg-amber-500/10 transition-colors text-sm font-medium">Add Expense</button>
+                        <?php if ($v['status'] !== 'rented'): ?>
+                            <a href="delete.php?id=<?= $v['id'] ?>"
+                                onclick="return confirm('Remove this vehicle from the fleet?')"
+                                class="border border-red-500/30 text-red-400 px-5 py-2 rounded-full hover:bg-red-500/10 transition-colors text-sm">Delete</a>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <!-- ADMIN ONLY SECTIONS (Hidden for Staff) -->
+    <!-- ─────────────────────────────────────────────────────────── -->
+    
+    <?php if ($isAdmin): ?>
 
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
         <div class="px-6 py-4 border-b border-mb-subtle/10 flex items-center justify-between">
@@ -586,189 +611,6 @@ if (($v['status'] ?? '') === 'maintenance') {
         </div>
     </div>
 
-    <!-- Booking Calendar -->
-    <?php
-    // Build a map of booked intervals: [['start' => 'Y-m-d', 'end' => 'Y-m-d', 'client' => '...', 'status' => '...'], ...]
-    $bookedRanges = [];
-    foreach ($reservations as $r) {
-        if (in_array($r['status'], ['confirmed', 'active', 'pending'])) {
-            $bookedRanges[] = [
-                'start' => date('Y-m-d', strtotime($r['start_date'])),
-                'end' => date('Y-m-d', strtotime($r['end_date'])),
-                'client' => $r['client_name'],
-                'status' => $r['status'],
-            ];
-        }
-    }
-    $bookedJson = json_encode($bookedRanges);
-    ?>
-    <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
-        <div class="px-6 py-4 border-b border-mb-subtle/10 flex items-center justify-between">
-            <h3 class="text-white font-light">Booking Calendar
-                <span class="text-mb-subtle text-sm ml-2">Booked dates for this vehicle</span>
-            </h3>
-            <div class="flex items-center gap-4 text-xs text-mb-subtle">
-                <span class="flex items-center gap-1.5"><span
-                        class="w-3 h-3 rounded-sm bg-red-500/60 inline-block"></span> Booked</span>
-                <span class="flex items-center gap-1.5"><span
-                        class="w-3 h-3 rounded-sm bg-mb-accent/70 inline-block"></span> Today</span>
-                <span class="flex items-center gap-1.5"><span
-                        class="w-3 h-3 rounded-sm bg-mb-black/40 inline-block border border-mb-subtle/20"></span>
-                    Available</span>
-            </div>
-        </div>
-        <div class="p-6">
-            <!-- Month navigation -->
-            <div class="flex items-center justify-between mb-6">
-                <button id="cal-prev"
-                    class="w-8 h-8 flex items-center justify-center rounded-full border border-mb-subtle/20 hover:border-mb-accent/50 hover:text-mb-accent transition-all text-mb-silver">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                    </svg>
-                </button>
-                <span id="cal-title" class="text-white font-light text-sm tracking-wide"></span>
-                <button id="cal-next"
-                    class="w-8 h-8 flex items-center justify-center rounded-full border border-mb-subtle/20 hover:border-mb-accent/50 hover:text-mb-accent transition-all text-mb-silver">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                    </svg>
-                </button>
-            </div>
-            <!-- Calendar grid -->
-            <div id="cal-grid" class="select-none"></div>
-            <!-- Tooltip -->
-            <div id="cal-tip"
-                class="hidden mt-4 text-xs bg-mb-black/60 border border-mb-subtle/20 rounded-lg px-4 py-2.5 text-mb-silver">
-            </div>
-        </div>
-    </div>
-
-    
-<script>
-(function(){
-    var slides = Array.from(document.querySelectorAll('.carousel-slide'));
-    var dots   = Array.from(document.querySelectorAll('.carousel-dot'));
-    var thumbs = Array.from(document.querySelectorAll('.carousel-thumb'));
-    var cur = 0;
-    function go(n) {
-        if (!slides.length) return;
-        slides[cur].classList.remove('opacity-100'); slides[cur].classList.add('opacity-0','pointer-events-none');
-        dots[cur] && dots[cur].classList.replace('bg-white','bg-white/40');
-        thumbs[cur] && thumbs[cur].classList.remove('border-white','opacity-100') && thumbs[cur].classList.add('border-transparent','opacity-60');
-        cur = (n + slides.length) % slides.length;
-        slides[cur].classList.remove('opacity-0','pointer-events-none'); slides[cur].classList.add('opacity-100');
-        dots[cur] && dots[cur].classList.replace('bg-white/40','bg-white');
-        thumbs[cur] && (thumbs[cur].classList.add('border-white'), thumbs[cur].classList.remove('border-transparent','opacity-60'));
-    }
-    window.carouselMove = function(d){ go(cur + d); };
-    window.carouselGo   = function(n){ go(n); };
-    document.addEventListener('keydown', function(e){ if(e.key==='ArrowLeft') go(cur-1); if(e.key==='ArrowRight') go(cur+1); });
-})();
-</script>
-<script>
-        (function () {
-            const BOOKED = <?= $bookedJson ?>;
-            const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-            let viewYear, viewMonth;
-            const today = new Date(); today.setHours(0, 0, 0, 0);
-            viewYear = today.getFullYear();
-            viewMonth = today.getMonth();
-
-            function toDate(str) { const p = str.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
-
-            function getBookingForDate(d) {
-                const ds = d.toISOString().slice(0, 10);
-                for (const b of BOOKED) {
-                    if (ds >= b.start && ds <= b.end) return b;
-                }
-                return null;
-            }
-
-            function isStart(d) {
-                const ds = d.toISOString().slice(0, 10);
-                return BOOKED.some(b => b.start === ds);
-            }
-
-            function isEnd(d) {
-                const ds = d.toISOString().slice(0, 10);
-                return BOOKED.some(b => b.end === ds);
-            }
-
-            function render() {
-                const grid = document.getElementById('cal-grid');
-                const title = document.getElementById('cal-title');
-                title.textContent = MONTHS[viewMonth] + ' ' + viewYear;
-
-                const firstDay = new Date(viewYear, viewMonth, 1).getDay();
-                const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-
-                let html = '<div class="grid grid-cols-7 gap-px">';
-                // Day headers
-                for (const d of DAYS) {
-                    html += `<div class="text-center text-[10px] uppercase text-mb-subtle/60 py-1.5 font-medium tracking-wider">${d}</div>`;
-                }
-                // Empty cells before first
-                for (let i = 0; i < firstDay; i++) {
-                    html += '<div class="h-9"></div>';
-                }
-                // Day cells
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const d = new Date(viewYear, viewMonth, day);
-                    const booking = getBookingForDate(d);
-                    const isToday = d.getTime() === today.getTime();
-
-                    let cls = 'h-9 flex items-center justify-center text-xs rounded-md transition-all ';
-                    let style = '';
-                    let dataAttr = '';
-
-                    if (booking) {
-                        const s = isStart(d), e = isEnd(d);
-                        cls += 'text-white font-medium cursor-pointer ';
-                        if (s && e) cls += 'bg-red-500/70 rounded-md mx-1 ';
-                        else if (s) cls += 'bg-red-500/70 rounded-l-md rounded-r-none ml-1 ';
-                        else if (e) cls += 'bg-red-500/70 rounded-r-md rounded-l-none mr-1 ';
-                        else cls += 'bg-red-500/40 rounded-none ';
-                        dataAttr = `data-client="${booking.client}" data-status="${booking.status}" data-start="${booking.start}" data-end="${booking.end}"`;
-                    } else if (isToday) {
-                        cls += 'bg-mb-accent/70 text-white font-semibold ring-1 ring-mb-accent ';
-                    } else {
-                        cls += 'text-mb-silver hover:bg-mb-black/40 ';
-                    }
-
-                    html += `<div class="${cls}" ${dataAttr} onclick="calClick(this)">${day}</div>`;
-                }
-                html += '</div>';
-                grid.innerHTML = html;
-            }
-
-            window.calClick = function (el) {
-                const tip = document.getElementById('cal-tip');
-                if (!el.dataset.client) { tip.classList.add('hidden'); return; }
-                const s = new Date(el.dataset.start), e = new Date(el.dataset.end);
-                const fmt = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-                const days = Math.round((e - s) / 86400000) + 1;
-                tip.classList.remove('hidden');
-                tip.innerHTML = `<span class="text-white font-medium">${el.dataset.client}</span> &mdash; <span class="capitalize text-yellow-400">${el.dataset.status}</span><br>
-                <span class="text-mb-subtle">${fmt(s)} → ${fmt(e)}</span> <span class="text-mb-accent ml-2">${days} day${days > 1 ? 's' : ''}</span>`;
-            };
-
-            document.getElementById('cal-prev').onclick = () => {
-                viewMonth--;
-                if (viewMonth < 0) { viewMonth = 11; viewYear--; }
-                render();
-            };
-            document.getElementById('cal-next').onclick = () => {
-                viewMonth++;
-                if (viewMonth > 11) { viewMonth = 0; viewYear++; }
-                render();
-            };
-
-            render();
-        })();
-    </script>
-
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <!-- Documents -->
@@ -849,6 +691,9 @@ if (($v['status'] ?? '') === 'maintenance') {
             <?php endif; ?>
         </div>
     </div>
+
+    <?php endif; ?>  <!-- END ADMIN-ONLY SECTIONS -->
+
 </div>
 
 <!-- Single Vehicle Share Modal -->
@@ -964,6 +809,7 @@ function nativeShareVehicleCatalog() {
 })();
 </script>
 
+<?php if ($isAdmin): ?>
 <!-- Vehicle Expenses -->
 <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden mt-6">
     <div class="px-6 py-4 border-b border-mb-subtle/10 flex items-center justify-between">
@@ -1077,5 +923,6 @@ function nativeShareVehicleCatalog() {
         </form>
     </div>
 </div>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

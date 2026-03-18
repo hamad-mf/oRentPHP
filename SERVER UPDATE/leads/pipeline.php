@@ -54,6 +54,13 @@ $stageBadge = [
     'closed_won' => 'bg-green-500/20 text-green-400',
     'closed_lost' => 'bg-red-500/10 text-red-400/60',
 ];
+$inquiryTypeOptions = [
+    'daily' => 'Daily Rental',
+    'weekly' => 'Weekly Rental',
+    'monthly' => 'Monthly Rental',
+    'wedding_rental' => 'Wedding Rental',
+    'other' => 'Other',
+];
 
 // ── Filter params ───────────────────────────────────────────
 $currentUser = current_user();
@@ -74,6 +81,10 @@ $filterSource = trim($_GET['source_filter'] ?? '');
 $filterStatus = trim((string) ($_GET['status_filter'] ?? ''));
 if ($filterStatus !== '' && !in_array($filterStatus, $stages, true)) {
     $filterStatus = '';
+}
+$filterInquiry = trim((string) ($_GET['inquiry_filter'] ?? ''));
+if ($filterInquiry !== '' && !array_key_exists($filterInquiry, $inquiryTypeOptions)) {
+    $filterInquiry = '';
 }
 $filterSearch = trim((string) ($_GET['q'] ?? ''));
 if (strlen($filterSearch) > 100) {
@@ -126,6 +137,10 @@ if ($filterSource !== '') {
 if ($filterStatus !== '') {
     $where[] = 'l.status = ?';
     $params[] = $filterStatus;
+}
+if ($filterInquiry !== '') {
+    $where[] = 'l.inquiry_type = ?';
+    $params[] = $filterInquiry;
 }
 if ($filterSearch !== '') {
     $where[] = '(l.name LIKE ? OR l.phone LIKE ? OR l.alternative_number LIKE ? OR l.email LIKE ? OR l.vehicle_interest LIKE ?)';
@@ -191,6 +206,7 @@ $viewStateParams = array_filter(
         'date_to' => $filterDateTo,
         'source_filter' => $filterSource,
         'status_filter' => $filterStatus,
+        'inquiry_filter' => $filterInquiry,
         'q' => $filterSearch,
         'sort' => $sortOrder !== 'newest' ? $sortOrder : null,
         'page' => $page > 1 ? $page : null,
@@ -357,6 +373,7 @@ require_once __DIR__ . '/../includes/header.php';
         + (int) ($filterDateTo !== '')
         + (int) ($filterSource !== '')
         + (int) ($filterStatus !== '')
+        + (int) ($filterInquiry !== '')
         + (int) ($filterSearch !== '')
         + (int) ($sortOrder !== 'newest');
     $clearFiltersUrl = 'pipeline.php' . ($viewMode === 'list' ? '?view=list' : '');
@@ -435,6 +452,25 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php foreach ($stages as $statusKey): ?>
                     <option value="<?= e($statusKey) ?>" <?= $filterStatus === $statusKey ? 'selected' : '' ?>>
                         <?= e($stageLabels[$statusKey]) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <div class="w-px h-5 bg-mb-subtle/20"></div>
+
+        <!-- Inquiry Type Filter -->
+        <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-mb-subtle flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M4 6h16M4 12h16M4 18h10" />
+            </svg>
+            <select name="inquiry_filter" onchange="document.getElementById('pipelineFilters').submit()"
+                class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors cursor-pointer">
+                <option value="">All Inquiry Types</option>
+                <?php foreach ($inquiryTypeOptions as $inqKey => $inqLabel): ?>
+                    <option value="<?= e($inqKey) ?>" <?= $filterInquiry === $inqKey ? 'selected' : '' ?>>
+                        <?= e($inqLabel) ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -777,6 +813,7 @@ require_once __DIR__ . '/../includes/header.php';
             'date_to' => $filterDateTo,
             'source_filter' => $filterSource,
             'status_filter' => $filterStatus,
+            'inquiry_filter' => $filterInquiry,
             'q' => $filterSearch,
             'sort' => $sortOrder !== 'newest' ? $sortOrder : null,
         ],

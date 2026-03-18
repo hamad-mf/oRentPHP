@@ -118,6 +118,9 @@ Add one row per release.
 | 2026-03-17 | staff_my_profile_hide_permissions | Yes | None | N/A | Hid permissions section on staff My Profile page. |
 | 2026-03-17 | staff_my_profile_month_sections | Yes | None | N/A | Staff My Profile now shows advances/incentives grouped by current month, with other months collapsed. |
 | 2026-03-17 | hope_window_page | Yes | `migrations/releases/2026-03-17_hope_window_daily_targets.sql` | Pending | Added Hope Window page with per-day target overrides and expected income from ledger entries. |
+| 2026-03-18 | staff_vehicle_list_permission | Yes | None | N/A | Added view_all_vehicles permission to control full vehicle list access; restricted staff view shows only available vehicles with basic details/rates. |
+| 2026-03-18 | vehicle_permissions_split | Yes | None | N/A | Split vehicle permissions for availability/requests and tied quotation builder access to add_vehicles. |
 | 2026-03-17 | hope_window_highlight_today | Yes | None | N/A | Highlighted today row in Hope Window daily list. |
 | 2026-03-18 | hope_window_expected_schedule | Yes | None | N/A | Hope Window expected income now projected from reservation schedule (booking, delivery, return, extensions) instead of ledger-only. |
 | 2026-03-18 | hope_window_predictions | Yes | `migrations/releases/2026-03-18_hope_window_predictions.sql` | Pending | Added manual prediction entries per day in Hope Window, with counts and expandable entry rows. |
+| 2026-03-18 | payroll_overtime_pay | Yes | `migrations/releases/2026-03-18_payroll_overtime_pay.sql` | Pending | Configurable overtime pay: threshold hours + hourly rate in Settings > Attendance; auto-calculated during payroll generation from attendance data with break deductions; partial-hour proportional pay. |

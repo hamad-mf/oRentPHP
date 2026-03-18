@@ -6,6 +6,9 @@ $pdo = db();
 // All permissions list
 $allPerms = [
     'add_vehicles' => 'Add / Edit Vehicles',
+    'view_all_vehicles' => 'View Full Vehicle List',
+    'view_vehicle_availability' => 'View Vehicle Availability',
+    'view_vehicle_requests' => 'View Vehicle Requests',
     'add_reservations' => 'Add / Edit Reservations',
     'do_delivery' => 'Perform Deliveries',
     'do_return' => 'Perform Returns',

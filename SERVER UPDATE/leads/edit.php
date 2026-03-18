@@ -112,7 +112,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $autoCloseAfter = (int) settings_get($pdo, 'auto_close_lost_after_followups', '0');
-        if ($newStatus === 'closed_lost' && $autoCloseAfter > 0 && $lead['status'] !== 'closed_lost') {
+        // Allow manual closing even when auto-close is enabled
+        if (false && $newStatus === 'closed_lost' && $autoCloseAfter > 0 && $lead['status'] !== 'closed_lost') {
             http_response_code(422);
             echo json_encode(['ok' => false, 'message' => 'Cannot manually close to Lost. Leads auto-close after ' . $autoCloseAfter . ' follow-ups when this setting is enabled.']);
             exit;
@@ -174,8 +175,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['lost_reason'] = 'Please document the reason for closing as lost.';
 
     $autoCloseAfter = (int) settings_get($pdo, 'auto_close_lost_after_followups', '0');
-    if ($status === 'closed_lost' && $autoCloseAfter > 0 && $lead['status'] !== 'closed_lost') {
+    // Allow manual closing even when auto-close is enabled
+    if (false && $status === 'closed_lost' && $autoCloseAfter > 0 && $lead['status'] !== 'closed_lost') {
         $errors['status'] = 'Cannot manually close to Lost. Leads auto-close after ' . $autoCloseAfter . ' follow-ups when this setting is enabled.';
+    }
+
+    if ($phone && !isset($errors['phone'])) {
+        $chk = $pdo->prepare('SELECT id FROM leads WHERE phone = ? AND id != ?');
+        $chk->execute([$phone, $id]);
+        if ($chk->fetch())
+            $errors['phone'] = 'Phone number already exists in another lead.';
     }
 
     if (empty($errors)) {
@@ -279,7 +288,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <label class="block text-sm text-mb-silver mb-2">Inquiry Type</label>
                     <select name="inquiry_type"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent text-sm">
-                        <?php foreach (['daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly', 'other' => 'Other'] as $v => $l): ?>
+                        <?php foreach (['daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly', 'wedding_rental' => 'Wedding Rental', 'other' => 'Other'] as $v => $l): ?>
                             <option value="<?= $v ?>" <?= $lead['inquiry_type'] === $v ? 'selected' : '' ?>>
                                 <?= $l ?>
                             </option>

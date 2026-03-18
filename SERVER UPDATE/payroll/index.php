@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/db.php';
 auth_require_admin();
 require_once __DIR__ . '/../includes/ledger_helpers.php';
@@ -16,6 +16,7 @@ $prepareMonth = (int) date('n');
 $prepareYear = (int) date('Y');
 $advanceSchemaReady = false;
 $advanceSchemaError = null;
+$hasOvertimeCol = false;
 
 try {
     $hasAdvanceTable = (bool) $pdo->query("SHOW TABLES LIKE 'payroll_advances'")->fetchColumn();
@@ -28,6 +29,19 @@ try {
 ]);
 
     $advanceSchemaError = $e->getMessage();
+}
+
+// Runtime migration: overtime_pay column
+try {
+    $hasOvertimeCol = (bool) $pdo->query("SHOW COLUMNS FROM payroll LIKE 'overtime_pay'")->fetchColumn();
+    if (!$hasOvertimeCol) {
+        $pdo->exec("ALTER TABLE payroll ADD COLUMN overtime_pay DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER incentive");
+        $hasOvertimeCol = true;
+    }
+} catch (Throwable $e) {
+    app_log('ERROR', 'Payroll: overtime_pay migration failed - ' . $e->getMessage(), [
+        'file' => $e->getFile() . ':' . $e->getLine(),
+    ]);
 }
 
 $getAdvanceOutstandingMap = function (array $userIds) use ($pdo, $advanceSchemaReady): array {
@@ -61,6 +75,12 @@ $getAdvanceOutstandingMap = function (array $userIds) use ($pdo, $advanceSchemaR
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'prepare_payroll') {
     $prepareMonth = (int) ($_POST['month'] ?? date('n'));
     $prepareYear = (int) ($_POST['year'] ?? date('Y'));
+
+    // Compute 15th-to-15th billing period for this month/year
+    $payPeriodStart = sprintf('%04d-%02d-15', $prepareYear, $prepareMonth);
+    $payPeriodNextM = $prepareMonth === 12 ? 1 : $prepareMonth + 1;
+    $payPeriodNextY = $prepareMonth === 12 ? $prepareYear + 1 : $prepareYear;
+    $payPeriodEnd   = sprintf('%04d-%02d-15', $payPeriodNextY, $payPeriodNextM);
 
     // Block duplicates
     $chk = $pdo->prepare("SELECT COUNT(*) FROM payroll WHERE month = ? AND year = ?");
@@ -101,10 +121,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'prepare_payroll') {
             FROM leads
             WHERE assigned_staff_id IN ($ph)
               AND status = 'closed_won'
-              AND MONTH(COALESCE(closed_at, updated_at)) = ? AND YEAR(COALESCE(closed_at, updated_at)) = ?
+              AND DATE(COALESCE(closed_at, updated_at)) BETWEEN ? AND ?
             GROUP BY assigned_staff_id
         ");
-        $clStmt->execute(array_merge($userIds, [$prepareMonth, $prepareYear]));
+        $clStmt->execute(array_merge($userIds, [$payPeriodStart, $payPeriodEnd]));
         foreach ($clStmt->fetchAll() as $row) {
             $closedLeadsMap[$row['user_id']] = (int) $row['cnt'];
         }
@@ -118,9 +138,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'prepare_payroll') {
         $userIds2 = array_column($batchStaff, 'user_id');
         $ph2 = implode(',', array_fill(0, count($userIds2), '?'));
         $dStmt = $pdo->prepare(
-            "SELECT user_id, COUNT(*) AS cnt FROM staff_activity_log WHERE user_id IN($ph2) AND action = 'delivery' AND MONTH(created_at) = ? AND YEAR(created_at) = ? GROUP BY user_id"
+            "SELECT user_id, COUNT(*) AS cnt FROM staff_activity_log WHERE user_id IN($ph2) AND action = 'delivery' AND DATE(created_at) BETWEEN ? AND ? GROUP BY user_id"
         );
-        $dStmt->execute(array_merge($userIds2, [$prepareMonth, $prepareYear]));
+        $dStmt->execute(array_merge($userIds2, [$payPeriodStart, $payPeriodEnd]));
         foreach ($dStmt->fetchAll() as $row) {
             $deliveriesMap[$row['user_id']] = (int) $row['cnt'];
         }
@@ -151,7 +171,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'prepare_payroll') {
         $staffRow['advance_outstanding'] = (float) ($advanceOutstandingMap[$staffRow['user_id']] ?? 0);
     }
     unset($staffRow);
-    // Don't redirect  ” render the batch form below
+
+    // ── Overtime calculation ──────────────────────────────────────────────
+    settings_ensure_table($pdo);
+    $otThresholdHours = (float) settings_get($pdo, 'att_overtime_threshold_hours', '12');
+    $otRatePerHour    = (float) settings_get($pdo, 'att_overtime_rate_per_hour', '0');
+    $otThresholdSecs  = (int) ($otThresholdHours * 3600);
+    $overtimeMap = []; // user_id => ['total_extra_secs' => X, 'overtime_pay' => Y]
+
+    if ($otRatePerHour > 0 && !empty($batchStaff)) {
+        $firstDay = $payPeriodStart;
+        $lastDay  = $payPeriodEnd;
+        $userIdsOt = array_column($batchStaff, 'user_id');
+        $phOt = implode(',', array_fill(0, count($userIdsOt), '?'));
+
+        // Fetch all attendance for month
+        $attStmt = $pdo->prepare("SELECT * FROM staff_attendance WHERE user_id IN ($phOt) AND date BETWEEN ? AND ? AND punch_in IS NOT NULL AND punch_out IS NOT NULL");
+        $attStmt->execute(array_merge($userIdsOt, [$firstDay, $lastDay]));
+        $allAtt = $attStmt->fetchAll();
+
+        // Fetch all breaks for those attendance records
+        $attIdToUser = [];
+        $attIds = [];
+        foreach ($allAtt as $a) {
+            $attIds[] = (int)$a['id'];
+            $attIdToUser[(int)$a['id']] = (int)$a['user_id'];
+        }
+        $breaksByAtt = [];
+        if ($attIds) {
+            $phBr = implode(',', array_map('intval', $attIds));
+            $brStmt = $pdo->query("SELECT * FROM attendance_breaks WHERE attendance_id IN ($phBr) AND break_end IS NOT NULL");
+            foreach ($brStmt->fetchAll() as $b) $breaksByAtt[(int)$b['attendance_id']][] = $b;
+        }
+
+        // Calculate per-user overtime
+        foreach ($allAtt as $a) {
+            $uid = (int)$a['user_id'];
+            $workSecs = strtotime($a['punch_out']) - strtotime($a['punch_in']);
+            foreach ($breaksByAtt[(int)$a['id']] ?? [] as $b) {
+                $workSecs -= (strtotime($b['break_end']) - strtotime($b['break_start']));
+            }
+            $workSecs = max(0, $workSecs);
+            $extraSecs = max(0, $workSecs - $otThresholdSecs);
+            if ($extraSecs > 0) {
+                if (!isset($overtimeMap[$uid])) $overtimeMap[$uid] = ['total_extra_secs' => 0, 'overtime_pay' => 0];
+                $overtimeMap[$uid]['total_extra_secs'] += $extraSecs;
+            }
+        }
+
+        // Calculate pay from total seconds
+        foreach ($overtimeMap as $uid => &$otData) {
+            $otData['overtime_pay'] = round(($otData['total_extra_secs'] / 3600) * $otRatePerHour, 2);
+        }
+        unset($otData);
+    }
+
+    // Attach overtime to batchStaff rows
+    foreach ($batchStaff as &$staffRow) {
+        $ot = $overtimeMap[$staffRow['user_id']] ?? null;
+        $staffRow['overtime_extra_secs'] = $ot ? $ot['total_extra_secs'] : 0;
+        $staffRow['overtime_pay']        = $ot ? $ot['overtime_pay'] : 0;
+    }
+    unset($staffRow);
+    // Don't redirect - render the batch form below
 }
 
 //  ”  ”  Step 2: Save generated payroll  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
@@ -190,18 +272,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save_payroll') {
                 }
             }
             $incentive = $manualIncentive + $tableIncentive;
-            $net = $basic + $incentive;
+            $overtimePay = (float) ($_POST['overtime'][$uid] ?? 0);
+            $net = $basic + $incentive + $overtimePay;
 
             if ($advanceSchemaReady) {
                 $pdo->prepare("
-                    INSERT INTO payroll (user_id, month, year, basic_salary, incentive, allowances, deductions, advance_deducted, net_salary, payable_salary, notes, created_by, status)
-                    VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, 'Pending')
-                ")->execute([$uid, $month, $year, $basic, $incentive, $net, $net, $notesList[$uid] ?? null, current_user()['id']]);
+                    INSERT INTO payroll (user_id, month, year, basic_salary, incentive, overtime_pay, allowances, deductions, advance_deducted, net_salary, payable_salary, notes, created_by, status)
+                    VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, 'Pending')
+                ")->execute([$uid, $month, $year, $basic, $incentive, $overtimePay, $net, $net, $notesList[$uid] ?? null, current_user()['id']]);
             } else {
                 $pdo->prepare("
-                    INSERT INTO payroll (user_id, month, year, basic_salary, incentive, allowances, deductions, net_salary, notes, created_by, status)
-                    VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, ?, 'Pending')
-                ")->execute([$uid, $month, $year, $basic, $incentive, $net, $notesList[$uid] ?? null, current_user()['id']]);
+                    INSERT INTO payroll (user_id, month, year, basic_salary, incentive, overtime_pay, allowances, deductions, net_salary, notes, created_by, status)
+                    VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, 'Pending')
+                ")->execute([$uid, $month, $year, $basic, $incentive, $overtimePay, $net, $notesList[$uid] ?? null, current_user()['id']]);
             }
             $count++;
         }
@@ -462,6 +545,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'pay') {
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
 
+$listPeriodStart = sprintf('%04d-%02d-15', $year, $month);
+$listPeriodNextM = $month === 12 ? 1 : $month + 1;
+$listPeriodNextY = $month === 12 ? $year + 1 : $year;
+$listPeriodEnd   = sprintf('%04d-%02d-15', $listPeriodNextY, $listPeriodNextM);
+
 $_pySql  = "SELECT p.*, u.name AS staff_name, s.role AS staff_role, ba.name AS paid_from_name FROM payroll p JOIN users u ON u.id=p.user_id JOIN staff s ON s.id=u.staff_id LEFT JOIN bank_accounts ba ON ba.id=p.paid_from_account_id WHERE p.month=? AND p.year=? ORDER BY u.name";
 $_pyCnt  = "SELECT COUNT(*) FROM payroll p JOIN users u ON u.id=p.user_id JOIN staff s ON s.id=u.staff_id WHERE p.month=? AND p.year=?";
 $pgPayroll   = paginate_query($pdo, $_pySql, $_pyCnt, [$month, $year], $page, $perPage);
@@ -473,6 +561,7 @@ $advanceOutstandingByUser = $getAdvanceOutstandingMap(array_column($payrollRows,
 $totalBasic = 0.0;
 $totalIncentive = 0.0;
 $totalNet = 0.0;
+$totalOvertime = 0.0;
 $totalAdvance = 0.0;
 $totalPayable = 0.0;
 $totalPaid = 0.0;
@@ -507,6 +596,7 @@ foreach ($payrollRows as &$row) {
 
     $totalBasic += $basic;
     $totalIncentive += $incentive;
+    $totalOvertime += (float) ($row['overtime_pay'] ?? 0);
     $totalNet += $net;
     $totalAdvance += $row['display_advance_deducted'];
     $totalPayable += $row['display_payable_salary'];
@@ -620,6 +710,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <th class="px-6 py-3 text-center">Deliveries</th>
                                 <th class="px-6 py-3 text-right">Basic Salary</th>
                                 <th class="px-6 py-3 text-right">Incentive</th>
+                                <th class="px-6 py-3 text-right">Overtime</th>
                                 <th class="px-6 py-3 text-right">Net (Est.)</th>
                                 <th class="px-6 py-3 text-left">Note</th>
                             </tr>
@@ -646,8 +737,17 @@ require_once __DIR__ . '/../includes/header.php';
                                     <?php if ($deliveries > 0): ?><span class="inline-flex items-center gap-1 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-full px-2.5 py-0.5 text-xs font-medium"><?= $deliveries ?> del</span><?php if ($delivBonusPer > 0): ?><p class="text-xs text-orange-400/70 mt-0.5">+$<?= number_format($deliveryBonus, 2) ?></p><?php endif; ?><?php else: ?><span class="text-mb-subtle/40 text-xs">-</span><?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 text-right text-mb-silver">$<?= number_format($basic, 2) ?></td>
-                                <td class="px-6 py-4 text-right"><input type="number" name="incentive[<?= $s['user_id'] ?>]" class="incentive-input bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-1.5 text-white text-sm w-28 text-right focus:outline-none focus:border-mb-accent" value="<?= $autoIncentive + $tableIncentive ?>" min="0" step="0.01" data-basic="<?= $basic ?>" data-auto="<?= $autoIncentive + $tableIncentive ?>" data-table="<?= $tableIncentive ?>" oninput="updateNet(this)"><?php if($tableIncentive > 0):?><p class="text-[10px] text-green-400/70 mt-0.5">+<?= $tableIncentive ?> from profile</p><?php endif;?></td>
-                                <td class="px-6 py-4 text-right text-mb-accent font-medium net-cell">$<?= number_format($basic + $autoIncentive, 2) ?></td>
+                                <td class="px-6 py-4 text-right"><input type="number" name="incentive[<?= $s['user_id'] ?>]" class="incentive-input bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-1.5 text-white text-sm w-28 text-right focus:outline-none focus:border-mb-accent" value="<?= $autoIncentive + $tableIncentive ?>" min="0" step="0.01" data-basic="<?= $basic ?>" data-auto="<?= $autoIncentive + $tableIncentive ?>" data-table="<?= $tableIncentive ?>" data-overtime="<?= $s['overtime_pay'] ?>" oninput="updateNet(this)"><?php if($tableIncentive > 0):?><p class="text-[10px] text-green-400/70 mt-0.5">+<?= $tableIncentive ?> from profile</p><?php endif;?></td>
+                                <td class="px-6 py-4 text-right">
+                                    <input type="hidden" name="overtime[<?= $s['user_id'] ?>]" value="<?= $s['overtime_pay'] ?>">
+                                    <?php if ($s['overtime_pay'] > 0): ?>
+                                    <span class="text-purple-400 font-medium">$<?= number_format($s['overtime_pay'], 2) ?></span>
+                                    <p class="text-[10px] text-purple-300/70 mt-0.5"><?= floor($s['overtime_extra_secs']/3600) ?>h <?= floor(($s['overtime_extra_secs']%3600)/60) ?>m extra</p>
+                                    <?php else: ?>
+                                    <span class="text-mb-subtle/40 text-xs">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-6 py-4 text-right text-mb-accent font-medium net-cell">$<?= number_format($basic + $autoIncentive + $s['overtime_pay'], 2) ?></td>
                                 <td class="px-6 py-4"><input type="text" name="notes[<?= $s['user_id'] ?>]" placeholder="optional note" class="bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-1.5 text-white text-sm w-40 focus:outline-none focus:border-mb-accent placeholder-mb-subtle"></td>
                             </tr>
                             <?php endforeach; ?>
@@ -658,6 +758,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <td class="px-6 py-3"></td>
                                 <td class="px-6 py-3 text-right">$<?= number_format(array_sum(array_column($batchStaff, 'basic_salary')), 2) ?></td>
                                 <td class="px-6 py-3 text-right" id="totalIncentiveFooter">$0.00</td>
+                                <td class="px-6 py-3 text-right text-purple-400" id="totalOvertimeFooter">$<?= number_format(array_sum(array_column($batchStaff, 'overtime_pay')), 2) ?></td>
                                 <td class="px-6 py-3 text-right font-semibold text-mb-accent" id="totalNetFooter">$<?= number_format(array_sum(array_column($batchStaff, 'basic_salary')), 2) ?></td>
                                 <td></td>
                             </tr>
@@ -725,6 +826,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php foreach ([
                     ['Total Basic', '$' . number_format($totalBasic, 2), 'text-mb-silver'],
                     ['Total Incentive', '$' . number_format($totalIncentive, 2), 'text-blue-400'],
+                    ['Total Overtime', '$' . number_format($totalOvertime, 2), 'text-purple-400'],
                     ['Total Net', '$' . number_format($totalNet, 2), 'text-mb-accent'],
                     ['Advance Adj.', '$' . number_format($totalAdvance, 2), 'text-orange-400'],
                     ['Total Payable', '$' . number_format($totalPayable, 2), 'text-green-400'],
@@ -750,9 +852,9 @@ require_once __DIR__ . '/../includes/header.php';
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
                             d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
-                    <p class="text-mb-subtle">No payroll for
-                        <?= date('F', mktime(0, 0, 0, $month, 1)) ?>
-                        <?= $year ?>.
+                    <p class="text-mb-subtle mt-1">
+                        No payroll for <span class="text-white"><?= date('F', mktime(0, 0, 0, $month, 1)) ?> <?= $year ?></span> billing period.<br>
+                        <span class="text-xs opacity-60">(<?= date('d M', strtotime($listPeriodStart)) ?> - <?= date('d M Y', strtotime($listPeriodEnd)) ?>)</span>
                     </p>
                     <button onclick="document.getElementById('generateModal').classList.remove('hidden')"
                         class="mt-4 text-mb-accent hover:text-white text-sm transition-colors">Generate Now</button>
@@ -766,6 +868,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <th class="px-6 py-4 text-left">Role</th>
                                 <th class="px-6 py-4 text-right">Basic</th>
                                 <th class="px-6 py-4 text-right">Incentive</th>
+                                <th class="px-6 py-4 text-right">Overtime</th>
                                 <th class="px-6 py-4 text-right">Net Salary</th>
                                 <th class="px-6 py-4 text-right">Advance</th>
                                 <th class="px-6 py-4 text-right">Payable</th>
@@ -793,6 +896,13 @@ require_once __DIR__ . '/../includes/header.php';
                                     </td>
                                     <td class="px-6 py-4 text-right text-blue-400">+$
                                         <?= number_format($row['incentive'], 2) ?>
+                                    </td>
+                                    <td class="px-6 py-4 text-right text-purple-400 font-medium">
+                                        <?php if ((float)($row['overtime_pay'] ?? 0) > 0): ?>
+                                        +$<?= number_format((float)($row['overtime_pay'] ?? 0), 2) ?>
+                                        <?php else: ?>
+                                        <span class="text-mb-subtle/40">-</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="px-6 py-4 text-right text-mb-accent font-semibold">$
                                         <?= number_format($row['net_salary'], 2) ?>
@@ -999,8 +1109,9 @@ require_once __DIR__ . '/../includes/header.php';
     function updateNet(input) {
         const manualInc = parseFloat(input.value) || 0;
         const basic = parseFloat(input.dataset.basic) || 0;
+        const overtime = parseFloat(input.dataset.overtime) || 0;
         const cell = input.closest('tr').querySelector('.net-cell');
-        cell.textContent = '$' + (basic + manualInc).toLocaleString('en', { minimumFractionDigits: 2 });
+        cell.textContent = '$' + (basic + manualInc + overtime).toLocaleString('en', { minimumFractionDigits: 2 });
         updateFooterTotals();
     }
 
@@ -1033,16 +1144,20 @@ require_once __DIR__ . '/../includes/header.php';
 
     // Update footer totals
     function updateFooterTotals() {
-        let totalInc = 0, totalNet = 0;
+        let totalInc = 0, totalOt = 0, totalNet = 0;
         document.querySelectorAll('.incentive-input').forEach(inp => {
             const basic = parseFloat(inp.dataset.basic) || 0;
             const inc = parseFloat(inp.value) || 0;
+            const ot = parseFloat(inp.dataset.overtime) || 0;
             totalInc += inc;
-            totalNet += basic + inc;
+            totalOt += ot;
+            totalNet += basic + inc + ot;
         });
         const ti = document.getElementById('totalIncentiveFooter');
         const tn = document.getElementById('totalNetFooter');
         if (ti) ti.textContent = '$' + totalInc.toLocaleString('en', { minimumFractionDigits: 2 });
+        const to = document.getElementById('totalOvertimeFooter');
+        if (to) to.textContent = '$' + totalOt.toLocaleString('en', { minimumFractionDigits: 2 });
         if (tn) tn.textContent = '$' + totalNet.toLocaleString('en', { minimumFractionDigits: 2 });
     }
 </script>

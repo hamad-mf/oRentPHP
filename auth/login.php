@@ -28,7 +28,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Admin gets all permissions
             if ($user['role'] === 'admin') {
-                $permissions = ['add_vehicles', 'add_reservations', 'add_leads', 'do_delivery', 'do_return', 'view_finances', 'manage_clients', 'manage_staff'];
+                $permissions = [
+                    'add_vehicles',
+                    'view_all_vehicles',
+                    'view_vehicle_availability',
+                    'view_vehicle_requests',
+                    'add_reservations',
+                    'add_leads',
+                    'do_delivery',
+                    'do_return',
+                    'view_finances',
+                    'manage_clients',
+                    'manage_staff'
+                ];
             }
 
             $_SESSION['user'] = [

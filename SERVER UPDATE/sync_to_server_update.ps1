@@ -39,7 +39,7 @@ $allFiles = Get-ChildItem -Path $src -File -Recurse | Where-Object {
     $topLevel = $rel.Split('\')[0]
 
     # Skip these top-level folders
-    if ($topLevel -in @('SERVER UPDATE', '.git', 'uploads')) { return $false }
+    if ($topLevel -in @('SERVER UPDATE', '.git', 'uploads', 'logs', '.gemini', '.agents')) { return $false }
 
     # Skip dev-only / sensitive files
     $skipFiles = @(
@@ -64,10 +64,23 @@ $allFiles = Get-ChildItem -Path $src -File -Recurse | Where-Object {
         'UPDATE_SESSION_RULES.md',
         'PRODUCTION_DB_STEPS.md',
         'Advance Payment Int.md'
-        
     )
     if ($rel -in $skipFiles) { return $false }
+
+    # Skip all .md documentation files (internal dev docs, not needed on server)
+    if ($_.Extension -eq '.md') { return $false }
+
+    # Skip log files
+    if ($_.Extension -eq '.log') { return $false }
+
+    # Skip any temporary/scratch PHP files (tmp_*.php)
+    if ($_.Name -like 'tmp_*.php') { return $false }
+    if ($_.Name -like 'check_*.php') { return $false }
+    if ($_.Name -like 'debug_*.php') { return $false }
+
+    # Skip archive files
     if ($rel -like '*.rar')  { return $false }
+    if ($rel -like '*.zip')  { return $false }
 
     return $true
 }

@@ -32,7 +32,7 @@ function period_from_my(int $m, int $y): array {
     $start = sprintf('%04d-%02d-15', $y, $m);
     $nM = $m === 12 ? 1 : $m + 1;
     $nY = $m === 12 ? $y + 1 : $y;
-    return ['start' => $start, 'end' => sprintf('%04d-%02d-14', $nY, $nM)];
+    return ['start' => $start, 'end' => sprintf('%04d-%02d-15', $nY, $nM)];
 }
 function period_for_today(): array {
     $d = (int)date('d'); $m = (int)date('m'); $y = (int)date('Y');
@@ -72,11 +72,14 @@ if ($selM < 1 || $selM > 12 || $selY < 2020 || $selY > 2099) {
     $selM = (int)date('m', strtotime($defP['start']));
     $selY = (int)date('Y', strtotime($defP['start']));
 }
-$p = period_from_my($selM, $selY);
-$activePStart = $p['start']; $activePEnd = $p['end'];
+$period = period_from_my($selM, $selY);
+$startDate = $period['start'];
+$endDate = $period['end'] . ' 23:59:59';
+$activePStart = $period['start'];
+$activePEnd = $period['end'];
 
 $tS = $pdo->prepare("SELECT * FROM monthly_targets WHERE period_start=? LIMIT 1");
-$tS->execute([$activePStart]);
+$tS->execute([$startDate]);
 $targetRow     = $tS->fetch();
 $monthlyTarget = (float)($targetRow['target_amount'] ?? 0);
 $periodDays    = (int)((strtotime($activePEnd) - strtotime($activePStart)) / 86400) + 1;

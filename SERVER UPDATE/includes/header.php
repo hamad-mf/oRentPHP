@@ -365,6 +365,7 @@ $_notifs = notif_all($pdo);
                 'settings' => '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>',
                 'leads' => '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>',
                 'pipeline' => '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 0v10m0-10a2 2 0 012 2h2a2 2 0 012-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2z"/></svg>',
+                'reports' => '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>',
             ];
 
             $scriptPath = trim(str_replace('\\', '/', $_SERVER['PHP_SELF'] ?? ''), '/');
@@ -386,6 +387,7 @@ $_notifs = notif_all($pdo);
                 'attendance',
                 'auth',
                 'payroll',
+                'reports',
                 'dashboard',
             ];
             $moduleIdx = null;
@@ -419,11 +421,15 @@ $_notifs = notif_all($pdo);
                 } catch (Throwable $e) {}
             }
             $cuPerms = $_currentUser['permissions'] ?? [];
+            $canVehiclesFull = $isAdmin || in_array('add_vehicles', $cuPerms, true) || in_array('view_all_vehicles', $cuPerms, true);
+            $canVehiclesAvailability = $isAdmin || in_array('add_vehicles', $cuPerms, true) || in_array('view_vehicle_availability', $cuPerms, true);
+            $canVehiclesRequests = $isAdmin || in_array('add_vehicles', $cuPerms, true) || in_array('view_vehicle_requests', $cuPerms, true);
+            $canVehiclesMenu = $canVehiclesFull || $canVehiclesAvailability || $canVehiclesRequests || !empty($_currentUser['staff_id']);
 
             $isDash = $currentPage === 'index.php' && $moduleIdx === null;
             echo navLink("{$root}index.php", 'Dashboard', $icons['dashboard'], $isDash);
 
-            if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
+            if ($canVehiclesMenu) {
                 $vActive = $currentDir === 'vehicles';
                 $vCls = $vActive
                     ? 'bg-mb-black text-white border-l-2 border-mb-accent'
@@ -435,8 +441,12 @@ $_notifs = notif_all($pdo);
                 </div>';
                 echo '<div id="submenu-vehicles" class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1 sidebar-submenu ' . ($vActive ? 'open' : '') . '">';
                 echo '<a href="' . $root . 'vehicles/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'vehicles' && $currentPage !== 'availability.php' && $currentPage !== 'requests.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle List</a>';
-                echo '<a href="' . $root . 'vehicles/availability.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'availability.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Availability</a>';
-                echo '<a href="' . $root . 'vehicles/requests.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'requests.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Requests</a>';
+                if ($canVehiclesAvailability) {
+                    echo '<a href="' . $root . 'vehicles/availability.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'availability.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Availability</a>';
+                }
+                if ($canVehiclesRequests) {
+                    echo '<a href="' . $root . 'vehicles/requests.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'requests.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Requests</a>';
+                }
                 echo '</div>';
             }
             if ($isAdmin || array_intersect(['add_reservations', 'do_delivery', 'do_return'], $cuPerms)) {
@@ -457,8 +467,12 @@ $_notifs = notif_all($pdo);
             if ($isAdmin || in_array('view_finances', $cuPerms, true)) {
                 $accountIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>';
                 $targetIcon  = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>';
-                echo navLink("{$root}accounts/index.php", 'Accounts', $accountIcon, $currentDir === 'accounts' && $currentPage !== 'targets.php');
+                $hopeIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>';
+                $reportsIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>';
+                echo navLink("{$root}accounts/index.php", 'Accounts', $accountIcon, $currentDir === 'accounts' && !in_array($currentPage, ['targets.php', 'hope_window.php'], true));
                 echo navLink("{$root}accounts/targets.php", 'Targets', $targetIcon, $currentDir === 'accounts' && $currentPage === 'targets.php');
+                echo navLink("{$root}accounts/hope_window.php", 'Hope Window', $hopeIcon, $currentDir === 'accounts' && $currentPage === 'hope_window.php');
+                echo navLink("{$root}reports/index.php", 'Reports', $reportsIcon, $currentDir === 'reports');
             }
             $hasStaffProfile = !empty($_currentUser['staff_id']);
             if ($hasStaffProfile) {
@@ -489,11 +503,11 @@ $_notifs = notif_all($pdo);
                 $payrollIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>';
                 echo navLink("{$root}payroll/index.php", 'Payroll', $payrollIcon, $currentDir === 'payroll');
                 $investIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
-                echo navLink("{$root}investments/index.php", 'Investments', $investIcon, $currentDir === 'investments');
+                echo navLink("{$root}investments/index.php", 'EMI Management', $investIcon, $currentDir === 'investments');
             }
             echo navLink("{$root}settings/general.php", 'Settings', $icons['settings'], $currentDir === 'settings');
 
-            $canVehicles = $isAdmin || in_array('add_vehicles', $cuPerms, true);
+            $canVehicles = $canVehiclesMenu;
             $canClients = $isAdmin || in_array('manage_clients', $cuPerms, true);
             $canPipeline = $isAdmin || in_array('add_leads', $cuPerms, true);
             $canReservations = $isAdmin || !empty(array_intersect(['add_reservations', 'do_delivery', 'do_return'], $cuPerms));
@@ -502,11 +516,12 @@ $_notifs = notif_all($pdo);
             $hasStaffProfile = !empty($_currentUser['staff_id']);
             $mobileAccountIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>';
             $mobileMenuCatalog = [
-                'dashboard' => ['href' => "{$root}index.php", 'label' => 'Dashboard', 'icon' => $icons['dashboard'], 'active' => $isDash, 'allowed' => true],
+                'reports' => ['href' => "{$root}reports/index.php", 'label' => 'Reports', 'icon' => $icons['reports'], 'active' => $currentDir === 'reports', 'allowed' => $canAccounts],
                 'vehicles' => ['href' => "{$root}vehicles/index.php", 'label' => 'Vehicles', 'icon' => $icons['vehicles'], 'active' => $currentDir === 'vehicles', 'allowed' => $canVehicles],
                 'pipeline' => ['href' => "{$root}leads/pipeline.php", 'label' => 'Pipeline', 'icon' => $icons['pipeline'], 'active' => $currentDir === 'leads', 'allowed' => $canPipeline],
                 'reservations' => ['href' => "{$root}reservations/index.php", 'label' => 'Bookings', 'icon' => $icons['reservations'], 'active' => $currentDir === 'reservations', 'allowed' => $canReservations],
                 'accounts' => ['href' => "{$root}accounts/index.php", 'label' => 'Accounts', 'icon' => $mobileAccountIcon, 'active' => $currentDir === 'accounts', 'allowed' => $canAccounts],
+                'hope_window' => ['href' => "{$root}accounts/hope_window.php", 'label' => 'Hope Window', 'icon' => $mobileAccountIcon, 'active' => $currentDir === 'accounts' && $currentPage === 'hope_window.php', 'allowed' => $canAccounts],
                 'clients' => ['href' => "{$root}clients/index.php", 'label' => 'Clients', 'icon' => $icons['clients'], 'active' => $currentDir === 'clients', 'allowed' => $canClients],
                 'gps' => ['href' => "{$root}gps/index.php", 'label' => 'GPS', 'icon' => $icons['gps'], 'active' => $currentDir === 'gps', 'allowed' => $canGps],
                 'my_profile' => ['href' => "{$root}staff/my_profile.php", 'label' => 'My Profile', 'icon' => $icons['profile'], 'active' => $currentDir === 'staff' && $currentPage === 'my_profile.php', 'allowed' => $hasStaffProfile],

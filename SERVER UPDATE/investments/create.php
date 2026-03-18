@@ -104,7 +104,7 @@ require_once __DIR__ . '/../includes/header.php';
 <div class="max-w-2xl mx-auto space-y-6">
     <!-- Breadcrumb -->
     <div class="flex items-center gap-2 text-sm text-mb-subtle">
-        <a href="index.php" class="hover:text-white transition-colors">Investments</a>
+        <a href="index.php" class="hover:text-white transition-colors">EMI Management</a>
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
         </svg>
