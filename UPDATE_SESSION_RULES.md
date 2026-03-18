@@ -120,3 +120,4 @@ Add one row per release.
 | 2026-03-17 | hope_window_page | Yes | `migrations/releases/2026-03-17_hope_window_daily_targets.sql` | Pending | Added Hope Window page with per-day target overrides and expected income from ledger entries. |
 | 2026-03-17 | hope_window_highlight_today | Yes | None | N/A | Highlighted today row in Hope Window daily list. |
 | 2026-03-18 | hope_window_expected_schedule | Yes | None | N/A | Hope Window expected income now projected from reservation schedule (booking, delivery, return, extensions) instead of ledger-only. |
+| 2026-03-18 | hope_window_predictions | Yes | `migrations/releases/2026-03-18_hope_window_predictions.sql` | Pending | Added manual prediction entries per day in Hope Window, with counts and expandable entry rows. |

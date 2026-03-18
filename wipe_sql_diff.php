@@ -17,6 +17,7 @@ $codex = [
     'expenses' => ['id', 'title', 'amount', 'category', 'expense_date', 'notes', 'created_at'],
     'gps_daily_checks' => ['id', 'reservation_id', 'vehicle_id', 'check_date', 'check_slot', 'tracking_active', 'last_location', 'notes', 'updated_by', 'updated_at', 'created_at'],
     'gps_tracking' => ['id', 'reservation_id', 'vehicle_id', 'tracker_id', 'last_location', 'tracking_active', 'last_seen', 'notes', 'updated_by', 'updated_at'],
+    'hope_daily_predictions' => ['id', 'target_date', 'label', 'amount', 'created_by', 'created_at', 'updated_at'],
     'hope_daily_targets' => ['id', 'target_date', 'target_amount', 'created_by', 'created_at', 'updated_at'],
     'inspection_photos' => ['id', 'inspection_id', 'view_name', 'file_path', 'created_at'],
     'investments' => ['id', 'title', 'amount', 'type', 'description', 'investment_date', 'created_at'],

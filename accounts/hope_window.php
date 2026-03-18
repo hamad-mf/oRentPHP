@@ -15,10 +15,16 @@ ledger_ensure_schema($pdo);
 $isAdmin = ($_currentUser['role'] ?? '') === 'admin';
 $userId = (int) ($_currentUser['id'] ?? 0);
 $hasHopeTable = false;
+$hasPredTable = false;
 try {
     $hasHopeTable = (bool) $pdo->query("SHOW TABLES LIKE 'hope_daily_targets'")->fetchColumn();
 } catch (Throwable $e) {
     $hasHopeTable = false;
+}
+try {
+    $hasPredTable = (bool) $pdo->query("SHOW TABLES LIKE 'hope_daily_predictions'")->fetchColumn();
+} catch (Throwable $e) {
+    $hasPredTable = false;
 }
 
 $tz = new DateTimeZone('Asia/Kolkata');
@@ -113,8 +119,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $msg = "Targets saved. {$updated} updated, {$deleted} reset.";
                 }
                 flash('success', $msg);
-                redirect("hope_window.php?m={$selM}&y={$selY}");
             }
+        }
+
+        if ($error === '' && $isAdmin && $hasPredTable) {
+            $predExistingStmt = $pdo->prepare("SELECT id, target_date FROM hope_daily_predictions WHERE target_date BETWEEN ? AND ?");
+            $predExistingStmt->execute([$rangeStart, $rangeEnd]);
+            $predExisting = [];
+            foreach ($predExistingStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $predExisting[(int) $row['id']] = $row['target_date'];
+            }
+
+            $predUpdate = $pdo->prepare("UPDATE hope_daily_predictions SET label=?, amount=?, updated_at=? WHERE id=?");
+            $predDelete = $pdo->prepare("DELETE FROM hope_daily_predictions WHERE id=?");
+            $predInsert = $pdo->prepare("INSERT INTO hope_daily_predictions (target_date, label, amount, created_by) VALUES (?,?,?,?)");
+
+            $predLabels = $_POST['pred_label'] ?? [];
+            $predAmounts = $_POST['pred_amount'] ?? [];
+            $predDeletes = $_POST['pred_delete'] ?? [];
+            $predNewLabels = $_POST['pred_new_label'] ?? [];
+            $predNewAmounts = $_POST['pred_new_amount'] ?? [];
+
+            foreach ($predDeletes as $id => $flag) {
+                $id = (int) $id;
+                if ($id > 0 && isset($predExisting[$id])) {
+                    $predDelete->execute([$id]);
+                }
+            }
+
+            foreach ($predLabels as $id => $label) {
+                $id = (int) $id;
+                if ($id <= 0 || !isset($predExisting[$id])) {
+                    continue;
+                }
+                if (isset($predDeletes[$id])) {
+                    continue;
+                }
+                $label = trim((string) $label);
+                $amountRaw = $predAmounts[$id] ?? '';
+                if (!is_numeric($amountRaw)) {
+                    continue;
+                }
+                $amount = max(0, (float) $amountRaw);
+                if ($label === '' || $amount <= 0) {
+                    $predDelete->execute([$id]);
+                    continue;
+                }
+                $predUpdate->execute([$label, $amount, app_now_sql(), $id]);
+            }
+
+            foreach ($predNewLabels as $date => $label) {
+                $date = trim((string) $date);
+                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                    continue;
+                }
+                if ($date < $rangeStart || $date > $rangeEnd) {
+                    continue;
+                }
+                $label = trim((string) $label);
+                $amountRaw = $predNewAmounts[$date] ?? '';
+                if ($label === '' || !is_numeric($amountRaw)) {
+                    continue;
+                }
+                $amount = max(0, (float) $amountRaw);
+                if ($amount <= 0) {
+                    continue;
+                }
+                $predInsert->execute([$date, $label, $amount, $userId ?: null]);
+            }
+        } elseif ($error === '' && $isAdmin && !$hasPredTable) {
+            $hasPredInputs = !empty($_POST['pred_new_label']) || !empty($_POST['pred_label']) || !empty($_POST['pred_amount']);
+            if ($hasPredInputs) {
+                $error = 'Hope Window predictions table missing. Please apply the latest migration.';
+            }
+        }
+
+        if ($error === '') {
+            redirect("hope_window.php?m={$selM}&y={$selY}");
         }
     }
 }
@@ -131,6 +212,30 @@ if ($hasHopeTable) {
 
 // Expected income (reservation-scheduled)
 $expectedMap = [];
+// Prediction map
+$predictionsByDate = [];
+$predSumByDate = [];
+$predCountByDate = [];
+
+if ($hasPredTable) {
+    $predStmt = $pdo->prepare("SELECT id, target_date, label, amount FROM hope_daily_predictions WHERE target_date BETWEEN ? AND ? ORDER BY target_date, id");
+    $predStmt->execute([$rangeStart, $rangeEnd]);
+    foreach ($predStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $date = $row['target_date'];
+        if (!isset($predictionsByDate[$date])) {
+            $predictionsByDate[$date] = [];
+            $predSumByDate[$date] = 0.0;
+            $predCountByDate[$date] = 0;
+        }
+        $predictionsByDate[$date][] = [
+            'id' => (int) $row['id'],
+            'label' => (string) ($row['label'] ?? ''),
+            'amount' => (float) ($row['amount'] ?? 0),
+        ];
+        $predSumByDate[$date] += (float) ($row['amount'] ?? 0);
+        $predCountByDate[$date] += 1;
+    }
+}
 
 function hope_add_expected(array &$map, string $date, float $amount, string $rangeStart, string $rangeEnd): void
 {
@@ -224,6 +329,13 @@ foreach ($reservations as $r) {
     hope_add_expected($expectedMap, $returnDate, $returnDue, $rangeStart, $rangeEnd);
 }
 
+foreach ($predSumByDate as $date => $sum) {
+    if (!isset($expectedMap[$date])) {
+        $expectedMap[$date] = 0.0;
+    }
+    $expectedMap[$date] += $sum;
+}
+
 // Extension payments (collected on extension date)
 $hasExtTable = false;
 try {
@@ -252,6 +364,9 @@ while ($cursor <= $endDate) {
         'target' => $overrideMap[$ds] ?? $defaultTarget,
         'override' => array_key_exists($ds, $overrideMap),
         'expected' => $expectedMap[$ds] ?? 0.0,
+        'prediction_count' => $predCountByDate[$ds] ?? 0,
+        'prediction_sum' => $predSumByDate[$ds] ?? 0.0,
+        'predictions' => $predictionsByDate[$ds] ?? [],
         'is_today' => $ds === $today,
     ];
     $cursor = $cursor->modify('+1 day');
@@ -266,7 +381,7 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="flex items-center justify-between flex-wrap gap-3">
         <div>
             <h2 class="text-white text-2xl font-light">Hope Window</h2>
-            <p class="text-mb-subtle text-sm mt-1">Expected income is projected from reservation schedule (booking, delivery, return, extensions).</p>
+            <p class="text-mb-subtle text-sm mt-1">Expected income is projected from reservation schedule (booking, delivery, return, extensions) plus custom predictions.</p>
         </div>
         <form method="GET" class="flex items-center gap-2">
             <select name="m" class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
@@ -302,6 +417,11 @@ require_once __DIR__ . '/../includes/header.php';
             Hope Window targets table is missing. Run `migrations/releases/2026-03-17_hope_window_daily_targets.sql` on the database.
         </div>
     <?php endif; ?>
+    <?php if (!$hasPredTable): ?>
+        <div class="flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg px-5 py-3 text-sm">
+            Hope Window predictions table is missing. Run `migrations/releases/2026-03-18_hope_window_predictions.sql` on the database.
+        </div>
+    <?php endif; ?>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5">
@@ -327,7 +447,7 @@ require_once __DIR__ . '/../includes/header.php';
             <p class="text-xs text-mb-subtle uppercase tracking-wider">Total Expected Income</p>
             <?php $totalExpected = array_sum(array_map(static fn($d) => $d['expected'], $days)); ?>
             <p class="text-green-400 text-lg mt-2">$<?= number_format($totalExpected, 2) ?></p>
-            <p class="text-mb-subtle text-xs mt-2">Sum of scheduled reservation collections for <?= e($monthLabel) ?>.</p>
+            <p class="text-mb-subtle text-xs mt-2">Sum of scheduled reservation collections + predictions for <?= e($monthLabel) ?>.</p>
         </div>
     </div>
 
@@ -335,7 +455,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="px-5 py-4 border-b border-mb-subtle/10 flex items-center justify-between">
             <div>
                 <h3 class="text-white font-light text-lg">Daily Targets</h3>
-                <p class="text-mb-subtle text-xs mt-1">Edit targets per day. Expected income is projected from reservations.</p>
+                <p class="text-mb-subtle text-xs mt-1">Edit targets per day. Click a row to add custom predictions.</p>
             </div>
             <?php if ($isAdmin): ?>
                 <span class="text-xs text-mb-subtle">Overrides are saved below</span>
@@ -348,15 +468,16 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="grid grid-cols-12 text-xs text-mb-subtle px-3">
                     <div class="col-span-3">Date</div>
                     <div class="col-span-3">Target</div>
-                    <div class="col-span-3">Expected Income</div>
-                    <div class="col-span-3 text-right">Gap</div>
+                    <div class="col-span-2">Expected Income</div>
+                    <div class="col-span-2">Predictions</div>
+                    <div class="col-span-2 text-right">Gap</div>
                 </div>
                 <?php foreach ($days as $row):
                     $gap = $row['expected'] - $row['target'];
                     $gapClass = $gap >= 0 ? 'text-green-400' : 'text-red-400';
                     $rowClass = $row['is_today'] ? 'border-mb-accent/60 bg-mb-accent/10' : 'border-mb-subtle/10 bg-mb-black/30';
                 ?>
-                    <div class="grid grid-cols-12 items-center border <?= $rowClass ?> rounded-lg px-3 py-2 text-sm">
+                    <div class="grid grid-cols-12 items-center border <?= $rowClass ?> rounded-lg px-3 py-2 text-sm hope-row cursor-pointer" data-pred-toggle="<?= e($row['date']) ?>">
                         <div class="col-span-3">
                             <p class="text-white"><?= e($row['label']) ?></p>
                             <?php if ($row['override']): ?>
@@ -376,14 +497,74 @@ require_once __DIR__ . '/../includes/header.php';
                                 <span class="text-white">$<?= number_format($row['target'], 2) ?></span>
                             <?php endif; ?>
                         </div>
-                        <div class="col-span-3">
+                        <div class="col-span-2">
                             <span class="text-green-400">$<?= number_format($row['expected'], 2) ?></span>
                         </div>
-                        <div class="col-span-3 text-right">
+                        <div class="col-span-2">
+                            <span class="text-white font-medium"><?= (int) $row['prediction_count'] ?></span>
+                            <?php if ($row['prediction_sum'] > 0): ?>
+                                <span class="text-xs text-mb-subtle ml-1">($<?= number_format($row['prediction_sum'], 2) ?>)</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="col-span-2 text-right">
                             <span class="<?= $gapClass ?>">
                                 <?= $gap >= 0 ? '+' : '-' ?>$<?= number_format(abs($gap), 2) ?>
                             </span>
                         </div>
+                    </div>
+                    <div id="pred-<?= e($row['date']) ?>" class="hidden border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-4 py-3 text-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-white font-medium">Predictions for <?= e($row['label']) ?></p>
+                                <p class="text-mb-subtle text-xs">Add your own expected deals to include in projected income.</p>
+                            </div>
+                        </div>
+                        <div class="mt-3 space-y-2">
+                            <?php if (!empty($row['predictions'])): ?>
+                                <?php foreach ($row['predictions'] as $pred): ?>
+                                    <?php if ($isAdmin): ?>
+                                        <div class="grid grid-cols-12 gap-2 items-center">
+                                            <div class="col-span-7">
+                                                <input type="text" name="pred_label[<?= (int) $pred['id'] ?>]" value="<?= e($pred['label']) ?>"
+                                                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                            </div>
+                                            <div class="col-span-3">
+                                                <input type="number" step="0.01" min="0" name="pred_amount[<?= (int) $pred['id'] ?>]" value="<?= number_format($pred['amount'], 2, '.', '') ?>"
+                                                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                            </div>
+                                            <div class="col-span-2 flex items-center gap-2">
+                                                <label class="flex items-center gap-2 text-xs text-mb-subtle">
+                                                    <input type="checkbox" name="pred_delete[<?= (int) $pred['id'] ?>]" class="accent-red-500">
+                                                    Remove
+                                                </label>
+                                            </div>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="flex items-center justify-between text-sm">
+                                            <span class="text-white"><?= e($pred['label']) ?></span>
+                                            <span class="text-green-400">$<?= number_format($pred['amount'], 2) ?></span>
+                                        </div>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <p class="text-xs text-mb-subtle">No predictions yet for this date.</p>
+                            <?php endif; ?>
+                        </div>
+                        <?php if ($isAdmin): ?>
+                            <div class="mt-4 grid grid-cols-12 gap-2 items-center">
+                                <div class="col-span-7">
+                                    <input type="text" name="pred_new_label[<?= e($row['date']) ?>]" placeholder="Prediction note (e.g., Tesla booking)"
+                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                </div>
+                                <div class="col-span-3">
+                                    <input type="number" step="0.01" min="0" name="pred_new_amount[<?= e($row['date']) ?>]" placeholder="0.00"
+                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                </div>
+                                <div class="col-span-2 text-xs text-mb-subtle">
+                                    Add & save
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -399,3 +580,19 @@ require_once __DIR__ . '/../includes/header.php';
         </form>
     </div>
 </div>
+
+<script>
+document.querySelectorAll('.hope-row').forEach(row => {
+    row.addEventListener('click', (event) => {
+        const tag = event.target.tagName;
+        if (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'A', 'LABEL'].includes(tag)) {
+            return;
+        }
+        const key = row.dataset.predToggle;
+        const panel = document.getElementById('pred-' + key);
+        if (panel) {
+            panel.classList.toggle('hidden');
+        }
+    });
+});
+</script>

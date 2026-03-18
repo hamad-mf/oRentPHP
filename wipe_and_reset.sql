@@ -13,6 +13,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- Add DROP for missing tables
 DROP TABLE IF EXISTS emi_schedules;
 DROP TABLE IF EXISTS emi_investments;
+DROP TABLE IF EXISTS hope_daily_predictions;
 DROP TABLE IF EXISTS hope_daily_targets;
 DROP TABLE IF EXISTS monthly_targets;
 DROP TABLE IF EXISTS payroll;
@@ -47,6 +48,7 @@ DROP TABLE IF EXISTS reservations;
 DROP TABLE IF EXISTS vehicle_images;
 DROP TABLE IF EXISTS documents;
 DROP TABLE IF EXISTS papers;
+DROP TABLE IF EXISTS hope_daily_predictions;
 DROP TABLE IF EXISTS hope_daily_targets;
 DROP TABLE IF EXISTS gps_daily_checks;
 DROP TABLE IF EXISTS gps_tracking;
@@ -644,6 +646,18 @@ CREATE TABLE IF NOT EXISTS hope_daily_targets (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_target_date (target_date),
+  KEY idx_target_date (target_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--  hope_daily_predictions
+CREATE TABLE IF NOT EXISTS hope_daily_predictions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  target_date DATE NOT NULL,
+  label VARCHAR(255) NOT NULL,
+  amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  created_by INT DEFAULT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_target_date (target_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

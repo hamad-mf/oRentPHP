@@ -11,6 +11,10 @@ This file tracks all database changes that need to be applied to **production** 
 
 ## Pending
 
+### 2026-03-18 - Hope Window Predictions
+**SQL file:** `migrations/releases/2026-03-18_hope_window_predictions.sql`
+**Notes:** Adds `hope_daily_predictions` table for manual prediction entries in Hope Window.
+
 ### 2026-03-17 - Hope Window Daily Targets
 **SQL file:** `migrations/releases/2026-03-17_hope_window_daily_targets.sql`
 **Notes:** Adds `hope_daily_targets` table for per-day target overrides in Hope Window.
