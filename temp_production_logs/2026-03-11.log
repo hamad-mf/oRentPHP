@@ -1,0 +1,594 @@
+[2026-03-11 10:15:57] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-11 10:46:22] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-11 10:46:55] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-11 10:46:57] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 10:46:59] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 10:48:11] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 10:48:25] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 10:48:27] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-11 10:48:37] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-11+10%3A45%3A00&end=2026-03-16+01%3A00%3A00 | Page loaded
+[2026-03-11 10:49:10] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-11 10:49:10] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Ledger: posted income Reservation Advance amount=200 (entry ID: 86)
+[2026-03-11 10:49:10] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 21) [Advance: $200 (account)]
+[2026-03-11 10:49:10] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=21 | Page loaded
+[2026-03-11 10:49:25] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 10:49:30] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 10:51:13] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 10:51:25] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 10:51:29] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=21 | Page loaded
+[2026-03-11 10:52:34] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=21 | Page loaded
+[2026-03-11 10:52:46] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=21 | Page loaded
+[2026-03-11 10:52:48] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 10:55:17] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 10:55:22] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 10:55:27] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 10:55:29] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 10:55:34] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 10:55:38] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=21 | Page loaded
+[2026-03-11 10:56:25] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=21 | Page loaded
+[2026-03-11 10:56:41] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=21 | Page loaded
+[2026-03-11 10:56:46] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=21 | Page loaded
+[2026-03-11 10:56:59] [PAGE  ] [admin/admin] [::1] POST /reservations/edit.php?id=21 | Page loaded
+[2026-03-11 10:56:59] [ACTION] [admin/admin] [::1] POST /reservations/edit.php?id=21 | Updated reservation (ID: 21)
+[2026-03-11 10:56:59] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=21 | Page loaded
+[2026-03-11 10:57:08] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 10:57:13] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 10:57:39] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 10:57:47] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=21 | Page loaded
+[2026-03-11 10:58:00] [PAGE  ] [admin/admin] [::1] POST /reservations/edit.php?id=21 | Page loaded
+[2026-03-11 10:58:00] [ACTION] [admin/admin] [::1] POST /reservations/edit.php?id=21 | Ledger: posted income Reservation Advance amount=300 (entry ID: 87)
+[2026-03-11 10:58:00] [ACTION] [admin/admin] [::1] POST /reservations/edit.php?id=21 | Updated reservation (ID: 21)
+[2026-03-11 10:58:00] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=21 | Page loaded
+[2026-03-11 10:58:06] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 10:58:09] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 10:58:51] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 10:58:53] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=21 | Page loaded
+[2026-03-11 10:59:00] [PAGE  ] [admin/admin] [::1] POST /reservations/edit.php?id=21 | Page loaded
+[2026-03-11 10:59:00] [ACTION] [admin/admin] [::1] POST /reservations/edit.php?id=21 | Updated reservation (ID: 21)
+[2026-03-11 10:59:00] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=21 | Page loaded
+[2026-03-11 10:59:06] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 10:59:09] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 10:59:28] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 10:59:32] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=21 | Page loaded
+[2026-03-11 10:59:39] [PAGE  ] [admin/admin] [::1] POST /reservations/edit.php?id=21 | Page loaded
+[2026-03-11 10:59:39] [ACTION] [admin/admin] [::1] POST /reservations/edit.php?id=21 | Updated reservation (ID: 21)
+[2026-03-11 10:59:39] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=21 | Page loaded
+[2026-03-11 10:59:42] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 11:00:10] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 11:00:15] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=21 | Page loaded
+[2026-03-11 11:00:21] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=21 | Page loaded
+[2026-03-11 11:01:01] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=21 | Page loaded
+[2026-03-11 11:01:01] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=21 | Delivered reservation (ID: 21)
+[2026-03-11 11:01:01] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=21 | Ledger: posted income Reservation Delivery amount=500 (entry ID: 88)
+[2026-03-11 11:01:01] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=21 | Ledger: posted income Security Deposit Collected amount=97.5 (entry ID: 89)
+[2026-03-11 11:01:01] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=21 | Page loaded
+[2026-03-11 11:01:05] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 11:01:09] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 11:01:16] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 11:01:21] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=21 | Page loaded
+[2026-03-11 11:01:25] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 11:01:28] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=21 | Page loaded
+[2026-03-11 11:01:30] [PAGE  ] [admin/admin] [::1] GET /reservations/cancel.php?id=21 | Page loaded
+[2026-03-11 11:01:55] [PAGE  ] [admin/admin] [::1] POST /reservations/cancel.php?id=21 | Page loaded
+[2026-03-11 11:01:55] [ACTION] [admin/admin] [::1] POST /reservations/cancel.php?id=21 | Cancelled reservation #21. Refund: 500.
+[2026-03-11 11:01:55] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=21 | Page loaded
+[2026-03-11 11:01:58] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 11:02:03] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 11:02:16] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 11:02:32] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 11:07:18] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 11:07:29] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=19 | Page loaded
+[2026-03-11 11:08:53] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 11:12:06] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 11:12:09] [PAGE  ] [admin/admin] [::1] GET /leads/index.php | Page loaded
+[2026-03-11 11:12:09] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-11 11:12:46] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 12:09:50] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-11 12:10:40] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 12:10:41] [PAGE  ] [admin/admin] [::1] GET /accounts/credit.php | Page loaded
+[2026-03-11 12:15:48] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 12:15:56] [PAGE  ] [admin/admin] [::1] GET /accounts/credit.php | Page loaded
+[2026-03-11 12:16:13] [PAGE  ] [admin/admin] [::1] POST /accounts/credit.php | Page loaded
+[2026-03-11 12:16:13] [ACTION] [admin/admin] [::1] POST /accounts/credit.php | Ledger: credit payment settled amount=100 mode=account user_id=1
+[2026-03-11 12:16:13] [PAGE  ] [admin/admin] [::1] GET /accounts/credit.php | Page loaded
+[2026-03-11 12:16:15] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 12:18:26] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 12:29:56] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 12:30:00] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-11 12:30:02] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-11 12:30:05] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=12&year=2026 | Page loaded
+[2026-03-11 12:30:09] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=12&year=2025 | Page loaded
+[2026-03-11 12:30:11] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=1&year=2025 | Page loaded
+[2026-03-11 12:30:14] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=2&year=2025 | Page loaded
+[2026-03-11 12:30:18] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-11 12:30:20] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-11 12:30:48] [PAGE  ] [admin/admin] [::1] POST /staff/show.php?id=1 | Page loaded
+[2026-03-11 12:30:48] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-11 12:31:09] [PAGE  ] [admin/admin] [::1] POST /staff/show.php?id=1 | Page loaded
+[2026-03-11 12:31:09] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-11 12:31:31] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-11 12:31:41] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php | Page loaded
+[2026-03-11 12:32:09] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php | Page loaded
+[2026-03-11 12:32:09] [ERROR ] [admin/admin] [::1] POST /payroll/index.php | Undefined variable $hasIncentiveTable in D:\WORK\oRentPHP\payroll\index.php:183 | {"errno":2,"level":"WARNING"}
+[2026-03-11 12:32:09] [ERROR ] [admin/admin] [::1] POST /payroll/index.php | Undefined variable $hasIncentiveTable in D:\WORK\oRentPHP\payroll\index.php:183 | {"errno":2,"level":"WARNING"}
+[2026-03-11 12:32:09] [ERROR ] [admin/admin] [::1] POST /payroll/index.php | Undefined variable $hasIncentiveTable in D:\WORK\oRentPHP\payroll\index.php:183 | {"errno":2,"level":"WARNING"}
+[2026-03-11 12:32:09] [ERROR ] [admin/admin] [::1] POST /payroll/index.php | Undefined variable $hasIncentiveTable in D:\WORK\oRentPHP\payroll\index.php:183 | {"errno":2,"level":"WARNING"}
+[2026-03-11 12:32:09] [ACTION] [admin/admin] [::1] POST /payroll/index.php | Payroll generated for month=2 year=2025 by user#1
+[2026-03-11 12:32:09] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=2&year=2025 | Page loaded
+[2026-03-11 12:35:38] [PAGE  ] [admin/admin] [::1] GET /vehicles/availability.php | Page loaded
+[2026-03-11 12:36:16] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 12:36:19] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-11 12:36:29] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 12:36:33] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=20 | Page loaded
+[2026-03-11 12:36:35] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=20 | Page loaded
+[2026-03-11 12:36:40] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-11 12:36:46] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 12:36:56] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=20 | Page loaded
+[2026-03-11 12:37:02] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-11 12:37:04] [PAGE  ] [admin/admin] [::1] GET /vehicles/availability.php | Page loaded
+[2026-03-11 12:37:04] [ERROR ] [admin/admin] [::1] GET /vehicles/availability.php | Undefined variable $selectedDate in D:\WORK\oRentPHP\vehicles\availability.php:101 | {"errno":2,"level":"WARNING"}
+[2026-03-11 12:37:04] [ERROR ] [admin/admin] [::1] GET /vehicles/availability.php | Undefined variable $selectedDate in D:\WORK\oRentPHP\vehicles\availability.php:118 | {"errno":2,"level":"WARNING"}
+[2026-03-11 12:37:14] [PAGE  ] [admin/admin] [::1] GET /vehicles/availability.php?date=2026-03-10 | Page loaded
+[2026-03-11 12:37:14] [ERROR ] [admin/admin] [::1] GET /vehicles/availability.php?date=2026-03-10 | Undefined variable $selectedDate in D:\WORK\oRentPHP\vehicles\availability.php:101 | {"errno":2,"level":"WARNING"}
+[2026-03-11 12:37:14] [ERROR ] [admin/admin] [::1] GET /vehicles/availability.php?date=2026-03-10 | Undefined variable $selectedDate in D:\WORK\oRentPHP\vehicles\availability.php:118 | {"errno":2,"level":"WARNING"}
+[2026-03-11 12:37:29] [PAGE  ] [admin/admin] [::1] GET /vehicles/availability.php?date=2026-03-21 | Page loaded
+[2026-03-11 12:39:19] [PAGE  ] [admin/admin] [::1] GET /vehicles/availability.php?date=2026-03-21 | Page loaded
+[2026-03-11 12:39:21] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 12:39:28] [PAGE  ] [admin/admin] [::1] GET /vehicles/availability.php | Page loaded
+[2026-03-11 12:39:40] [PAGE  ] [admin/admin] [::1] GET /vehicles/availability.php?start_date=2026-03-10&end_date=2026-03-20 | Page loaded
+[2026-03-11 12:39:50] [PAGE  ] [admin/admin] [::1] GET /vehicles/availability.php?start_date=2026-03-21&end_date=2026-04-01 | Page loaded
+[2026-03-11 12:40:01] [PAGE  ] [admin/admin] [::1] GET /vehicles/availability.php?start_date=2026-03-20&end_date=2026-04-01 | Page loaded
+[2026-03-11 12:44:39] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 12:44:49] [PAGE  ] [admin/admin] [::1] POST /notifications/clear.php | Page loaded
+[2026-03-11 12:44:49] [ACTION] [admin/admin] [::1] POST /notifications/clear.php | Notification action: clear_all
+[2026-03-11 12:44:49] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 12:44:50] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 12:44:53] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 12:48:43] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-11 12:48:55] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-11+12%3A45%3A00&end=2026-03-28+01%3A00%3A00 | Page loaded
+[2026-03-11 12:49:01] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-11 12:49:01] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 22)
+[2026-03-11 12:49:01] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=22 | Page loaded
+[2026-03-11 12:49:07] [PAGE  ] [admin/admin] [::1] GET /notifications/clear.php?action=mark_read&id=3&go=..%2Freservations%2Fshow.php%3Fid%3D22 | Page loaded
+[2026-03-11 12:49:07] [ACTION] [admin/admin] [::1] GET /notifications/clear.php?action=mark_read&id=3&go=..%2Freservations%2Fshow.php%3Fid%3D22 | Notification action: mark_read (id: 3)
+[2026-03-11 12:49:07] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=22 | Page loaded
+[2026-03-11 12:49:09] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=22 | Page loaded
+[2026-03-11 12:49:52] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=22 | Page loaded
+[2026-03-11 12:49:52] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=22 | Delivered reservation (ID: 22)
+[2026-03-11 12:49:52] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=22 | Ledger: posted income Reservation Delivery amount=168 (entry ID: 93)
+[2026-03-11 12:49:52] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=22 | Ledger: posted income Security Deposit Collected amount=25.2 (entry ID: 94)
+[2026-03-11 12:49:52] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=22 | Page loaded
+[2026-03-11 12:49:56] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 12:49:59] [PAGE  ] [admin/admin] [::1] GET /notifications/clear.php?action=mark_read&id=4&go=..%2Freservations%2Fshow.php%3Fid%3D22 | Page loaded
+[2026-03-11 12:49:59] [ACTION] [admin/admin] [::1] GET /notifications/clear.php?action=mark_read&id=4&go=..%2Freservations%2Fshow.php%3Fid%3D22 | Notification action: mark_read (id: 4)
+[2026-03-11 12:49:59] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=22 | Page loaded
+[2026-03-11 12:50:02] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=22 | Page loaded
+[2026-03-11 12:51:13] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=22 | Page loaded
+[2026-03-11 12:51:15] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=22 | Page loaded
+[2026-03-11 12:51:39] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=22 | Page loaded
+[2026-03-11 12:51:46] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=22 | Page loaded
+[2026-03-11 12:52:03] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=22 | Page loaded
+[2026-03-11 12:52:05] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=22 | Page loaded
+[2026-03-11 12:53:18] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=22 | Page loaded
+[2026-03-11 12:53:53] [PAGE  ] [admin/admin] [::1] POST /reservations/return.php?id=22 | Page loaded
+[2026-03-11 12:55:35] [PAGE  ] [admin/admin] [::1] POST /reservations/return.php?id=22 | Page loaded
+[2026-03-11 12:55:35] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=22 | Returned reservation (ID: 22)
+[2026-03-11 12:55:35] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=22 | Ledger: posted income Reservation Return amount=200 (entry ID: 95)
+[2026-03-11 12:55:35] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=22 | Ledger: posted expense Security Deposit Returned amount=25.2 (entry ID: 96)
+[2026-03-11 12:55:35] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=22 | Page loaded
+[2026-03-11 12:55:39] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=22 | Page loaded
+[2026-03-11 12:56:08] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=22 | Page loaded
+[2026-03-11 13:03:20] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-11 13:05:43] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-11 13:05:45] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-11 13:06:25] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-11 13:06:49] [PAGE  ] [admin/admin] [::1] GET /staff/edit.php?id=1 | Page loaded
+[2026-03-11 13:06:56] [PAGE  ] [admin/admin] [::1] POST /staff/edit.php?id=1 | Page loaded
+[2026-03-11 13:06:56] [ACTION] [admin/admin] [::1] POST /staff/edit.php?id=1 | Updated staff: staff1 (ID: 1)
+[2026-03-11 13:06:56] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-11 13:07:01] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-11 13:07:01] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-11 13:07:01] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-11 13:07:07] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-11 13:07:07] [ACTION] [staff1/staff] [::1] POST /auth/login.php | Login successful: staff1 (role: staff)
+[2026-03-11 13:07:07] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:09:56] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:09:59] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:10:01] [PAGE  ] [staff1/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-11 13:10:01] [ACTION] [staff1/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-11 13:10:01] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-11 13:10:10] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-11 13:10:10] [ACTION] [staff1/staff] [::1] POST /auth/login.php | Login successful: staff1 (role: staff)
+[2026-03-11 13:10:10] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:10:39] [PAGE  ] [staff1/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-11 13:10:39] [ACTION] [staff1/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-11 13:10:39] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-11 13:10:45] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-11 13:10:45] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-11 13:10:45] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 13:10:48] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-11 13:10:50] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-11 13:10:51] [PAGE  ] [admin/admin] [::1] GET /staff/edit.php?id=1 | Page loaded
+[2026-03-11 13:10:59] [PAGE  ] [admin/admin] [::1] POST /staff/edit.php?id=1 | Page loaded
+[2026-03-11 13:10:59] [ACTION] [admin/admin] [::1] POST /staff/edit.php?id=1 | Updated staff: staff1 (ID: 1)
+[2026-03-11 13:10:59] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-11 13:11:03] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-11 13:11:05] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=2 | Page loaded
+[2026-03-11 13:11:07] [PAGE  ] [admin/admin] [::1] GET /staff/edit.php?id=2 | Page loaded
+[2026-03-11 13:11:11] [PAGE  ] [admin/admin] [::1] POST /staff/edit.php?id=2 | Page loaded
+[2026-03-11 13:11:11] [ACTION] [admin/admin] [::1] POST /staff/edit.php?id=2 | Updated staff: staff2 (ID: 2)
+[2026-03-11 13:11:11] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=2 | Page loaded
+[2026-03-11 13:11:14] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-11 13:11:14] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-11 13:11:14] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-11 13:11:20] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-11 13:11:20] [ACTION] [staff1/staff] [::1] POST /auth/login.php | Login successful: staff1 (role: staff)
+[2026-03-11 13:11:20] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:11:27] [PAGE  ] [staff1/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-11 13:11:27] [ACTION] [staff1/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-11 13:11:27] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-11 13:11:34] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-11 13:11:34] [ACTION] [staff2/staff] [::1] POST /auth/login.php | Login successful: staff2 (role: staff)
+[2026-03-11 13:11:34] [PAGE  ] [staff2/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:15:32] [PAGE  ] [staff2/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-11 13:15:32] [ACTION] [staff2/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-11 13:15:32] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-11 13:15:36] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-11 13:15:36] [ACTION] [staff1/staff] [::1] POST /auth/login.php | Login successful: staff1 (role: staff)
+[2026-03-11 13:15:36] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:16:56] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:18:46] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:20:17] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:23:20] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:23:28] [PAGE  ] [staff1/staff] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-11 13:23:29] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:27:58] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:168","screen":"index.php","user_id":2}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:264 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:285 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:285 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:286 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:286 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:287 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:287 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:288 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:27:58] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:288 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [PAGE  ] [staff1/staff] [::1] POST /index.php | Page loaded
+[2026-03-11 13:28:14] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:168","screen":"index.php","user_id":2}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:264 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:285 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:285 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:286 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:286 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:287 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:287 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:288 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:14] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:288 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [PAGE  ] [staff1/staff] [::1] POST /index.php | Page loaded
+[2026-03-11 13:28:19] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:168","screen":"index.php","user_id":2}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:264 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:285 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:285 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:286 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:286 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:287 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:287 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:288 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:19] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:288 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:23] [PAGE  ] [staff1/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-11 13:28:23] [ACTION] [staff1/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-11 13:28:23] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-11 13:28:34] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-11 13:28:34] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-11 13:28:34] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 13:28:41] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-11 13:28:41] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-11 13:28:41] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-11 13:28:47] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-11 13:28:47] [ACTION] [staff1/staff] [::1] POST /auth/login.php | Login successful: staff1 (role: staff)
+[2026-03-11 13:28:47] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:168","screen":"index.php","user_id":2}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:264 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:285 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:285 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:286 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:286 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:287 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:287 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:288 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:28:47] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:288 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [PAGE  ] [staff1/staff] [::1] POST /index.php | Page loaded
+[2026-03-11 13:29:22] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:168","screen":"index.php","user_id":2}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:264 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:265 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:285 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:285 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:286 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:286 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:287 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:287 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:288 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:29:22] [ERROR ] [staff1/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:288 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:33:04] [PAGE  ] [staff1/staff] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 13:33:05] [PAGE  ] [staff1/staff] [::1] GET /reservations/create.php | Page loaded
+[2026-03-11 13:33:10] [PAGE  ] [staff1/staff] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 13:37:28] [PAGE  ] [staff1/staff] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 13:37:29] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:37:29] [ERROR ] [staff1/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:165","screen":"index.php","user_id":2}
+[2026-03-11 13:37:33] [PAGE  ] [staff1/staff] [::1] POST /index.php | Page loaded
+[2026-03-11 13:37:33] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:37:39] [PAGE  ] [staff1/staff] [::1] POST /index.php | Page loaded
+[2026-03-11 13:37:39] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:37:39] [ERROR ] [staff1/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:165","screen":"index.php","user_id":2}
+[2026-03-11 13:37:43] [PAGE  ] [staff1/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-11 13:37:43] [ACTION] [staff1/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-11 13:37:43] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-11 13:37:49] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-11 13:37:50] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-11 13:37:50] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 13:37:55] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-11 13:37:56] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-11 13:37:58] [PAGE  ] [admin/admin] [::1] GET /staff/edit.php?id=1 | Page loaded
+[2026-03-11 13:38:01] [PAGE  ] [admin/admin] [::1] POST /staff/edit.php?id=1 | Page loaded
+[2026-03-11 13:38:01] [ACTION] [admin/admin] [::1] POST /staff/edit.php?id=1 | Updated staff: staff1 (ID: 1)
+[2026-03-11 13:38:01] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-11 13:38:04] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-11 13:38:05] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=2 | Page loaded
+[2026-03-11 13:38:08] [PAGE  ] [admin/admin] [::1] GET /staff/edit.php?id=2 | Page loaded
+[2026-03-11 13:38:12] [PAGE  ] [admin/admin] [::1] POST /staff/edit.php?id=2 | Page loaded
+[2026-03-11 13:38:12] [ACTION] [admin/admin] [::1] POST /staff/edit.php?id=2 | Updated staff: staff2 (ID: 2)
+[2026-03-11 13:38:12] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=2 | Page loaded
+[2026-03-11 13:38:14] [PAGE  ] [admin/admin] [::1] GET /staff/edit.php?id=2 | Page loaded
+[2026-03-11 13:38:18] [PAGE  ] [admin/admin] [::1] POST /staff/edit.php?id=2 | Page loaded
+[2026-03-11 13:38:18] [ACTION] [admin/admin] [::1] POST /staff/edit.php?id=2 | Updated staff: staff2 (ID: 2)
+[2026-03-11 13:38:18] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=2 | Page loaded
+[2026-03-11 13:38:21] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-11 13:38:21] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-11 13:38:21] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-11 13:38:25] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-11 13:38:25] [ACTION] [staff1/staff] [::1] POST /auth/login.php | Login successful: staff1 (role: staff)
+[2026-03-11 13:38:25] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:38:25] [ERROR ] [staff1/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:165","screen":"index.php","user_id":2}
+[2026-03-11 13:38:29] [PAGE  ] [staff1/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-11 13:38:29] [ACTION] [staff1/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-11 13:38:29] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-11 13:38:36] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-11 13:38:36] [ACTION] [staff2/staff] [::1] POST /auth/login.php | Login successful: staff2 (role: staff)
+[2026-03-11 13:38:36] [PAGE  ] [staff2/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:165","screen":"index.php","user_id":3}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:261 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:262 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:262 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:262 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:262 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:262 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:262 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:262 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Undefined variable $dailyTarget in D:\WORK\oRentPHP\index.php:262 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Undefined variable $todayRevenue in D:\WORK\oRentPHP\index.php:262 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:282 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:282 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:283 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:283 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:284 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:284 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Undefined variable $accounts in D:\WORK\oRentPHP\index.php:285 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:36] [ERROR ] [staff2/staff] [::1] GET /index.php | Trying to access array offset on value of type null in D:\WORK\oRentPHP\index.php:285 | {"errno":2,"level":"WARNING"}
+[2026-03-11 13:38:38] [PAGE  ] [staff2/staff] [::1] POST /index.php | Page loaded
+[2026-03-11 13:38:38] [PAGE  ] [staff2/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:38:38] [ERROR ] [staff2/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:165","screen":"index.php","user_id":3}
+[2026-03-11 13:38:40] [PAGE  ] [staff2/staff] [::1] POST /index.php | Page loaded
+[2026-03-11 13:38:40] [PAGE  ] [staff2/staff] [::1] GET /index.php | Page loaded
+[2026-03-11 13:38:45] [PAGE  ] [staff2/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-11 13:38:45] [ACTION] [staff2/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-11 13:38:45] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-11 13:38:53] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-11 13:38:53] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-11 13:38:53] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 13:42:38] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 13:42:40] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-11 13:43:50] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-11+13%3A40%3A00&end=2026-05-12+01%3A00%3A00 | Page loaded
+[2026-03-11 13:44:04] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-11 13:44:04] [ERROR ] [admin/admin] [::1] POST /reservations/create.php | Reservation creation failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'note' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\reservations\\create.php:180"}
+[2026-03-11 13:44:05] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-11+13%3A40%3A00&end=2026-05-12+01%3A00%3A00 | Page loaded
+[2026-03-11 13:44:31] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-11 13:44:31] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 23)
+[2026-03-11 13:44:31] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=23 | Page loaded
+[2026-03-11 13:46:11] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=23 | Page loaded
+[2026-03-11 13:46:12] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 13:46:13] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-11 13:46:30] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-11+13%3A45%3A00&end=2026-06-15+01%3A00%3A00 | Page loaded
+[2026-03-11 13:46:36] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-11 13:46:36] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 24)
+[2026-03-11 13:46:36] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=24 | Page loaded
+[2026-03-11 14:00:56] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-11 14:00:58] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 14:01:00] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-11 14:02:09] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-11+14%3A00%3A00&end=2026-05-16+01%3A00%3A00 | Page loaded
+[2026-03-11 14:02:34] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 14:02:38] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=22 | Page loaded
+[2026-03-11 14:02:45] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 14:02:48] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=23 | Page loaded
+[2026-03-11 14:02:54] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 14:11:53] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=24 | Page loaded
+[2026-03-11 14:11:55] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 14:11:57] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=24 | Page loaded
+[2026-03-11 14:11:59] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=24 | Page loaded
+[2026-03-11 14:12:02] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=24 | Page loaded
+[2026-03-11 14:12:05] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 14:12:20] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 14:12:22] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-11 14:12:31] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 14:12:33] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=24 | Page loaded
+[2026-03-11 14:12:40] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 14:12:42] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 14:13:01] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 14:13:11] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 14:13:13] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-11 14:13:20] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-11+14%3A10%3A00&end=2026-05-20+01%3A00%3A00 | Page loaded
+[2026-03-11 14:13:27] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-11+14%3A10%3A00&end=2026-04-10+14%3A10%3A00 | Page loaded
+[2026-03-11 14:13:28] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-11+14%3A10%3A00&end=2026-04-10+14%3A10%3A00 | Page loaded
+[2026-03-11 14:13:30] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-11+14%3A10%3A00&end=2026-04-10+14%3A10%3A00 | Page loaded
+[2026-03-11 14:13:50] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-11 14:13:50] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-11+14%3A10%3A00&end=2026-04-10+14%3A10%3A00 | Page loaded
+[2026-03-11 14:15:57] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-11 14:15:58] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-11+14%3A10%3A00&end=2026-04-10+14%3A10%3A00 | Page loaded
+[2026-03-11 14:16:37] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-11 14:16:37] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Ledger: posted income Reservation Advance amount=2000 (entry ID: 97)
+[2026-03-11 14:16:37] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 25) [Advance: $2000 (account)]
+[2026-03-11 14:16:37] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=25 | Page loaded
+[2026-03-11 14:16:51] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 14:16:54] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=25 | Page loaded
+[2026-03-11 14:17:00] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 14:17:05] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 14:17:10] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 14:17:14] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=25 | Page loaded
+[2026-03-11 14:17:17] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=25 | Page loaded
+[2026-03-11 14:18:06] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=25 | Page loaded
+[2026-03-11 14:18:06] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=25 | Delivered reservation (ID: 25)
+[2026-03-11 14:18:06] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=25 | Ledger: posted income Reservation Delivery amount=4150 (entry ID: 98)
+[2026-03-11 14:18:06] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=25 | Ledger: posted income Security Deposit Collected amount=622.5 (entry ID: 99)
+[2026-03-11 14:18:06] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=25 | Page loaded
+[2026-03-11 14:18:23] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=25 | Page loaded
+[2026-03-11 14:18:53] [PAGE  ] [admin/admin] [::1] POST /reservations/return.php?id=25 | Page loaded
+[2026-03-11 14:18:53] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=25 | Returned reservation (ID: 25)
+[2026-03-11 14:18:53] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=25 | Ledger: posted income Reservation Return amount=200 (entry ID: 100)
+[2026-03-11 14:18:53] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=25 | Ledger: posted expense Security Deposit Returned amount=622.5 (entry ID: 101)
+[2026-03-11 14:18:53] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=25 | Page loaded
+[2026-03-11 14:19:01] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=25 | Page loaded
+[2026-03-11 14:25:16] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-11 14:25:19] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-11 14:25:30] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-11 14:26:48] [PAGE  ] [admin/admin] [::1] GET /vehicles/availability.php | Page loaded
+[2026-03-11 14:26:54] [PAGE  ] [admin/admin] [::1] GET /vehicles/availability.php?start_date=2026-03-12&end_date=2026-03-21 | Page loaded
+[2026-03-11 14:44:58] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-11 14:45:02] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-11 14:45:03] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 14:45:14] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-11 14:45:19] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 14:45:20] [PAGE  ] [admin/admin] [::1] GET /accounts/credit.php | Page loaded
+[2026-03-11 14:45:25] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 14:55:53] [PAGE  ] [admin/admin] [::1] GET /accounts/credit.php | Page loaded
+[2026-03-11 14:56:27] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 14:56:29] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-11 15:06:22] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 15:06:24] [PAGE  ] [admin/admin] [::1] GET /accounts/credit.php | Page loaded
+[2026-03-11 15:06:26] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 15:06:27] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-11 15:06:37] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 15:06:48] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-11 15:07:15] [PAGE  ] [admin/admin] [::1] POST /accounts/cash.php | Page loaded
+[2026-03-11 15:07:15] [ACTION] [admin/admin] [::1] POST /accounts/cash.php | Ledger: cash transfer $51097 to account#1 by user#1
+[2026-03-11 15:07:15] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-11 15:07:25] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 15:08:25] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-11 15:08:27] [PAGE  ] [admin/admin] [::1] GET /clients/create.php | Page loaded
+[2026-03-11 15:08:47] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-11 15:08:49] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=6 | Page loaded
+[2026-03-11 15:08:58] [PAGE  ] [admin/admin] [::1] GET /clients/edit.php?id=6 | Page loaded
+[2026-03-11 15:09:01] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=6 | Page loaded
+[2026-03-11 15:09:04] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-11 15:09:06] [PAGE  ] [admin/admin] [::1] GET /clients/create.php | Page loaded
+[2026-03-11 15:09:29] [PAGE  ] [admin/admin] [::1] POST /clients/create.php | Page loaded
+[2026-03-11 15:09:29] [ACTION] [admin/admin] [::1] POST /clients/create.php | Created client: withproof (ID: 7)
+[2026-03-11 15:09:29] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=7 | Page loaded
+[2026-03-11 15:09:31] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-11 15:09:33] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=7 | Page loaded
+[2026-03-11 15:11:39] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 15:12:35] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 15:14:10] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-11 15:14:13] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-11 15:14:16] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=8 | Page loaded
+[2026-03-11 15:14:18] [PAGE  ] [admin/admin] [::1] GET /leads/index.php | Page loaded
+[2026-03-11 15:14:18] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-11 15:14:20] [PAGE  ] [admin/admin] [::1] GET /leads/create.php | Page loaded
+[2026-03-11 15:45:12] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-11 15:45:15] [PAGE  ] [admin/admin] [::1] GET /clients/create.php | Page loaded
+[2026-03-11 15:54:45] [PAGE  ] [admin/admin] [::1] GET /clients/create.php | Page loaded
+[2026-03-11 15:55:42] [PAGE  ] [admin/admin] [::1] POST /clients/create.php | Page loaded
+[2026-03-11 15:55:42] [ACTION] [admin/admin] [::1] POST /clients/create.php | Created client: Picture1.png (ID: 8)
+[2026-03-11 15:55:42] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=8 | Page loaded
+[2026-03-11 15:55:45] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-11 15:55:48] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=8 | Page loaded
+[2026-03-11 15:55:52] [PAGE  ] [admin/admin] [::1] GET /clients/edit.php?id=8 | Page loaded
+[2026-03-11 15:56:03] [PAGE  ] [admin/admin] [::1] POST /clients/edit.php?id=8 | Page loaded
+[2026-03-11 15:56:03] [ACTION] [admin/admin] [::1] POST /clients/edit.php?id=8 | Updated client: multiproof (ID: 8)
+[2026-03-11 15:56:03] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=8 | Page loaded
+[2026-03-11 15:56:05] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-11 15:56:08] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=8 | Page loaded
+[2026-03-11 15:56:18] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-11 15:56:19] [PAGE  ] [admin/admin] [::1] GET /clients/create.php | Page loaded
+[2026-03-11 15:56:56] [PAGE  ] [admin/admin] [::1] POST /clients/create.php | Page loaded
+[2026-03-11 15:56:56] [ACTION] [admin/admin] [::1] POST /clients/create.php | Created client: vlcsnap-2024-09-20-15h40m39s687.png (ID: 9)
+[2026-03-11 15:56:56] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=9 | Page loaded
+[2026-03-11 15:57:00] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-11 15:57:01] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=9 | Page loaded
+[2026-03-11 15:57:51] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-11 15:57:52] [PAGE  ] [admin/admin] [::1] GET /clients/create.php | Page loaded
+[2026-03-11 15:58:26] [PAGE  ] [admin/admin] [::1] POST /clients/create.php | Page loaded
+[2026-03-11 15:58:26] [ACTION] [admin/admin] [::1] POST /clients/create.php | Created client: vlcsnap-2024-09-20-15h40m39s687.png (ID: 10)
+[2026-03-11 15:58:26] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=10 | Page loaded
+[2026-03-11 15:58:28] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-11 16:01:04] [PAGE  ] [admin/admin] [::1] GET /clients/create.php | Page loaded
+[2026-03-11 16:01:26] [PAGE  ] [admin/admin] [::1] POST /clients/create.php | Page loaded
+[2026-03-11 16:01:26] [ACTION] [admin/admin] [::1] POST /clients/create.php | Created client: test5 (ID: 11)
+[2026-03-11 16:01:26] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=11 | Page loaded
+[2026-03-11 16:01:27] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-11 16:01:29] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=11 | Page loaded
+[2026-03-11 16:05:32] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-11 16:05:34] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-11 16:05:37] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-11 21:15:26] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-11 21:17:42] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-11 21:17:53] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-11 21:18:14] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-11 21:20:54] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-11 21:21:00] [PAGE  ] [admin/admin] [::1] GET /vehicles/availability.php | Page loaded
+[2026-03-11 21:21:04] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded

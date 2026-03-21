@@ -16,7 +16,8 @@ $listSql = "SELECT
                 i.*,
                 COUNT(s.id) AS total_emis,
                 SUM(s.status = 'paid') AS paid_emis,
-                SUM(CASE WHEN s.status = 'paid' THEN s.amount ELSE 0 END) AS amount_paid
+                SUM(CASE WHEN s.status = 'paid' THEN s.amount ELSE 0 END) AS amount_paid,
+                MIN(CASE WHEN s.status='pending' THEN s.due_date END) AS next_emi_date
             FROM emi_investments i
             LEFT JOIN emi_schedules s ON s.investment_id = i.id
             GROUP BY i.id
@@ -81,20 +82,32 @@ require_once __DIR__ . '/../includes/header.php';
                 $progress = $totalEmis > 0 ? round($paidEmis / $totalEmis * 100) : 0;
                 $completed = $paidEmis >= $totalEmis && $totalEmis > 0;
                 $remaining = $loanAmt - $amtPaid;
+                $nextDue = $inv['next_emi_date'] ?? null;
+                $today = date('Y-m-d');
+                $emiDueBadge = '';
+                if ($nextDue && !$completed) {
+                    if ($nextDue < $today) {
+                        $daysOver = (int)((strtotime($today) - strtotime($nextDue)) / 86400);
+                        $emiDueBadge = '<span class="inline-flex items-center gap-1.5 bg-red-500/15 border border-red-500/30 text-red-400 rounded-full px-2.5 py-0.5 text-xs font-medium"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block"></span>EMI Overdue &ndash; '.date('d M', strtotime($nextDue)).' ('.$daysOver.'d ago)</span>';
+                    } elseif ($nextDue === $today) {
+                        $emiDueBadge = '<span class="inline-flex items-center gap-1.5 bg-yellow-500/15 border border-yellow-500/30 text-yellow-400 rounded-full px-2.5 py-0.5 text-xs font-medium"><span class="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse inline-block"></span>EMI Due Today</span>';
+                    } else {
+                        $daysLeft = (int)((strtotime($nextDue) - strtotime($today)) / 86400);
+                        $emiDueBadge = '<span class="inline-flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 text-green-400 rounded-full px-2.5 py-0.5 text-xs">Next EMI: '.date('d M', strtotime($nextDue)).' (in '.$daysLeft.'d)</span>';
+                    }
+                }
                 ?>
-                <div
-                    class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5 hover:border-mb-subtle/40 transition-colors">
+                <div class="bg-mb-surface border <?= ($nextDue && $nextDue <= $today && !$completed) ? 'border-red-500/30' : 'border-mb-subtle/20' ?> rounded-xl p-5 hover:border-mb-subtle/40 transition-colors">
                     <div class="flex items-start justify-between gap-4">
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h3 class="text-white font-medium"><?= e($inv['title']) ?></h3>
                                 <?php if ($completed): ?>
-                                    <span
-                                        class="bg-green-500/10 text-green-400 border border-green-500/20 rounded-full px-2.5 py-0.5 text-xs">Completed</span>
+                                    <span class="bg-green-500/10 text-green-400 border border-green-500/20 rounded-full px-2.5 py-0.5 text-xs">Completed</span>
                                 <?php else: ?>
-                                    <span
-                                        class="bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full px-2.5 py-0.5 text-xs">Ongoing</span>
+                                    <span class="bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full px-2.5 py-0.5 text-xs">Ongoing</span>
                                 <?php endif; ?>
+                                <?php if ($emiDueBadge): ?><?= $emiDueBadge ?><?php endif; ?>
                             </div>
                             <?php if ($inv['lender']): ?>
                                 <p class="text-mb-subtle text-sm mt-0.5">Lender: <?= e($inv['lender']) ?></p>
@@ -117,8 +130,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <div class="text-right shrink-0">
                             <p class="text-xs text-mb-subtle">EMI</p>
                             <p class="text-white font-semibold text-lg">$<?= number_format($inv['emi_amount'], 2) ?></p>
-                            <p class="text-xs text-mb-subtle mt-1">Remaining: <span
-                                    class="text-red-400">$<?= number_format(max(0, $remaining), 2) ?></span></p>
+                            <p class="text-xs text-mb-subtle mt-1">Remaining: <span class="text-red-400">$<?= number_format(max(0, $remaining), 2) ?></span></p>
                         </div>
                     </div>
 
@@ -134,8 +146,7 @@ require_once __DIR__ . '/../includes/header.php';
                         </div>
                         <div class="ml-auto flex items-center gap-2">
                             <a href="show.php?id=<?= $inv['id'] ?>"
-                                class="text-mb-accent hover:text-mb-accent/80 text-xs font-medium transition-colors px-3 py-1.5 border border-mb-accent/30 rounded-lg hover:border-mb-accent/60">View
-                                EMI Schedule</a>
+                                class="text-mb-accent hover:text-mb-accent/80 text-xs font-medium transition-colors px-3 py-1.5 border border-mb-accent/30 rounded-lg hover:border-mb-accent/60">View EMI Schedule</a>
                             <a href="edit.php?id=<?= $inv['id'] ?>"
                                 class="text-mb-subtle hover:text-white text-xs transition-colors px-3 py-1.5 border border-mb-subtle/20 rounded-lg hover:border-mb-subtle/40">Edit</a>
                         </div>

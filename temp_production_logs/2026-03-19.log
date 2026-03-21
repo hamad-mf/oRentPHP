@@ -1,0 +1,44 @@
+[2026-03-19 00:00:13] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-19 00:00:15] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-19 00:01:58] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-19 00:01:58] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: farooq (ID: 279)
+[2026-03-19 00:01:58] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=279 | Page loaded
+[2026-03-19 00:02:12] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-19 00:02:14] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-19 00:03:16] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-19 00:03:16] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: erfan ali (ID: 280)
+[2026-03-19 00:03:16] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=280 | Page loaded
+[2026-03-19 00:05:16] [PAGE  ] [-] [157.51.220.9] GET /reservations/bill.php?id=18 | Page loaded
+[2026-03-19 00:08:36] [PAGE  ] [-] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-19 00:08:36] [PAGE  ] [-] [103.215.52.136] GET /auth/login.php | Page loaded
+[2026-03-19 00:08:49] [PAGE  ] [-] [103.215.52.136] POST /auth/login.php | Page loaded
+[2026-03-19 00:08:49] [ACTION] [-] [103.215.52.136] POST /auth/login.php | Login failed for username: admin
+[2026-03-19 00:08:59] [PAGE  ] [-] [103.215.52.136] POST /auth/login.php | Page loaded
+[2026-03-19 00:08:59] [ACTION] [admin/admin] [103.215.52.136] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-19 00:08:59] [PAGE  ] [admin/admin] [103.215.52.136] GET /index.php | Page loaded
+[2026-03-19 00:09:05] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-19 00:09:07] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-19 00:09:15] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=279 | Page loaded
+[2026-03-19 00:09:45] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/edit.php?id=279 | Page loaded
+[2026-03-19 00:09:50] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=279 | Page loaded
+[2026-03-19 00:10:04] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/followup_save.php | Page loaded
+[2026-03-19 00:10:04] [ACTION] [admin/admin] [103.215.52.136] POST /leads/followup_save.php | Scheduled followup for lead (ID: 279)
+[2026-03-19 00:10:04] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=279 | Page loaded
+[2026-03-19 00:10:08] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/followup_done.php | Page loaded
+[2026-03-19 00:10:08] [ACTION] [admin/admin] [103.215.52.136] POST /leads/followup_done.php | Marked followup done for lead (ID: 279)
+[2026-03-19 00:10:08] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=279 | Page loaded
+[2026-03-19 00:10:26] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-19 00:11:52] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=278 | Page loaded
+[2026-03-19 00:12:10] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/edit.php?id=278 | Page loaded
+[2026-03-19 00:12:22] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/edit.php?id=278 | Page loaded
+[2026-03-19 00:12:25] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/edit.php?id=278 | Page loaded
+[2026-03-19 00:12:27] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=278 | Page loaded
+[2026-03-19 00:12:29] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-19 00:13:12] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/edit.php | Page loaded
+[2026-03-19 00:14:38] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-19 00:25:59] [PAGE  ] [-] [1.39.115.200] GET / | Page loaded
+[2026-03-19 00:25:59] [PAGE  ] [-] [1.39.115.200] GET /auth/login.php | Page loaded
+[2026-03-19 00:26:09] [PAGE  ] [-] [1.39.115.200] POST /auth/login.php | Page loaded
+[2026-03-19 00:26:10] [ACTION] [admin/admin] [1.39.115.200] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-19 00:26:10] [PAGE  ] [admin/admin] [1.39.115.200] GET /index.php | Page loaded
+[2026-03-19 00:26:12] [PAGE  ] [admin/admin] [1.39.115.200] GET /leads/pipeline.php | Page loaded

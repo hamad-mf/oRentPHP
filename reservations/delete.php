@@ -16,15 +16,6 @@ if (!$r) {
 }
 
 if (!in_array($r['status'], ['active', 'completed'])) {
-    // Free vehicle if rented
-    if ($r['status'] === 'confirmed') {
-        $vChk = $pdo->prepare('SELECT status FROM vehicles WHERE id=?');
-        $vChk->execute([$r['vehicle_id']]);
-        $vStatus = $vChk->fetchColumn();
-        if ($vStatus === 'rented') {
-            $pdo->prepare("UPDATE vehicles SET status='available' WHERE id=?")->execute([$r['vehicle_id']]);
-        }
-    }
     $pdo->prepare('DELETE FROM reservations WHERE id=?')->execute([$id]);
     app_log('ACTION', "Deleted reservation (ID: $id)");
     flash('success', 'Reservation cancelled and removed.');

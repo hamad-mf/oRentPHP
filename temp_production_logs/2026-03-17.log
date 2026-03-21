@@ -1,0 +1,357 @@
+[2026-03-17 00:05:36] [PAGE  ] [-] [103.85.205.172] GET / | Page loaded
+[2026-03-17 00:05:36] [PAGE  ] [-] [103.85.205.172] GET /auth/login.php | Page loaded
+[2026-03-17 00:05:39] [PAGE  ] [-] [103.85.205.172] POST /auth/login.php | Page loaded
+[2026-03-17 00:05:39] [ACTION] [admin/admin] [103.85.205.172] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-17 00:05:39] [PAGE  ] [admin/admin] [103.85.205.172] GET /index.php | Page loaded
+[2026-03-17 00:05:47] [PAGE  ] [admin/admin] [103.85.205.172] GET /leads/pipeline.php | Page loaded
+[2026-03-17 00:06:17] [PAGE  ] [admin/admin] [103.85.205.172] GET /leads/pipeline.php?view=kanban&q=&staff_filter=8&source_filter=&status_filter=&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-17 00:06:24] [PAGE  ] [admin/admin] [103.85.205.172] GET /leads/show.php?id=200 | Page loaded
+[2026-03-17 00:08:22] [PAGE  ] [admin/admin] [103.85.205.172] GET /leads/edit.php?id=200 | Page loaded
+[2026-03-17 00:10:06] [PAGE  ] [admin/admin] [103.85.205.172] GET /leads/edit.php?id=197 | Page loaded
+[2026-03-17 00:10:42] [PAGE  ] [admin/admin] [103.85.205.172] POST /leads/edit.php?id=197 | Page loaded
+[2026-03-17 00:10:42] [ACTION] [admin/admin] [103.85.205.172] POST /leads/edit.php?id=197 | Updated lead (ID: 197)
+[2026-03-17 00:10:42] [PAGE  ] [admin/admin] [103.85.205.172] GET /leads/show.php?id=197 | Page loaded
+[2026-03-17 00:11:10] [PAGE  ] [admin/admin] [103.85.205.172] GET /leads/edit.php?id=183 | Page loaded
+[2026-03-17 00:50:41] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET / | Page loaded
+[2026-03-17 00:50:43] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/pipeline.php | Page loaded
+[2026-03-17 00:51:36] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] POST /leads/edit.php | Page loaded
+[2026-03-17 00:51:45] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/edit.php?id=227 | Page loaded
+[2026-03-17 00:51:48] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/show.php?id=227 | Page loaded
+[2026-03-17 00:52:03] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/index.php | Page loaded
+[2026-03-17 00:52:03] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/pipeline.php | Page loaded
+[2026-03-17 00:54:09] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/create.php | Page loaded
+[2026-03-17 00:54:39] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] POST /leads/create.php | Page loaded
+[2026-03-17 00:54:39] [ACTION] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] POST /leads/create.php | Created lead: Sya (ID: 233)
+[2026-03-17 00:54:39] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/show.php?id=233 | Page loaded
+[2026-03-17 00:55:42] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/edit.php?id=233 | Page loaded
+[2026-03-17 00:55:51] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] POST /leads/edit.php?id=233 | Page loaded
+[2026-03-17 00:55:51] [ACTION] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] POST /leads/edit.php?id=233 | Updated lead (ID: 233)
+[2026-03-17 00:55:51] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/show.php?id=233 | Page loaded
+[2026-03-17 00:55:54] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/index.php | Page loaded
+[2026-03-17 00:55:54] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/pipeline.php | Page loaded
+[2026-03-17 00:56:01] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/show.php?id=226 | Page loaded
+[2026-03-17 00:56:10] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] POST /leads/followup_done.php | Page loaded
+[2026-03-17 00:56:10] [ACTION] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] POST /leads/followup_done.php | Marked followup done for lead (ID: 226)
+[2026-03-17 00:56:10] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/show.php?id=226 | Page loaded
+[2026-03-17 00:56:11] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] POST /leads/followup_done.php | Page loaded
+[2026-03-17 00:56:11] [ACTION] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] POST /leads/followup_done.php | Marked followup done for lead (ID: 226)
+[2026-03-17 00:56:11] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/show.php?id=226 | Page loaded
+[2026-03-17 00:56:15] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/index.php | Page loaded
+[2026-03-17 00:56:15] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/pipeline.php | Page loaded
+[2026-03-17 00:58:12] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/show.php?id=208 | Page loaded
+[2026-03-17 00:58:15] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/index.php | Page loaded
+[2026-03-17 00:58:15] [PAGE  ] [admin/admin] [2402:3a80:1e02:8ce4:0:46:3b49:5301] GET /leads/pipeline.php | Page loaded
+[2026-03-17 01:00:45] [PAGE  ] [-] [2409:40f3:100c:4fe6:dd0f:1e88:2a6f:d5b3] GET /index.php | Page loaded
+[2026-03-17 01:00:45] [PAGE  ] [-] [2409:40f3:100c:4fe6:dd0f:1e88:2a6f:d5b3] GET /auth/login.php | Page loaded
+[2026-03-17 06:07:06] [PAGE  ] [-] [2a02:4780:11:c0de::e] HEAD / | Page loaded
+[2026-03-17 06:07:06] [PAGE  ] [-] [2a02:4780:11:c0de::e] HEAD /auth/login.php | Page loaded
+[2026-03-17 07:22:55] [PAGE  ] [admin/admin] [2402:8100:2a79:41f1:0:38:b2de:9b01] GET / | Page loaded
+[2026-03-17 09:25:29] [PAGE  ] [-] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] GET /staff/advance_history.php | Page loaded
+[2026-03-17 09:25:29] [PAGE  ] [-] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] GET /auth/login.php | Page loaded
+[2026-03-17 09:25:38] [PAGE  ] [-] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] POST /auth/login.php | Page loaded
+[2026-03-17 09:25:38] [ACTION] [Shuhaib/staff] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] POST /auth/login.php | Login successful: shuhaib (role: staff)
+[2026-03-17 09:25:38] [PAGE  ] [Shuhaib/staff] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] GET /index.php | Page loaded
+[2026-03-17 09:25:38] [ERROR ] [Shuhaib/staff] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":4}
+[2026-03-17 10:07:55] [PAGE  ] [-] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/deliver.php?id=103 | Page loaded
+[2026-03-17 10:07:55] [PAGE  ] [-] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php | Page loaded
+[2026-03-17 10:07:55] [PAGE  ] [-] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /auth/login.php | Page loaded
+[2026-03-17 11:02:42] [PAGE  ] [-] [1.39.36.131] GET / | Page loaded
+[2026-03-17 11:02:42] [PAGE  ] [-] [1.39.36.131] GET /auth/login.php | Page loaded
+[2026-03-17 11:02:56] [PAGE  ] [-] [1.39.36.131] POST /auth/login.php | Page loaded
+[2026-03-17 11:02:56] [ACTION] [admin/admin] [1.39.36.131] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-17 11:02:56] [PAGE  ] [admin/admin] [1.39.36.131] GET /index.php | Page loaded
+[2026-03-17 11:03:03] [PAGE  ] [admin/admin] [1.39.36.131] GET /vehicles/index.php?overdue=1 | Page loaded
+[2026-03-17 11:44:08] [PAGE  ] [admin/admin] [1.39.36.131] GET / | Page loaded
+[2026-03-17 11:44:10] [PAGE  ] [admin/admin] [1.39.36.131] GET /leads/pipeline.php | Page loaded
+[2026-03-17 11:44:19] [PAGE  ] [admin/admin] [1.39.36.131] GET /leads/create.php | Page loaded
+[2026-03-17 11:45:03] [PAGE  ] [admin/admin] [1.39.36.131] POST /leads/create.php | Page loaded
+[2026-03-17 11:45:03] [ACTION] [admin/admin] [1.39.36.131] POST /leads/create.php | Created lead: Rajesh pandary (ID: 234)
+[2026-03-17 11:45:03] [PAGE  ] [admin/admin] [1.39.36.131] GET /leads/show.php?id=234 | Page loaded
+[2026-03-17 11:45:07] [PAGE  ] [admin/admin] [1.39.36.131] GET /leads/edit.php?id=234 | Page loaded
+[2026-03-17 11:45:16] [PAGE  ] [admin/admin] [1.39.36.131] POST /leads/edit.php?id=234 | Page loaded
+[2026-03-17 11:45:16] [ACTION] [admin/admin] [1.39.36.131] POST /leads/edit.php?id=234 | Updated lead (ID: 234)
+[2026-03-17 11:45:16] [PAGE  ] [admin/admin] [1.39.36.131] GET /leads/show.php?id=234 | Page loaded
+[2026-03-17 11:45:19] [PAGE  ] [admin/admin] [1.39.36.131] GET /leads/index.php | Page loaded
+[2026-03-17 11:45:19] [PAGE  ] [admin/admin] [1.39.36.131] GET /leads/pipeline.php | Page loaded
+[2026-03-17 11:46:21] [PAGE  ] [admin/admin] [2402:3a80:44bb:98ec:0:2e:8067:1b01] GET /attendance/index.php | Page loaded
+[2026-03-17 13:06:36] [PAGE  ] [admin/admin] [2402:3a80:4470:ec37:0:2e:8067:1b01] GET / | Page loaded
+[2026-03-17 13:08:07] [PAGE  ] [admin/admin] [2402:3a80:4470:ec37:0:2e:8067:1b01] GET /leads/pipeline.php | Page loaded
+[2026-03-17 13:08:07] [PAGE  ] [admin/admin] [2402:3a80:4470:ec37:0:2e:8067:1b01] GET /leads/pipeline.php | Page loaded
+[2026-03-17 13:08:10] [PAGE  ] [admin/admin] [2402:3a80:4470:ec37:0:2e:8067:1b01] GET /leads/pipeline.php | Page loaded
+[2026-03-17 13:08:11] [PAGE  ] [admin/admin] [2402:3a80:4470:ec37:0:2e:8067:1b01] GET /leads/create.php | Page loaded
+[2026-03-17 13:08:38] [PAGE  ] [admin/admin] [2402:3a80:4470:ec37:0:2e:8067:1b01] POST /leads/create.php | Page loaded
+[2026-03-17 13:08:38] [ACTION] [admin/admin] [2402:3a80:4470:ec37:0:2e:8067:1b01] POST /leads/create.php | Created lead: Nazif (ID: 235)
+[2026-03-17 13:08:38] [PAGE  ] [admin/admin] [2402:3a80:4470:ec37:0:2e:8067:1b01] GET /leads/show.php?id=235 | Page loaded
+[2026-03-17 13:08:40] [PAGE  ] [admin/admin] [2402:3a80:4470:ec37:0:2e:8067:1b01] GET /leads/index.php | Page loaded
+[2026-03-17 13:08:40] [PAGE  ] [admin/admin] [2402:3a80:4470:ec37:0:2e:8067:1b01] GET /leads/pipeline.php | Page loaded
+[2026-03-17 13:08:49] [PAGE  ] [admin/admin] [2402:3a80:4470:ec37:0:2e:8067:1b01] POST /leads/edit.php | Page loaded
+[2026-03-17 13:08:49] [PAGE  ] [admin/admin] [2402:3a80:4470:ec37:0:2e:8067:1b01] GET /leads/pipeline.php | Page loaded
+[2026-03-17 13:19:37] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET / | Page loaded
+[2026-03-17 13:20:50] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /leads/pipeline.php | Page loaded
+[2026-03-17 13:20:51] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /leads/pipeline.php | Page loaded
+[2026-03-17 13:20:59] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /leads/edit.php | Page loaded
+[2026-03-17 13:21:00] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /leads/pipeline.php | Page loaded
+[2026-03-17 13:26:03] [PAGE  ] [-] [103.215.52.200] GET /index.php | Page loaded
+[2026-03-17 13:26:03] [PAGE  ] [-] [103.215.52.200] GET /auth/login.php | Page loaded
+[2026-03-17 13:26:07] [PAGE  ] [-] [103.215.52.200] POST /auth/login.php | Page loaded
+[2026-03-17 13:26:07] [ACTION] [Shuhaib/staff] [103.215.52.200] POST /auth/login.php | Login successful: shuhaib (role: staff)
+[2026-03-17 13:26:07] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /index.php | Page loaded
+[2026-03-17 13:26:07] [ERROR ] [Shuhaib/staff] [103.215.52.200] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":4}
+[2026-03-17 13:26:13] [PAGE  ] [Shuhaib/staff] [103.215.52.200] POST /attendance/punch.php | Page loaded
+[2026-03-17 13:26:20] [PAGE  ] [Shuhaib/staff] [103.215.52.200] POST /attendance/punch.php | Page loaded
+[2026-03-17 13:26:21] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /index.php | Page loaded
+[2026-03-17 13:26:21] [ERROR ] [Shuhaib/staff] [103.215.52.200] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":4}
+[2026-03-17 13:26:47] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /index.php | Page loaded
+[2026-03-17 13:26:54] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /reservations/index.php | Page loaded
+[2026-03-17 13:26:55] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /accounts/index.php | Page loaded
+[2026-03-17 13:27:15] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /index.php | Page loaded
+[2026-03-17 13:27:42] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /vehicles/index.php?overdue=1 | Page loaded
+[2026-03-17 13:30:00] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /vehicles/show.php?id=30 | Page loaded
+[2026-03-17 13:30:31] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /vehicles/index.php | Page loaded
+[2026-03-17 13:30:49] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /vehicles/index.php?overdue=1 | Page loaded
+[2026-03-17 13:31:25] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /reservations/index.php | Page loaded
+[2026-03-17 13:31:32] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /reservations/index.php?search=X4800&from_date=&to_date= | Page loaded
+[2026-03-17 13:31:39] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /reservations/return.php?id=52 | Page loaded
+[2026-03-17 13:33:36] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /reservations/return.php?id=52 | Page loaded
+[2026-03-17 13:33:36] [ACTION] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /reservations/return.php?id=52 | Returned reservation (ID: 52)
+[2026-03-17 13:33:36] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /reservations/bill.php?id=52 | Page loaded
+[2026-03-17 13:33:38] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /reservations/return.php?id=52 | Page loaded
+[2026-03-17 13:33:38] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /reservations/index.php | Page loaded
+[2026-03-17 13:33:47] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /index.php | Page loaded
+[2026-03-17 13:33:52] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /vehicles/index.php?status=rented | Page loaded
+[2026-03-17 13:34:21] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /reservations/index.php | Page loaded
+[2026-03-17 13:34:29] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /reservations/index.php?search=Kl71j&from_date=&to_date= | Page loaded
+[2026-03-17 13:34:36] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /reservations/return.php?id=10 | Page loaded
+[2026-03-17 13:38:01] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /reservations/return.php?id=10 | Page loaded
+[2026-03-17 13:38:01] [ACTION] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /reservations/return.php?id=10 | Returned reservation (ID: 10)
+[2026-03-17 13:38:01] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /reservations/bill.php?id=10 | Page loaded
+[2026-03-17 13:38:03] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /reservations/show.php?id=10 | Page loaded
+[2026-03-17 13:38:06] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /index.php | Page loaded
+[2026-03-17 13:38:10] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /vehicles/index.php?status=rented | Page loaded
+[2026-03-17 13:38:41] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /index.php | Page loaded
+[2026-03-17 13:50:31] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET / | Page loaded
+[2026-03-17 13:50:39] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /leads/pipeline.php | Page loaded
+[2026-03-17 13:50:49] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /leads/edit.php?id=235 | Page loaded
+[2026-03-17 13:50:52] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /leads/show.php?id=235 | Page loaded
+[2026-03-17 13:50:53] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /leads/convert.php?id=235 | Page loaded
+[2026-03-17 13:54:33] [PAGE  ] [-] [157.51.213.214] GET /auth/login.php | Page loaded
+[2026-03-17 13:54:43] [PAGE  ] [-] [157.51.213.214] POST /auth/login.php | Page loaded
+[2026-03-17 13:54:43] [ACTION] [Sinan/staff] [157.51.213.214] POST /auth/login.php | Login successful: Sinan (role: staff)
+[2026-03-17 13:54:43] [PAGE  ] [Sinan/staff] [157.51.213.214] GET /index.php | Page loaded
+[2026-03-17 13:54:43] [ERROR ] [Sinan/staff] [157.51.213.214] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":5}
+[2026-03-17 13:54:43] [PAGE  ] [-] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /leads/convert.php?id=235 | Page loaded
+[2026-03-17 13:54:48] [PAGE  ] [Sinan/staff] [157.51.213.214] GET /reservations/index.php | Page loaded
+[2026-03-17 13:54:53] [PAGE  ] [-] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /leads/convert.php?id=235 | Page loaded
+[2026-03-17 13:54:57] [PAGE  ] [Sinan/staff] [157.51.213.214] GET /reservations/index.php?page=2 | Page loaded
+[2026-03-17 13:54:58] [PAGE  ] [-] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /leads/convert.php?id=235 | Page loaded
+[2026-03-17 13:55:03] [PAGE  ] [-] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /leads/convert.php?id=235 | Page loaded
+[2026-03-17 13:55:04] [PAGE  ] [Sinan/staff] [157.51.213.214] GET /reservations/index.php?page=3 | Page loaded
+[2026-03-17 13:55:11] [PAGE  ] [Sinan/staff] [157.51.213.214] GET /reservations/index.php?page=4 | Page loaded
+[2026-03-17 13:55:14] [PAGE  ] [Sinan/staff] [157.51.213.214] GET /reservations/index.php?page=5 | Page loaded
+[2026-03-17 13:55:23] [PAGE  ] [Sinan/staff] [157.51.213.214] GET /reservations/index.php?page=6 | Page loaded
+[2026-03-17 13:55:30] [PAGE  ] [Sinan/staff] [157.51.213.214] GET /reservations/index.php?page=7 | Page loaded
+[2026-03-17 13:55:36] [PAGE  ] [Sinan/staff] [157.51.213.214] GET /reservations/index.php?page=8 | Page loaded
+[2026-03-17 13:55:43] [PAGE  ] [Sinan/staff] [157.51.213.214] GET /reservations/index.php?page=9 | Page loaded
+[2026-03-17 13:55:46] [PAGE  ] [-] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /leads/convert.php?id=235 | Page loaded
+[2026-03-17 13:55:51] [PAGE  ] [Sinan/staff] [157.51.213.214] GET /reservations/return.php?id=18 | Page loaded
+[2026-03-17 13:55:52] [PAGE  ] [-] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /leads/convert.php?id=235 | Page loaded
+[2026-03-17 13:55:58] [PAGE  ] [-] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /leads/convert.php?id=235 | Page loaded
+[2026-03-17 13:56:18] [PAGE  ] [-] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /leads/convert.php?id=235 | Page loaded
+[2026-03-17 13:56:42] [PAGE  ] [-] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /leads/convert.php?id=235 | Page loaded
+[2026-03-17 13:56:54] [PAGE  ] [-] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /leads/convert.php?id=235 | Page loaded
+[2026-03-17 13:57:10] [PAGE  ] [-] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /leads/convert.php?id=235 | Page loaded
+[2026-03-17 13:57:25] [PAGE  ] [-] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /leads/convert.php?id=235 | Page loaded
+[2026-03-17 13:57:53] [PAGE  ] [-] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /leads/convert.php?id=235 | Page loaded
+[2026-03-17 13:57:56] [PAGE  ] [-] [1.39.32.41] GET /leads/show.php?id=235 | Page loaded
+[2026-03-17 13:57:56] [PAGE  ] [-] [1.39.32.41] GET /auth/login.php | Page loaded
+[2026-03-17 14:06:15] [PAGE  ] [Sinan/staff] [2409:40f3:1099:9421:f157:2d40:2330:4456] POST /reservations/return.php?id=18 | Page loaded
+[2026-03-17 14:06:15] [ERROR ] [Sinan/staff] [2409:40f3:1099:9421:f157:2d40:2330:4456] POST /reservations/return.php?id=18 | Undefined array key "km_driven" in /home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/reservations/return.php:143 | {"errno":2,"level":"WARNING"}
+[2026-03-17 14:06:15] [ERROR ] [Sinan/staff] [2409:40f3:1099:9421:f157:2d40:2330:4456] POST /reservations/return.php?id=18 | Undefined array key "km_driven" in /home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/reservations/return.php:143 | {"errno":2,"level":"WARNING"}
+[2026-03-17 14:06:15] [ACTION] [Sinan/staff] [2409:40f3:1099:9421:f157:2d40:2330:4456] POST /reservations/return.php?id=18 | Returned reservation (ID: 18)
+[2026-03-17 14:06:15] [ACTION] [Sinan/staff] [2409:40f3:1099:9421:f157:2d40:2330:4456] POST /reservations/return.php?id=18 | Ledger: posted income Reservation Return amount=6800 (entry ID: 723)
+[2026-03-17 14:06:15] [PAGE  ] [Sinan/staff] [2409:40f3:1099:9421:f157:2d40:2330:4456] GET /reservations/bill.php?id=18 | Page loaded
+[2026-03-17 14:09:54] [PAGE  ] [-] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] POST /attendance/punch.php | Page loaded
+[2026-03-17 14:09:54] [PAGE  ] [-] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] GET /auth/login.php | Page loaded
+[2026-03-17 14:10:11] [PAGE  ] [-] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] POST /attendance/punch.php | Page loaded
+[2026-03-17 14:10:11] [PAGE  ] [-] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] GET /auth/login.php | Page loaded
+[2026-03-17 14:24:38] [PAGE  ] [-] [103.42.197.30] GET / | Page loaded
+[2026-03-17 14:24:38] [PAGE  ] [-] [103.42.197.30] GET /auth/login.php | Page loaded
+[2026-03-17 14:24:41] [PAGE  ] [-] [103.42.197.30] POST /auth/login.php | Page loaded
+[2026-03-17 14:24:41] [ACTION] [admin/admin] [103.42.197.30] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-17 14:24:41] [PAGE  ] [admin/admin] [103.42.197.30] GET /index.php | Page loaded
+[2026-03-17 14:24:44] [PAGE  ] [admin/admin] [103.42.197.30] GET /accounts/targets.php | Page loaded
+[2026-03-17 14:24:49] [PAGE  ] [admin/admin] [103.42.197.30] GET /accounts/targets.php?m=3&y=2026&page=2 | Page loaded
+[2026-03-17 14:24:51] [PAGE  ] [admin/admin] [103.42.197.30] GET /accounts/targets.php?m=3&y=2026&page=3 | Page loaded
+[2026-03-17 15:03:30] [PAGE  ] [-] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /auth/login.php | Page loaded
+[2026-03-17 15:03:30] [ACTION] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-17 15:03:30] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /index.php | Page loaded
+[2026-03-17 15:04:07] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /reservations/index.php | Page loaded
+[2026-03-17 15:04:09] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /reservations/create.php | Page loaded
+[2026-03-17 15:04:17] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /reservations/available_vehicles.php?start=2026-03-17+15%3A00%3A00&end=2026-03-18+01%3A00%3A00 | Page loaded
+[2026-03-17 15:04:26] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /leads/pipeline.php | Page loaded
+[2026-03-17 15:04:29] [PAGE  ] [admin/admin] [2402:3a80:4493:bd4f:0:49:16a0:f001] GET /leads/create.php | Page loaded
+[2026-03-17 15:54:17] [PAGE  ] [-] [103.161.55.211] GET /accounts/targets.php?m=3&y=2026&page=3 | Page loaded
+[2026-03-17 15:54:17] [PAGE  ] [-] [103.161.55.211] GET /auth/login.php | Page loaded
+[2026-03-17 17:15:49] [PAGE  ] [-] [103.161.55.211] GET /auth/login.php | Page loaded
+[2026-03-17 17:44:30] [PAGE  ] [-] [103.215.52.200] GET / | Page loaded
+[2026-03-17 17:44:30] [PAGE  ] [-] [103.215.52.200] GET /auth/login.php | Page loaded
+[2026-03-17 17:44:35] [PAGE  ] [-] [103.215.52.200] POST /auth/login.php | Page loaded
+[2026-03-17 17:44:35] [ACTION] [Gokul/staff] [103.215.52.200] POST /auth/login.php | Login successful: Gokul (role: staff)
+[2026-03-17 17:44:36] [PAGE  ] [Gokul/staff] [103.215.52.200] GET /index.php | Page loaded
+[2026-03-17 17:44:36] [ERROR ] [Gokul/staff] [103.215.52.200] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":7}
+[2026-03-17 17:45:48] [PAGE  ] [Gokul/staff] [103.215.52.200] GET /reservations/index.php | Page loaded
+[2026-03-17 17:46:27] [PAGE  ] [Gokul/staff] [103.215.52.200] GET /reservations/index.php?search=Wagonr+71&from_date=&to_date= | Page loaded
+[2026-03-17 17:46:50] [PAGE  ] [Gokul/staff] [103.215.52.200] GET /reservations/index.php?page=2 | Page loaded
+[2026-03-17 17:46:56] [PAGE  ] [Gokul/staff] [103.215.52.200] GET /reservations/index.php?page=3 | Page loaded
+[2026-03-17 17:47:01] [PAGE  ] [Gokul/staff] [103.215.52.200] GET /reservations/index.php?page=4 | Page loaded
+[2026-03-17 17:47:06] [PAGE  ] [Gokul/staff] [103.215.52.200] GET /reservations/index.php?page=5 | Page loaded
+[2026-03-17 17:47:11] [PAGE  ] [Gokul/staff] [103.215.52.200] GET /reservations/index.php?page=6 | Page loaded
+[2026-03-17 17:47:19] [PAGE  ] [Gokul/staff] [103.215.52.200] GET /reservations/return.php?id=56 | Page loaded
+[2026-03-17 17:47:36] [PAGE  ] [Gokul/staff] [103.215.52.200] GET /reservations/return.php?id=56 | Page loaded
+[2026-03-17 17:48:29] [PAGE  ] [Gokul/staff] [103.215.52.200] GET /index.php | Page loaded
+[2026-03-17 17:48:29] [ERROR ] [Gokul/staff] [103.215.52.200] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":7}
+[2026-03-17 17:48:32] [PAGE  ] [Gokul/staff] [103.215.52.200] GET /gps/index.php | Page loaded
+[2026-03-17 17:48:35] [PAGE  ] [Gokul/staff] [103.215.52.200] GET /staff/my_profile.php | Page loaded
+[2026-03-17 18:38:05] [PAGE  ] [-] [2409:40f3:2040:1627:7037:d9d9:cd82:9100] GET /index.php | Page loaded
+[2026-03-17 18:38:05] [PAGE  ] [-] [2409:40f3:2040:1627:7037:d9d9:cd82:9100] GET /auth/login.php | Page loaded
+[2026-03-17 20:08:04] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET / | Page loaded
+[2026-03-17 20:08:04] [ERROR ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET / | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":7}
+[2026-03-17 20:08:10] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php | Page loaded
+[2026-03-17 20:08:29] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Wagonr&from_date=&to_date= | Page loaded
+[2026-03-17 20:08:42] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] POST /attendance/punch.php | Page loaded
+[2026-03-17 20:08:56] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Wagonr2630&from_date=&to_date= | Page loaded
+[2026-03-17 20:09:03] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Wagonr+2630&from_date=&to_date= | Page loaded
+[2026-03-17 20:09:09] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Wagonr+2630&from_date=&to_date= | Page loaded
+[2026-03-17 20:09:19] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=WagonR+&from_date=&to_date= | Page loaded
+[2026-03-17 20:09:28] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Wagonr+2630&from_date=&to_date= | Page loaded
+[2026-03-17 20:09:33] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Wagonr+2630&from_date=&to_date= | Page loaded
+[2026-03-17 20:09:36] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?status=completed&search=Wagonr+2630 | Page loaded
+[2026-03-17 20:09:39] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Wagonr+2630 | Page loaded
+[2026-03-17 20:09:46] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?status=cancelled&search=Wagonr+2630 | Page loaded
+[2026-03-17 20:09:51] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Wagonr+2630 | Page loaded
+[2026-03-17 20:09:57] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/create.php | Page loaded
+[2026-03-17 20:10:16] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Wagonr+2630 | Page loaded
+[2026-03-17 20:10:22] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=WagonR+&from_date=&to_date= | Page loaded
+[2026-03-17 20:10:27] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php | Page loaded
+[2026-03-17 20:10:29] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php? | Page loaded
+[2026-03-17 20:13:43] [PAGE  ] [-] [2402:3a80:4225:3301:21ae:3fdc:378a:2451] GET /index.php | Page loaded
+[2026-03-17 20:13:43] [PAGE  ] [-] [2402:3a80:4225:3301:21ae:3fdc:378a:2451] GET /auth/login.php | Page loaded
+[2026-03-17 20:37:06] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php? | Page loaded
+[2026-03-17 20:37:06] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET / | Page loaded
+[2026-03-17 20:37:06] [ERROR ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET / | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":7}
+[2026-03-17 20:37:13] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php | Page loaded
+[2026-03-17 20:37:30] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=WagonR+kl53u2630&from_date=&to_date= | Page loaded
+[2026-03-17 20:37:39] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=WagonR+kl53U2630&from_date=&to_date= | Page loaded
+[2026-03-17 20:37:47] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=WagonR+KL53U2630&from_date=&to_date= | Page loaded
+[2026-03-17 20:37:58] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=WagonR+KL53U2630&from_date=&to_date= | Page loaded
+[2026-03-17 20:38:02] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /index.php | Page loaded
+[2026-03-17 20:38:02] [ERROR ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":7}
+[2026-03-17 20:40:23] [PAGE  ] [-] [103.215.52.200] GET / | Page loaded
+[2026-03-17 20:40:23] [PAGE  ] [-] [103.215.52.200] GET /auth/login.php | Page loaded
+[2026-03-17 20:40:34] [PAGE  ] [-] [103.215.52.200] POST /auth/login.php | Page loaded
+[2026-03-17 20:40:34] [ACTION] [admin/admin] [103.215.52.200] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-17 20:40:34] [PAGE  ] [admin/admin] [103.215.52.200] GET /index.php | Page loaded
+[2026-03-17 20:40:38] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/index.php | Page loaded
+[2026-03-17 20:40:41] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/create.php | Page loaded
+[2026-03-17 20:42:14] [PAGE  ] [admin/admin] [103.215.52.200] GET /clients/index.php | Page loaded
+[2026-03-17 20:42:16] [PAGE  ] [admin/admin] [103.215.52.200] GET /clients/create.php | Page loaded
+[2026-03-17 20:47:43] [PAGE  ] [admin/admin] [103.215.52.200] POST /clients/create.php | Page loaded
+[2026-03-17 20:47:43] [ACTION] [admin/admin] [103.215.52.200] POST /clients/create.php | Created client: abhi shibi frnd (ID: 58)
+[2026-03-17 20:47:43] [PAGE  ] [admin/admin] [103.215.52.200] GET /clients/show.php?id=58 | Page loaded
+[2026-03-17 20:47:46] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/index.php | Page loaded
+[2026-03-17 20:47:48] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/create.php | Page loaded
+[2026-03-17 20:48:03] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/available_vehicles.php?start=2026-03-17+20%3A45%3A00&end=2026-03-18+01%3A00%3A00 | Page loaded
+[2026-03-17 20:48:12] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/available_vehicles.php?start=2026-03-17+20%3A45%3A00&end=2026-03-18+10%3A00%3A00 | Page loaded
+[2026-03-17 20:48:44] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/available_vehicles.php?start=2026-03-17+20%3A45%3A00&end=2026-03-18+20%3A45%3A00 | Page loaded
+[2026-03-17 20:49:12] [PAGE  ] [admin/admin] [103.215.52.200] POST /reservations/create.php | Page loaded
+[2026-03-17 20:49:12] [ACTION] [admin/admin] [103.215.52.200] POST /reservations/create.php | Created reservation (ID: 112)
+[2026-03-17 20:49:12] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/show.php?id=112 | Page loaded
+[2026-03-17 20:49:22] [PAGE  ] [-] [103.215.52.200] GET /index.php | Page loaded
+[2026-03-17 20:49:22] [PAGE  ] [-] [103.215.52.200] GET /auth/login.php | Page loaded
+[2026-03-17 20:49:26] [PAGE  ] [-] [103.215.52.200] POST /auth/login.php | Page loaded
+[2026-03-17 20:49:26] [ACTION] [Shuhaib/staff] [103.215.52.200] POST /auth/login.php | Login successful: shuhaib (role: staff)
+[2026-03-17 20:49:26] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /index.php | Page loaded
+[2026-03-17 20:49:26] [ERROR ] [Shuhaib/staff] [103.215.52.200] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":4}
+[2026-03-17 20:49:37] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /reservations/index.php | Page loaded
+[2026-03-17 20:49:41] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /reservations/deliver.php?id=112 | Page loaded
+[2026-03-17 20:52:35] [PAGE  ] [Shuhaib/staff] [103.215.52.200] POST /reservations/deliver.php?id=112 | Page loaded
+[2026-03-17 20:52:35] [ACTION] [Shuhaib/staff] [103.215.52.200] POST /reservations/deliver.php?id=112 | Delivered reservation (ID: 112)
+[2026-03-17 20:52:35] [ACTION] [Shuhaib/staff] [103.215.52.200] POST /reservations/deliver.php?id=112 | Ledger: posted income Reservation Delivery amount=700 (entry ID: 724)
+[2026-03-17 20:52:35] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /reservations/show.php?id=112 | Page loaded
+[2026-03-17 20:52:53] [PAGE  ] [admin/admin] [2402:3a80:4225:3301:0:49:16a0:f001] GET / | Page loaded
+[2026-03-17 20:52:57] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /reservations/deliver.php?id=112 | Page loaded
+[2026-03-17 20:52:58] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /reservations/index.php | Page loaded
+[2026-03-17 20:53:02] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /index.php | Page loaded
+[2026-03-17 20:53:02] [ERROR ] [Shuhaib/staff] [103.215.52.200] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":4}
+[2026-03-17 20:53:03] [PAGE  ] [-] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /index.php | Page loaded
+[2026-03-17 20:53:03] [PAGE  ] [-] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /auth/login.php | Page loaded
+[2026-03-17 20:53:07] [PAGE  ] [-] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] POST /auth/login.php | Page loaded
+[2026-03-17 20:53:07] [ACTION] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] POST /auth/login.php | Login successful: Gokul (role: staff)
+[2026-03-17 20:53:08] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /index.php | Page loaded
+[2026-03-17 20:53:08] [ERROR ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":7}
+[2026-03-17 20:53:13] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php | Page loaded
+[2026-03-17 20:53:23] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Wagonr+2630&from_date=&to_date= | Page loaded
+[2026-03-17 20:54:07] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/index.php | Page loaded
+[2026-03-17 20:54:11] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php | Page loaded
+[2026-03-17 20:54:16] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/index.php?page=2 | Page loaded
+[2026-03-17 20:54:19] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/index.php?page=3 | Page loaded
+[2026-03-17 20:54:21] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/index.php?page=4 | Page loaded
+[2026-03-17 20:54:31] [PAGE  ] [admin/admin] [103.215.52.200] GET /vehicles/index.php | Page loaded
+[2026-03-17 20:54:35] [PAGE  ] [admin/admin] [103.215.52.200] GET /vehicles/index.php?page=3 | Page loaded
+[2026-03-17 20:54:40] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/index.php | Page loaded
+[2026-03-17 20:54:43] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/index.php?page=3 | Page loaded
+[2026-03-17 20:54:46] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/index.php?page=4 | Page loaded
+[2026-03-17 20:54:54] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/index.php?search=2630&from_date=&to_date= | Page loaded
+[2026-03-17 20:55:09] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=2630&from_date=&to_date= | Page loaded
+[2026-03-17 20:55:21] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/return.php?id=47 | Page loaded
+[2026-03-17 20:55:21] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/return.php?id=47 | Page loaded
+[2026-03-17 20:56:33] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/index.php?search=2630&from_date=&to_date= | Page loaded
+[2026-03-17 20:56:42] [PAGE  ] [admin/admin] [103.215.52.200] GET /reservations/index.php?page=4 | Page loaded
+[2026-03-17 20:57:04] [PAGE  ] [-] [2409:40f3:1099:9421:f157:2d40:2330:4456] GET /reservations/bill.php?id=18 | Page loaded
+[2026-03-17 21:34:22] [PAGE  ] [-] [103.215.52.200] GET / | Page loaded
+[2026-03-17 21:34:22] [PAGE  ] [-] [103.215.52.200] GET /auth/login.php | Page loaded
+[2026-03-17 21:34:32] [PAGE  ] [-] [103.215.52.200] POST /auth/login.php | Page loaded
+[2026-03-17 21:34:32] [ACTION] [admin/admin] [103.215.52.200] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-17 21:34:32] [PAGE  ] [admin/admin] [103.215.52.200] GET /index.php | Page loaded
+[2026-03-17 21:34:34] [PAGE  ] [admin/admin] [103.215.52.200] GET /vehicles/index.php | Page loaded
+[2026-03-17 21:34:41] [PAGE  ] [admin/admin] [103.215.52.200] GET /vehicles/index.php?page=2 | Page loaded
+[2026-03-17 21:34:44] [PAGE  ] [admin/admin] [103.215.52.200] GET /vehicles/index.php?page=1 | Page loaded
+[2026-03-17 22:37:51] [PAGE  ] [admin/admin] [103.215.52.200] GET /vehicles/show.php?id=40 | Page loaded
+[2026-03-17 22:38:02] [PAGE  ] [admin/admin] [103.215.52.200] GET /vehicles/index.php?page=1 | Page loaded
+[2026-03-17 22:43:48] [PAGE  ] [-] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/return.php?id=47 | Page loaded
+[2026-03-17 22:43:48] [PAGE  ] [-] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php | Page loaded
+[2026-03-17 22:43:48] [PAGE  ] [-] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /auth/login.php | Page loaded
+[2026-03-17 22:43:54] [PAGE  ] [-] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] POST /auth/login.php | Page loaded
+[2026-03-17 22:43:54] [ACTION] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] POST /auth/login.php | Login successful: Gokul (role: staff)
+[2026-03-17 22:43:54] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /index.php | Page loaded
+[2026-03-17 22:43:54] [ERROR ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":7}
+[2026-03-17 22:44:00] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php | Page loaded
+[2026-03-17 22:44:18] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Kl53u2630&from_date=&to_date= | Page loaded
+[2026-03-17 22:44:32] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Kl53u2630&from_date=&to_date= | Page loaded
+[2026-03-17 22:44:38] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Kl53U2630&from_date=&to_date= | Page loaded
+[2026-03-17 22:44:45] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Kl53U2630&from_date=&to_date= | Page loaded
+[2026-03-17 22:44:48] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Kl53U2630&from_date=&to_date= | Page loaded
+[2026-03-17 22:44:51] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Kl53U2630&from_date=&to_date= | Page loaded
+[2026-03-17 22:44:54] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Kl53U2630&from_date=&to_date= | Page loaded
+[2026-03-17 22:44:57] [PAGE  ] [Gokul/staff] [2409:4073:4eb9:3e33:4823:49ff:fee3:63c8] GET /reservations/index.php?search=Kl53U2630&from_date=&to_date= | Page loaded
+[2026-03-17 22:49:39] [PAGE  ] [admin/admin] [103.215.52.200] GET /vehicles/index.php?page=2 | Page loaded
+[2026-03-17 23:04:17] [PAGE  ] [admin/admin] [103.215.52.200] GET /vehicles/index.php?page=3 | Page loaded
+[2026-03-17 23:17:45] [PAGE  ] [-] [103.215.52.200] GET /index.php | Page loaded
+[2026-03-17 23:17:45] [PAGE  ] [-] [103.215.52.200] GET /auth/login.php | Page loaded
+[2026-03-17 23:17:49] [PAGE  ] [-] [103.215.52.200] POST /auth/login.php | Page loaded
+[2026-03-17 23:17:49] [ACTION] [Shuhaib/staff] [103.215.52.200] POST /auth/login.php | Login successful: shuhaib (role: staff)
+[2026-03-17 23:17:49] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /index.php | Page loaded
+[2026-03-17 23:17:49] [ERROR ] [Shuhaib/staff] [103.215.52.200] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":4}
+[2026-03-17 23:17:54] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /staff/advance_history.php | Page loaded
+[2026-03-17 23:18:18] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /index.php | Page loaded
+[2026-03-17 23:18:18] [ERROR ] [Shuhaib/staff] [103.215.52.200] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":4}
+[2026-03-17 23:18:19] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /index.php | Page loaded
+[2026-03-17 23:18:19] [ERROR ] [Shuhaib/staff] [103.215.52.200] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":4}
+[2026-03-17 23:18:30] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /reservations/index.php | Page loaded
+[2026-03-17 23:18:38] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /reservations/index.php?search=8485&from_date=&to_date= | Page loaded
+[2026-03-17 23:18:45] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /reservations/return.php?id=57 | Page loaded
+[2026-03-17 23:20:57] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /reservations/return.php?id=57 | Page loaded
+[2026-03-17 23:22:51] [PAGE  ] [Shuhaib/staff] [103.215.52.200] POST /reservations/return.php?id=57 | Page loaded
+[2026-03-17 23:22:51] [ACTION] [Shuhaib/staff] [103.215.52.200] POST /reservations/return.php?id=57 | Returned reservation (ID: 57)
+[2026-03-17 23:22:51] [PAGE  ] [Shuhaib/staff] [103.215.52.200] GET /reservations/bill.php?id=57 | Page loaded
+[2026-03-17 23:33:42] [PAGE  ] [admin/admin] [103.215.52.200] GET /vehicles/index.php?page=4 | Page loaded

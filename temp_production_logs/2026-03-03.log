@@ -1,0 +1,391 @@
+[2026-03-03 09:59:46] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-03 10:00:19] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-03 10:00:28] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 10:02:17] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-03 10:02:21] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 10:02:24] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=2 | Page loaded
+[2026-03-03 10:02:38] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-03 10:02:41] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 10:02:43] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-03 10:02:47] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 10:02:57] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=2 | Page loaded
+[2026-03-03 10:03:38] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=2 | Page loaded
+[2026-03-03 10:03:38] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=2 | Delivered reservation (ID: 2)
+[2026-03-03 10:03:38] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=2 | Ledger: posted income Reservation Delivery amount=830 (entry ID: 12)
+[2026-03-03 10:03:38] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-03 10:03:40] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=2 | Page loaded
+[2026-03-03 10:04:36] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-03 10:04:52] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 10:04:55] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=2 | Page loaded
+[2026-03-03 10:04:55] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-03 10:04:58] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=2 | Page loaded
+[2026-03-03 10:04:58] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-03 10:05:02] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=2 | Page loaded
+[2026-03-03 10:05:02] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-03 10:05:46] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-03 10:06:00] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-03 10:06:57] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 10:06:59] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=2 | Page loaded
+[2026-03-03 10:06:59] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-03 10:07:02] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=2 | Page loaded
+[2026-03-03 10:07:02] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-03 10:07:03] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=2 | Page loaded
+[2026-03-03 10:07:03] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-03 10:07:27] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=2 | Page loaded
+[2026-03-03 10:07:27] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-03 10:08:27] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-03 10:08:28] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=2 | Page loaded
+[2026-03-03 10:08:28] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-03 10:08:30] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 10:27:50] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-03 10:48:15] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-03 10:48:17] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-03 10:48:36] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?period_start=2026-01-15&period_end=2026-02-14 | Page loaded
+[2026-03-03 10:48:38] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?period_start=2026-02-15&period_end=2026-03-14 | Page loaded
+[2026-03-03 10:48:49] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?period_start=2026-01-15&period_end=2026-02-14 | Page loaded
+[2026-03-03 10:48:53] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?period_start=2026-02-15&period_end=2026-03-14 | Page loaded
+[2026-03-03 10:49:00] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?period_start=2026-01-15&period_end=2026-02-14 | Page loaded
+[2026-03-03 10:49:02] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?period_start=2026-02-15&period_end=2026-03-14 | Page loaded
+[2026-03-03 10:49:03] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-03 10:49:32] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-03 10:49:59] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-03 10:50:35] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-03 10:50:53] [PAGE  ] [admin/admin] [::1] POST /accounts/targets.php | Page loaded
+[2026-03-03 10:50:53] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?period_start=2026-02-15&period_end=2026-03-14 | Page loaded
+[2026-03-03 10:53:46] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?period_start=2026-01-15&period_end=2026-02-14 | Page loaded
+[2026-03-03 10:53:49] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?period_start=2026-02-15&period_end=2026-03-14 | Page loaded
+[2026-03-03 10:53:52] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?period_start=2026-01-15&period_end=2026-02-14 | Page loaded
+[2026-03-03 10:54:39] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?period_start=2026-02-15&period_end=2026-03-14 | Page loaded
+[2026-03-03 10:59:01] [PAGE  ] [admin/admin] [::1] POST /accounts/targets.php?period_start=2026-02-15&period_end=2026-03-14 | Page loaded
+[2026-03-03 10:59:01] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?period_start=2026-02-15&period_end=2026-03-14 | Page loaded
+[2026-03-03 10:59:08] [PAGE  ] [admin/admin] [::1] POST /accounts/targets.php?period_start=2026-02-15&period_end=2026-03-14 | Page loaded
+[2026-03-03 10:59:08] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?period_start=2026-02-15&period_end=2026-03-14 | Page loaded
+[2026-03-03 15:40:45] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-03 15:40:50] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-03 15:41:07] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?month=3&year=2026 | Page loaded
+[2026-03-03 15:41:12] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?month=5&year=2026 | Page loaded
+[2026-03-03 15:41:14] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?month=2&year=2026 | Page loaded
+[2026-03-03 15:53:41] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?month=2&year=2026 | Page loaded
+[2026-03-03 15:53:58] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?m=3&y=2026 | Page loaded
+[2026-03-03 15:54:02] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?m=1&y=2026 | Page loaded
+[2026-03-03 15:54:03] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?m=2&y=2026 | Page loaded
+[2026-03-03 15:54:51] [PAGE  ] [admin/admin] [::1] POST /accounts/targets.php?m=2&y=2026 | Page loaded
+[2026-03-03 15:54:51] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php?m=2&y=2026 | Page loaded
+[2026-03-03 15:55:06] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-03 16:00:35] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-03 16:00:41] [PAGE  ] [admin/admin] [::1] GET /vehicles/requests.php | Page loaded
+[2026-03-03 16:27:53] [PAGE  ] [admin/admin] [::1] GET /vehicles/requests.php | Page loaded
+[2026-03-03 16:27:56] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-03 16:28:01] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 16:28:05] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 16:28:15] [PAGE  ] [admin/admin] [::1] POST /settings/general.php | Page loaded
+[2026-03-03 16:28:15] [ACTION] [admin/admin] [::1] POST /settings/general.php | Updated general settings
+[2026-03-03 16:28:15] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 16:28:18] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-03 16:28:23] [PAGE  ] [admin/admin] [::1] GET /vehicles/requests.php | Page loaded
+[2026-03-03 16:28:24] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 16:28:27] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-03 16:28:30] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 16:28:32] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-03 16:28:41] [PAGE  ] [admin/admin] [::1] GET /investments/index.php | Page loaded
+[2026-03-03 16:28:43] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 16:28:48] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-03 17:00:49] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-03 17:31:38] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-03 20:37:31] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-03 20:38:45] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-03 20:38:52] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-03 20:39:03] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-03 20:47:18] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-03 20:47:23] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 20:47:38] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-03 20:47:38] [ERROR ] [admin/admin] [::1] GET /accounts/index.php | Uncaught Error: Call to undefined function ledger_get_totals() | {"file":"D:\\WORK\\oRentPHP\\accounts\\index.php:134","trace":["#0 {main}"]}
+[2026-03-03 20:47:45] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-03 20:47:45] [ERROR ] [admin/admin] [::1] GET /accounts/index.php | Uncaught Error: Call to undefined function ledger_get_totals() | {"file":"D:\\WORK\\oRentPHP\\accounts\\index.php:134","trace":["#0 {main}"]}
+[2026-03-03 20:56:25] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-03 20:56:41] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-03&page=2 | Page loaded
+[2026-03-03 20:56:43] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-03&page=1 | Page loaded
+[2026-03-03 20:56:57] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-03&page=2 | Page loaded
+[2026-03-03 20:57:01] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-03&page=1 | Page loaded
+[2026-03-03 20:57:04] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 20:57:07] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-03 20:57:11] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-03&page=2 | Page loaded
+[2026-03-03 20:58:50] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-03&page=1 | Page loaded
+[2026-03-03 20:58:55] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 20:59:01] [PAGE  ] [admin/admin] [::1] POST /settings/general.php | Page loaded
+[2026-03-03 20:59:01] [ACTION] [admin/admin] [::1] POST /settings/general.php | Updated general settings
+[2026-03-03 20:59:01] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 20:59:03] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-03 20:59:07] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 20:59:12] [PAGE  ] [admin/admin] [::1] POST /settings/general.php | Page loaded
+[2026-03-03 20:59:12] [ACTION] [admin/admin] [::1] POST /settings/general.php | Updated general settings
+[2026-03-03 20:59:12] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 20:59:15] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-03 21:13:36] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-03 21:13:38] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-03 21:13:41] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-03 21:13:46] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 21:13:56] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=2&year=2026 | Page loaded
+[2026-03-03 21:14:02] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php?month=2&year=2026 | Page loaded
+[2026-03-03 21:14:14] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-03 21:14:48] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-03 21:14:49] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-03 21:14:51] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-03 21:32:15] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 21:38:04] [PAGE  ] [-] [127.0.0.1] CLI (cli) | Page loaded
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:38:04] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_schema.php:9 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [PAGE  ] [-] [127.0.0.1] CLI (cli) | Page loaded
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | Undefined array key 1 in D:\WORK\tmp_wipe.php:22 | {"errno":2,"level":"WARNING"}
+[2026-03-03 21:46:09] [ERROR ] [-] [127.0.0.1] CLI (cli) | preg_replace(): Passing null to parameter #3 ($subject) of type array|string is deprecated in D:\WORK\tmp_wipe.php:24 | {"errno":8192,"level":"NOTICE"}
+[2026-03-03 21:47:06] [PAGE  ] [-] [127.0.0.1] CLI (cli) | Page loaded
+[2026-03-03 23:05:44] [PAGE  ] [-] [127.0.0.1] CLI (cli) | Page loaded
+[2026-03-03 23:05:57] [PAGE  ] [-] [127.0.0.1] CLI (cli) | Page loaded
+[2026-03-03 23:10:42] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:10:46] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:16:30] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:18:32] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-03 23:24:27] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:24:43] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-03 23:24:44] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-03 23:24:53] [PAGE  ] [admin/admin] [::1] GET /staff/edit.php?id=1 | Page loaded
+[2026-03-03 23:25:00] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-03 23:25:00] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-03 23:25:00] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-03 23:25:04] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-03 23:25:04] [ACTION] [ahmed_ali/staff] [::1] POST /auth/login.php | Login successful: ahmed_ali (role: staff)
+[2026-03-03 23:25:04] [PAGE  ] [ahmed_ali/staff] [::1] GET /index.php | Page loaded
+[2026-03-03 23:25:10] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 23:25:21] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/create.php | Page loaded
+[2026-03-03 23:25:24] [PAGE  ] [ahmed_ali/staff] [::1] GET /staff/index.php | Page loaded
+[2026-03-03 23:25:25] [PAGE  ] [ahmed_ali/staff] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-03 23:25:29] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 23:25:34] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/create.php | Page loaded
+[2026-03-03 23:29:32] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/available_vehicles.php?start=2026-03-03+18%3A55%3A00&end=2026-03-04+01%3A00%3A00 | Page loaded
+[2026-03-03 23:29:38] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/available_vehicles.php?start=2026-03-03+18%3A55%3A00&end=2026-04-02+18%3A55%3A00 | Page loaded
+[2026-03-03 23:29:39] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/available_vehicles.php?start=2026-03-03+18%3A55%3A00&end=2026-04-02+18%3A55%3A00 | Page loaded
+[2026-03-03 23:29:41] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/available_vehicles.php?start=2026-03-03+18%3A55%3A00&end=2026-04-02+18%3A55%3A00 | Page loaded
+[2026-03-03 23:29:42] [PAGE  ] [ahmed_ali/staff] [::1] POST /reservations/create.php | Page loaded
+[2026-03-03 23:29:42] [ACTION] [ahmed_ali/staff] [::1] POST /reservations/create.php | Created reservation (ID: 3)
+[2026-03-03 23:29:42] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/show.php?id=3 | Page loaded
+[2026-03-03 23:29:45] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/deliver.php?id=3 | Page loaded
+[2026-03-03 23:30:07] [PAGE  ] [ahmed_ali/staff] [::1] POST /reservations/deliver.php?id=3 | Page loaded
+[2026-03-03 23:30:07] [ACTION] [ahmed_ali/staff] [::1] POST /reservations/deliver.php?id=3 | Delivered reservation (ID: 3)
+[2026-03-03 23:30:07] [ACTION] [ahmed_ali/staff] [::1] POST /reservations/deliver.php?id=3 | Ledger: posted income Reservation Delivery amount=280 (entry ID: 13)
+[2026-03-03 23:30:07] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/show.php?id=3 | Page loaded
+[2026-03-03 23:30:09] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/return.php?id=3 | Page loaded
+[2026-03-03 23:30:38] [PAGE  ] [ahmed_ali/staff] [::1] POST /reservations/return.php?id=3 | Page loaded
+[2026-03-03 23:30:39] [ACTION] [ahmed_ali/staff] [::1] POST /reservations/return.php?id=3 | Returned reservation (ID: 3)
+[2026-03-03 23:30:39] [ACTION] [ahmed_ali/staff] [::1] POST /reservations/return.php?id=3 | Ledger: posted income Reservation Return amount=100 (entry ID: 14)
+[2026-03-03 23:30:39] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/bill.php?id=3 | Page loaded
+[2026-03-03 23:30:41] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/show.php?id=3 | Page loaded
+[2026-03-03 23:30:43] [PAGE  ] [ahmed_ali/staff] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 23:31:16] [PAGE  ] [ahmed_ali/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-03 23:31:16] [ACTION] [ahmed_ali/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-03 23:31:16] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-03 23:31:21] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-03 23:31:21] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-03 23:31:21] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-03 23:31:25] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-03 23:31:34] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-03 23:31:39] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-03 23:31:45] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-03 23:31:47] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:31:51] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php | Page loaded
+[2026-03-03 23:31:51] [ERROR ] [admin/admin] [::1] POST /payroll/index.php | Uncaught PDOException: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '\n
+             WHERE user_id IN(?,?,?,?,?) AND action = 
+'delivery'
+\n
+ ...' at line 2 | {"file":"D:\\WORK\\oRentPHP\\payroll\\index.php:88","trace":["#0 D:\\WORK\\oRentPHP\\payroll\\index.php(88): PDO->prepare('SELECT user_id,...')","#1 {main}"]}
+[2026-03-03 23:33:34] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:33:37] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php | Page loaded
+[2026-03-03 23:33:37] [ERROR ] [admin/admin] [::1] POST /payroll/index.php | Uncaught PDOException: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '\n
+             WHERE user_id IN(?,?,?,?,?) AND action = 
+'delivery'
+\n
+ ...' at line 2 | {"file":"D:\\WORK\\oRentPHP\\payroll\\index.php:88","trace":["#0 D:\\WORK\\oRentPHP\\payroll\\index.php(88): PDO->prepare('SELECT user_id,...')","#1 {main}"]}
+[2026-03-03 23:33:39] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:33:40] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:33:42] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php | Page loaded
+[2026-03-03 23:33:42] [ERROR ] [admin/admin] [::1] POST /payroll/index.php | Uncaught PDOException: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '\n
+             WHERE user_id IN(?,?,?,?,?) AND action = 
+'delivery'
+\n
+ ...' at line 2 | {"file":"D:\\WORK\\oRentPHP\\payroll\\index.php:88","trace":["#0 D:\\WORK\\oRentPHP\\payroll\\index.php(88): PDO->prepare('SELECT user_id,...')","#1 {main}"]}
+[2026-03-03 23:33:58] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:33:59] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:34:07] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:34:10] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php | Page loaded
+[2026-03-03 23:34:10] [ERROR ] [admin/admin] [::1] POST /payroll/index.php | Uncaught PDOException: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '\n
+             WHERE user_id IN(?,?,?,?,?) AND action = 
+'delivery'
+\n
+ ...' at line 2 | {"file":"D:\\WORK\\oRentPHP\\payroll\\index.php:88","trace":["#0 D:\\WORK\\oRentPHP\\payroll\\index.php(88): PDO->prepare('SELECT user_id,...')","#1 {main}"]}
+[2026-03-03 23:34:12] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:41:28] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:41:31] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php | Page loaded
+[2026-03-03 23:41:49] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:42:10] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:42:15] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=1&year=2026 | Page loaded
+[2026-03-03 23:42:17] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=2&year=2026 | Page loaded
+[2026-03-03 23:42:19] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=3&year=2026 | Page loaded
+[2026-03-03 23:42:21] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php?month=3&year=2026 | Page loaded
+[2026-03-03 23:42:42] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php?month=3&year=2026 | Page loaded
+[2026-03-03 23:42:42] [ACTION] [admin/admin] [::1] POST /payroll/index.php?month=3&year=2026 | Payroll generated for month=3 year=2026 by user#1
+[2026-03-03 23:42:42] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=3&year=2026 | Page loaded
+[2026-03-03 23:44:06] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=3&year=2026 | Page loaded
+[2026-03-03 23:44:10] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php?month=3&year=2026 | Page loaded
+[2026-03-03 23:44:25] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:44:33] [PAGE  ] [admin/admin] [::1] POST /settings/general.php | Page loaded
+[2026-03-03 23:44:33] [ACTION] [admin/admin] [::1] POST /settings/general.php | Updated general settings
+[2026-03-03 23:44:33] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:44:41] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-03 23:44:43] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:44:46] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php | Page loaded
+[2026-03-03 23:46:04] [PAGE  ] [admin/admin] [::1] GET /investments/index.php | Page loaded
+[2026-03-03 23:46:05] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:46:27] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:46:30] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php | Page loaded
+[2026-03-03 23:46:35] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:46:45] [PAGE  ] [admin/admin] [::1] POST /settings/general.php | Page loaded
+[2026-03-03 23:46:45] [ACTION] [admin/admin] [::1] POST /settings/general.php | Updated general settings
+[2026-03-03 23:46:45] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:46:49] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:46:51] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php | Page loaded
+[2026-03-03 23:47:12] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:47:22] [PAGE  ] [admin/admin] [::1] POST /settings/general.php | Page loaded
+[2026-03-03 23:47:22] [ACTION] [admin/admin] [::1] POST /settings/general.php | Updated general settings
+[2026-03-03 23:47:22] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:47:42] [PAGE  ] [admin/admin] [::1] POST /settings/general.php | Page loaded
+[2026-03-03 23:47:42] [ACTION] [admin/admin] [::1] POST /settings/general.php | Updated general settings
+[2026-03-03 23:47:42] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:47:49] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:47:52] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php | Page loaded
+[2026-03-03 23:47:57] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:49:04] [PAGE  ] [admin/admin] [::1] GET /settings/damage_costs.php | Page loaded
+[2026-03-03 23:49:06] [PAGE  ] [admin/admin] [::1] GET /settings/lead_sources.php | Page loaded
+[2026-03-03 23:49:07] [PAGE  ] [admin/admin] [::1] GET /settings/staff_permissions.php | Page loaded
+[2026-03-03 23:49:12] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-03 23:49:20] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:49:25] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 23:49:29] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-03 23:49:32] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-03&page=2 | Page loaded
+[2026-03-03 23:49:35] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-03&page=1 | Page loaded
+[2026-03-03 23:49:38] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-03 23:49:41] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-03 23:49:46] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-03 23:49:48] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:50:24] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-03 23:50:27] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:50:34] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 23:50:50] [PAGE  ] [admin/admin] [::1] GET /vehicles/requests.php | Page loaded
+[2026-03-03 23:50:55] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-03 23:50:58] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-03 23:51:00] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-03 23:51:06] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-03 23:51:09] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-03 23:51:13] [PAGE  ] [admin/admin] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-03 23:51:16] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-03 23:52:05] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:52:43] [PAGE  ] [admin/admin] [::1] POST /settings/general.php | Page loaded
+[2026-03-03 23:52:43] [ACTION] [admin/admin] [::1] POST /settings/general.php | Updated general settings
+[2026-03-03 23:52:43] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:54:38] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:55:05] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-03 23:55:08] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-03 23:55:31] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=1 | Page loaded
+[2026-03-03 23:55:56] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:56:03] [PAGE  ] [admin/admin] [::1] POST /settings/general.php | Page loaded
+[2026-03-03 23:56:03] [ACTION] [admin/admin] [::1] POST /settings/general.php | Updated general settings
+[2026-03-03 23:56:03] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-03 23:56:30] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-03 23:56:33] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php | Page loaded

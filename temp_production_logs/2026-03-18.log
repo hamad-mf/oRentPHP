@@ -1,0 +1,726 @@
+[2026-03-18 00:52:01] [PAGE  ] [-] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /auth/login.php | Page loaded
+[2026-03-18 00:52:25] [PAGE  ] [-] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /auth/login.php | Page loaded
+[2026-03-18 00:52:25] [ACTION] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /auth/login.php | Login successful: Admin (role: admin)
+[2026-03-18 00:52:25] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /index.php | Page loaded
+[2026-03-18 00:52:42] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /vehicles/index.php?status=rented | Page loaded
+[2026-03-18 00:53:04] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /reservations/index.php | Page loaded
+[2026-03-18 00:53:19] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /reservations/index.php?search=5859&from_date=&to_date= | Page loaded
+[2026-03-18 00:53:23] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /reservations/return.php?id=45 | Page loaded
+[2026-03-18 00:55:21] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /reservations/return.php?id=45 | Page loaded
+[2026-03-18 00:55:21] [ACTION] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /reservations/return.php?id=45 | Returned reservation (ID: 45)
+[2026-03-18 00:55:21] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /reservations/bill.php?id=45 | Page loaded
+[2026-03-18 00:55:25] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /reservations/show.php?id=45 | Page loaded
+[2026-03-18 00:55:28] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /index.php | Page loaded
+[2026-03-18 00:55:31] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /vehicles/index.php?status=rented | Page loaded
+[2026-03-18 00:57:17] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /vehicles/availability.php | Page loaded
+[2026-03-18 00:57:19] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /vehicles/requests.php | Page loaded
+[2026-03-18 00:57:21] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /index.php | Page loaded
+[2026-03-18 00:57:27] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /vehicles/index.php?overdue=1 | Page loaded
+[2026-03-18 00:57:33] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /vehicles/index.php | Page loaded
+[2026-03-18 00:57:41] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php | Page loaded
+[2026-03-18 00:57:44] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /reservations/index.php | Page loaded
+[2026-03-18 00:58:18] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /reservations/index.php?search=8787&from_date=&to_date= | Page loaded
+[2026-03-18 00:58:28] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /reservations/show.php?id=18 | Page loaded
+[2026-03-18 00:58:49] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /index.php | Page loaded
+[2026-03-18 00:59:12] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php | Page loaded
+[2026-03-18 00:59:52] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php | Page loaded
+[2026-03-18 00:59:52] [ACTION] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php | Ledger: posted income Kl53R0426 amount=5000 (entry ID: 725)
+[2026-03-18 00:59:52] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php | Page loaded
+[2026-03-18 01:00:34] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php | Page loaded
+[2026-03-18 01:00:34] [ACTION] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php | Ledger: posted income Kl53U2630 amount=500 (entry ID: 726)
+[2026-03-18 01:00:34] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php | Page loaded
+[2026-03-18 01:00:54] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/credit.php | Page loaded
+[2026-03-18 01:01:09] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/credit.php | Page loaded
+[2026-03-18 01:01:09] [ACTION] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/credit.php | Ledger: credit payment settled amount=6800 mode=account user_id=1
+[2026-03-18 01:01:10] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/credit.php | Page loaded
+[2026-03-18 01:01:13] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php | Page loaded
+[2026-03-18 01:01:51] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php | Page loaded
+[2026-03-18 01:01:51] [ACTION] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php | Ledger: posted income Baleno 09 amount=2000 (entry ID: 729)
+[2026-03-18 01:01:51] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php | Page loaded
+[2026-03-18 01:02:32] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php | Page loaded
+[2026-03-18 01:02:32] [ACTION] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php | Ledger: posted income Baleno auto booking amount=2000 (entry ID: 730)
+[2026-03-18 01:02:32] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php | Page loaded
+[2026-03-18 01:03:26] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=2 | Page loaded
+[2026-03-18 01:03:52] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=3 | Page loaded
+[2026-03-18 01:04:02] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=4 | Page loaded
+[2026-03-18 01:04:06] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=5 | Page loaded
+[2026-03-18 01:04:10] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=6 | Page loaded
+[2026-03-18 01:04:13] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=7 | Page loaded
+[2026-03-18 01:04:16] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=9 | Page loaded
+[2026-03-18 01:04:19] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=11 | Page loaded
+[2026-03-18 01:04:22] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=13 | Page loaded
+[2026-03-18 01:04:25] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=15 | Page loaded
+[2026-03-18 01:04:28] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=17 | Page loaded
+[2026-03-18 01:04:31] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=19 | Page loaded
+[2026-03-18 01:04:34] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=21 | Page loaded
+[2026-03-18 01:04:43] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=23 | Page loaded
+[2026-03-18 01:06:41] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=23 | Page loaded
+[2026-03-18 01:06:41] [ACTION] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=23 | Ledger: posted expense Investment amount=2000 (entry ID: 731)
+[2026-03-18 01:06:41] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php | Page loaded
+[2026-03-18 01:07:17] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php | Page loaded
+[2026-03-18 01:07:17] [ACTION] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php | Ledger: posted expense Fuel amount=200 (entry ID: 732)
+[2026-03-18 01:07:17] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php | Page loaded
+[2026-03-18 01:07:42] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php | Page loaded
+[2026-03-18 01:07:42] [ACTION] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php | Ledger: posted expense Fuel amount=100 (entry ID: 733)
+[2026-03-18 01:07:42] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php | Page loaded
+[2026-03-18 01:08:10] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php | Page loaded
+[2026-03-18 01:08:10] [ACTION] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /accounts/index.php | Ledger: posted expense Fuel amount=200 (entry ID: 734)
+[2026-03-18 01:08:10] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php | Page loaded
+[2026-03-18 01:11:10] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /staff/index.php | Page loaded
+[2026-03-18 01:11:14] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /staff/show.php?id=6 | Page loaded
+[2026-03-18 01:11:32] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] POST /staff/show.php?id=6 | Page loaded
+[2026-03-18 01:11:32] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /staff/show.php?id=6 | Page loaded
+[2026-03-18 01:11:36] [PAGE  ] [admin/admin] [2402:3a80:4459:9020:48f0:45b3:fdf8:3674] GET /accounts/index.php | Page loaded
+[2026-03-18 01:17:29] [PAGE  ] [admin/admin] [49.15.134.222] GET /staff/index.php | Page loaded
+[2026-03-18 01:17:35] [PAGE  ] [admin/admin] [49.15.134.222] GET /staff/show.php?id=1 | Page loaded
+[2026-03-18 01:17:45] [PAGE  ] [admin/admin] [49.15.134.222] POST /staff/show.php?id=1 | Page loaded
+[2026-03-18 01:17:45] [PAGE  ] [admin/admin] [49.15.134.222] GET /staff/show.php?id=1 | Page loaded
+[2026-03-18 01:17:49] [PAGE  ] [admin/admin] [49.15.134.222] GET /accounts/index.php | Page loaded
+[2026-03-18 01:18:08] [PAGE  ] [admin/admin] [49.15.134.222] POST /accounts/index.php | Page loaded
+[2026-03-18 01:18:08] [ACTION] [admin/admin] [49.15.134.222] POST /accounts/index.php | Ledger: posted expense Myn future invests amount=1200 (entry ID: 737)
+[2026-03-18 01:18:08] [PAGE  ] [admin/admin] [49.15.134.222] GET /accounts/index.php | Page loaded
+[2026-03-18 01:19:21] [PAGE  ] [admin/admin] [49.15.134.222] GET /accounts/index.php | Page loaded
+[2026-03-18 01:21:24] [PAGE  ] [admin/admin] [49.15.134.222] GET /staff/index.php | Page loaded
+[2026-03-18 01:21:28] [PAGE  ] [admin/admin] [49.15.134.222] GET /staff/show.php?id=3 | Page loaded
+[2026-03-18 01:21:41] [PAGE  ] [admin/admin] [49.15.134.222] POST /staff/show.php?id=3 | Page loaded
+[2026-03-18 01:21:42] [PAGE  ] [admin/admin] [49.15.134.222] GET /staff/show.php?id=3 | Page loaded
+[2026-03-18 01:22:13] [PAGE  ] [admin/admin] [49.15.134.222] GET /accounts/index.php | Page loaded
+[2026-03-18 01:22:27] [PAGE  ] [admin/admin] [49.15.134.222] POST /accounts/index.php | Page loaded
+[2026-03-18 01:22:27] [ACTION] [admin/admin] [49.15.134.222] POST /accounts/index.php | Ledger: posted expense Delivery expenses amount=200 (entry ID: 739)
+[2026-03-18 01:22:27] [PAGE  ] [admin/admin] [49.15.134.222] GET /accounts/index.php | Page loaded
+[2026-03-18 01:24:54] [PAGE  ] [admin/admin] [49.15.134.222] POST /accounts/index.php | Page loaded
+[2026-03-18 01:24:54] [ACTION] [admin/admin] [49.15.134.222] POST /accounts/index.php | Ledger: posted expense Office Expense amount=326 (entry ID: 740)
+[2026-03-18 01:24:54] [PAGE  ] [admin/admin] [49.15.134.222] GET /accounts/index.php | Page loaded
+[2026-03-18 01:28:44] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET / | Page loaded
+[2026-03-18 01:28:54] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /leads/pipeline.php | Page loaded
+[2026-03-18 01:29:02] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /index.php | Page loaded
+[2026-03-18 01:29:04] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /leads/pipeline.php | Page loaded
+[2026-03-18 01:29:14] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /leads/show.php?id=235 | Page loaded
+[2026-03-18 01:29:16] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /leads/convert.php?id=235 | Page loaded
+[2026-03-18 01:30:32] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] POST /leads/convert.php?id=235 | Page loaded
+[2026-03-18 01:30:32] [ACTION] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] POST /leads/convert.php?id=235 | Converted lead (ID: 235) to client (ID: 59)
+[2026-03-18 01:30:33] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /clients/show.php?id=59 | Page loaded
+[2026-03-18 01:31:22] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /clients/index.php | Page loaded
+[2026-03-18 01:31:31] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /clients/show.php?id=59 | Page loaded
+[2026-03-18 01:31:39] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /reservations/index.php | Page loaded
+[2026-03-18 01:31:41] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /reservations/create.php | Page loaded
+[2026-03-18 01:33:00] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /reservations/available_vehicles.php?start=2026-03-18+13%3A55%3A00&end=2026-03-24+01%3A00%3A00 | Page loaded
+[2026-03-18 01:34:05] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /reservations/available_vehicles.php?start=2026-03-18+13%3A55%3A00&end=2026-03-25+13%3A55%3A00 | Page loaded
+[2026-03-18 01:34:13] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /reservations/available_vehicles.php?start=2026-03-18+13%3A55%3A00&end=2026-03-25+13%3A55%3A00 | Page loaded
+[2026-03-18 01:34:16] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /reservations/available_vehicles.php?start=2026-03-18+13%3A55%3A00&end=2026-03-24+13%3A55%3A00 | Page loaded
+[2026-03-18 01:35:11] [PAGE  ] [admin/admin] [49.15.134.222] GET /reservations/index.php | Page loaded
+[2026-03-18 01:35:18] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /reservations/available_vehicles.php?start=2026-03-20+13%3A55%3A00&end=2026-03-24+13%3A55%3A00 | Page loaded
+[2026-03-18 01:35:21] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /reservations/available_vehicles.php?start=2026-03-20+13%3A55%3A00&end=2026-03-27+13%3A55%3A00 | Page loaded
+[2026-03-18 01:36:25] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] POST /reservations/create.php | Page loaded
+[2026-03-18 01:36:25] [ACTION] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] POST /reservations/create.php | Ledger: posted income Reservation Advance amount=2000 (entry ID: 741)
+[2026-03-18 01:36:25] [ACTION] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] POST /reservations/create.php | Created reservation (ID: 113) [Advance: $2000 (account)]
+[2026-03-18 01:36:25] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /reservations/show.php?id=113 | Page loaded
+[2026-03-18 01:36:29] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /accounts/index.php | Page loaded
+[2026-03-18 01:36:35] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=2 | Page loaded
+[2026-03-18 01:36:43] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] POST /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=2 | Page loaded
+[2026-03-18 01:36:43] [ACTION] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] POST /accounts/index.php?date_from=2026-03-01&date_to=2026-03-18&page=2 | Ledger: deleted manual entry ID 730 by user 1
+[2026-03-18 01:36:43] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /accounts/index.php | Page loaded
+[2026-03-18 01:36:45] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /index.php | Page loaded
+[2026-03-18 01:36:47] [PAGE  ] [admin/admin] [2402:8100:2a60:741:0:15:3cb9:e901] GET /reservations/index.php | Page loaded
+[2026-03-18 10:19:12] [PAGE  ] [-] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] GET /reservations/bill.php?id=57 | Page loaded
+[2026-03-18 10:19:14] [PAGE  ] [-] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] GET /reservations/return.php?id=57 | Page loaded
+[2026-03-18 10:19:14] [PAGE  ] [-] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] GET /reservations/index.php | Page loaded
+[2026-03-18 10:19:14] [PAGE  ] [-] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] GET /auth/login.php | Page loaded
+[2026-03-18 10:19:22] [PAGE  ] [-] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] POST /auth/login.php | Page loaded
+[2026-03-18 10:19:22] [ACTION] [Shuhaib/staff] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] POST /auth/login.php | Login successful: shuhaib (role: staff)
+[2026-03-18 10:19:23] [PAGE  ] [Shuhaib/staff] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] GET /index.php | Page loaded
+[2026-03-18 10:19:23] [ERROR ] [Shuhaib/staff] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":4}
+[2026-03-18 10:19:27] [PAGE  ] [Shuhaib/staff] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] POST /attendance/punch.php | Page loaded
+[2026-03-18 10:19:35] [PAGE  ] [Shuhaib/staff] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] POST /attendance/punch.php | Page loaded
+[2026-03-18 10:19:37] [PAGE  ] [Shuhaib/staff] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] GET /index.php | Page loaded
+[2026-03-18 10:19:37] [ERROR ] [Shuhaib/staff] [2409:40f3:1095:995:f5fe:53c8:52c3:f6ce] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":4}
+[2026-03-18 12:17:42] [PAGE  ] [-] [2a02:4780:11:c0de::e] HEAD / | Page loaded
+[2026-03-18 12:17:42] [PAGE  ] [-] [2a02:4780:11:c0de::e] HEAD /auth/login.php | Page loaded
+[2026-03-18 13:23:59] [PAGE  ] [-] [103.215.52.231] GET / | Page loaded
+[2026-03-18 13:23:59] [PAGE  ] [-] [103.215.52.231] GET /auth/login.php | Page loaded
+[2026-03-18 13:24:23] [PAGE  ] [-] [103.215.52.231] POST /auth/login.php | Page loaded
+[2026-03-18 13:24:23] [ACTION] [admin/admin] [103.215.52.231] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-18 13:24:23] [PAGE  ] [admin/admin] [103.215.52.231] GET /index.php | Page loaded
+[2026-03-18 13:24:35] [PAGE  ] [admin/admin] [103.215.52.231] GET /reservations/index.php?due_today=1 | Page loaded
+[2026-03-18 13:24:47] [PAGE  ] [admin/admin] [103.215.52.231] GET /index.php | Page loaded
+[2026-03-18 13:24:56] [PAGE  ] [admin/admin] [103.215.52.231] GET /clients/index.php | Page loaded
+[2026-03-18 13:24:59] [PAGE  ] [admin/admin] [103.215.52.231] GET /leads/pipeline.php | Page loaded
+[2026-03-18 13:25:02] [PAGE  ] [admin/admin] [103.215.52.231] GET /leads/create.php | Page loaded
+[2026-03-18 13:26:29] [PAGE  ] [admin/admin] [103.215.52.231] POST /leads/create.php | Page loaded
+[2026-03-18 13:26:29] [ACTION] [admin/admin] [103.215.52.231] POST /leads/create.php | Created lead: shabe hc (ID: 236)
+[2026-03-18 13:26:29] [PAGE  ] [admin/admin] [103.215.52.231] GET /leads/show.php?id=236 | Page loaded
+[2026-03-18 13:26:33] [PAGE  ] [admin/admin] [103.215.52.231] GET /leads/index.php | Page loaded
+[2026-03-18 13:26:33] [PAGE  ] [admin/admin] [103.215.52.231] GET /leads/pipeline.php | Page loaded
+[2026-03-18 13:26:41] [PAGE  ] [admin/admin] [103.215.52.231] GET /leads/edit.php?id=236 | Page loaded
+[2026-03-18 13:26:49] [PAGE  ] [admin/admin] [103.215.52.231] POST /leads/edit.php?id=236 | Page loaded
+[2026-03-18 13:26:49] [ACTION] [admin/admin] [103.215.52.231] POST /leads/edit.php?id=236 | Updated lead (ID: 236)
+[2026-03-18 13:26:49] [PAGE  ] [admin/admin] [103.215.52.231] GET /leads/show.php?id=236 | Page loaded
+[2026-03-18 13:30:26] [PAGE  ] [-] [2402:3a80:1e09:b837:0:47:b59c:4b01] GET / | Page loaded
+[2026-03-18 13:30:27] [PAGE  ] [-] [2402:3a80:1e09:b837:0:47:b59c:4b01] GET /auth/login.php | Page loaded
+[2026-03-18 13:30:37] [PAGE  ] [-] [2402:3a80:1e09:b837:0:47:b59c:4b01] POST /auth/login.php | Page loaded
+[2026-03-18 13:30:37] [ACTION] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-18 13:30:37] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] GET /index.php | Page loaded
+[2026-03-18 13:30:52] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] GET /leads/pipeline.php | Page loaded
+[2026-03-18 13:31:23] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] GET /leads/show.php?id=236 | Page loaded
+[2026-03-18 13:31:24] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] GET /leads/convert.php?id=236 | Page loaded
+[2026-03-18 13:34:42] [PAGE  ] [-] [2402:3a80:1e09:b837:0:47:b59c:4b01] POST /leads/convert.php?id=236 | Page loaded
+[2026-03-18 13:34:52] [PAGE  ] [-] [2402:3a80:1e09:b837:0:47:b59c:4b01] GET /leads/show.php?id=236 | Page loaded
+[2026-03-18 13:34:52] [PAGE  ] [-] [2402:3a80:1e09:b837:0:47:b59c:4b01] GET /auth/login.php | Page loaded
+[2026-03-18 13:35:01] [PAGE  ] [-] [2402:3a80:1e09:b837:0:47:b59c:4b01] POST /auth/login.php | Page loaded
+[2026-03-18 13:35:01] [ACTION] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-18 13:35:01] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] GET /index.php | Page loaded
+[2026-03-18 13:35:04] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] GET /leads/pipeline.php | Page loaded
+[2026-03-18 13:35:20] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] GET /leads/show.php?id=236 | Page loaded
+[2026-03-18 13:35:21] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] GET /leads/convert.php?id=236 | Page loaded
+[2026-03-18 13:36:00] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] POST /leads/convert.php?id=236 | Page loaded
+[2026-03-18 13:36:02] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] POST /leads/convert.php?id=236 | Page loaded
+[2026-03-18 13:36:06] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] POST /leads/convert.php?id=236 | Page loaded
+[2026-03-18 13:36:10] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] POST /leads/convert.php?id=236 | Page loaded
+[2026-03-18 13:36:17] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] POST /leads/convert.php?id=236 | Page loaded
+[2026-03-18 13:36:26] [PAGE  ] [admin/admin] [103.215.52.231] POST /leads/convert.php?id=236 | Page loaded
+[2026-03-18 13:36:26] [ACTION] [admin/admin] [103.215.52.231] POST /leads/convert.php?id=236 | Converted lead (ID: 236) to client (ID: 60)
+[2026-03-18 13:36:26] [PAGE  ] [admin/admin] [103.215.52.231] GET /clients/show.php?id=60 | Page loaded
+[2026-03-18 13:36:27] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] POST /leads/convert.php?id=236 | Page loaded
+[2026-03-18 13:36:27] [PAGE  ] [admin/admin] [2402:3a80:1e09:b837:0:47:b59c:4b01] POST /leads/convert.php?id=236 | Page loaded
+[2026-03-18 13:36:34] [PAGE  ] [admin/admin] [103.215.52.231] GET /reservations/index.php | Page loaded
+[2026-03-18 13:36:43] [PAGE  ] [admin/admin] [103.215.52.231] GET /reservations/create.php | Page loaded
+[2026-03-18 13:37:05] [PAGE  ] [admin/admin] [103.215.52.231] GET /reservations/available_vehicles.php?start=2026-03-18+13%3A00%3A00&end=2026-03-25+01%3A00%3A00 | Page loaded
+[2026-03-18 13:37:23] [PAGE  ] [admin/admin] [103.215.52.231] GET /reservations/available_vehicles.php?start=2026-03-18+13%3A00%3A00&end=2026-03-24+01%3A00%3A00 | Page loaded
+[2026-03-18 13:37:25] [PAGE  ] [admin/admin] [103.215.52.231] GET /reservations/available_vehicles.php?start=2026-03-18+13%3A00%3A00&end=2026-03-24+13%3A00%3A00 | Page loaded
+[2026-03-18 13:37:29] [PAGE  ] [admin/admin] [103.215.52.231] GET /reservations/available_vehicles.php?start=2026-03-18+13%3A00%3A00&end=2026-03-25+13%3A00%3A00 | Page loaded
+[2026-03-18 13:37:50] [PAGE  ] [admin/admin] [103.215.52.231] POST /reservations/create.php | Page loaded
+[2026-03-18 13:37:50] [ACTION] [admin/admin] [103.215.52.231] POST /reservations/create.php | Created reservation (ID: 114)
+[2026-03-18 13:37:50] [PAGE  ] [admin/admin] [103.215.52.231] GET /reservations/show.php?id=114 | Page loaded
+[2026-03-18 13:38:42] [PAGE  ] [admin/admin] [103.215.52.231] GET /reservations/deliver.php?id=114 | Page loaded
+[2026-03-18 13:40:35] [PAGE  ] [admin/admin] [103.215.52.231] POST /reservations/deliver.php?id=114 | Page loaded
+[2026-03-18 13:40:35] [ACTION] [admin/admin] [103.215.52.231] POST /reservations/deliver.php?id=114 | Delivered reservation (ID: 114)
+[2026-03-18 13:40:35] [ACTION] [admin/admin] [103.215.52.231] POST /reservations/deliver.php?id=114 | Ledger: posted income Reservation Delivery amount=7000 (entry ID: 742)
+[2026-03-18 13:40:35] [PAGE  ] [admin/admin] [103.215.52.231] GET /reservations/show.php?id=114 | Page loaded
+[2026-03-18 13:40:42] [PAGE  ] [admin/admin] [103.215.52.231] GET /index.php | Page loaded
+[2026-03-18 13:41:27] [PAGE  ] [admin/admin] [103.215.52.231] GET /index.php | Page loaded
+[2026-03-18 13:41:34] [PAGE  ] [admin/admin] [103.215.52.231] GET /vehicles/index.php | Page loaded
+[2026-03-18 13:42:21] [PAGE  ] [admin/admin] [103.215.52.231] GET /vehicles/index.php?search=fortuner&rented_date= | Page loaded
+[2026-03-18 13:42:24] [PAGE  ] [admin/admin] [103.215.52.231] GET /vehicles/edit.php?id=11 | Page loaded
+[2026-03-18 13:42:26] [PAGE  ] [admin/admin] [103.215.52.231] GET /vehicles/show.php?id=11 | Page loaded
+[2026-03-18 13:43:51] [PAGE  ] [admin/admin] [103.215.52.231] POST /vehicles/add_expense.php | Page loaded
+[2026-03-18 13:43:51] [ACTION] [admin/admin] [103.215.52.231] POST /vehicles/add_expense.php | Ledger: posted expense Vehicle Expense amount=450 (entry ID: 743)
+[2026-03-18 13:43:52] [PAGE  ] [admin/admin] [103.215.52.231] GET /vehicles/show.php?id=11 | Page loaded
+[2026-03-18 13:45:31] [PAGE  ] [admin/admin] [103.215.52.231] POST /vehicles/add_expense.php | Page loaded
+[2026-03-18 13:45:31] [ACTION] [admin/admin] [103.215.52.231] POST /vehicles/add_expense.php | Ledger: posted expense Vehicle Expense amount=2000 (entry ID: 744)
+[2026-03-18 13:45:31] [PAGE  ] [admin/admin] [103.215.52.231] GET /vehicles/show.php?id=11 | Page loaded
+[2026-03-18 13:47:01] [PAGE  ] [admin/admin] [103.215.52.231] POST /vehicles/add_expense.php | Page loaded
+[2026-03-18 13:47:01] [ACTION] [admin/admin] [103.215.52.231] POST /vehicles/add_expense.php | Ledger: posted expense Vehicle Expense amount=500 (entry ID: 745)
+[2026-03-18 13:47:01] [PAGE  ] [admin/admin] [103.215.52.231] GET /vehicles/show.php?id=11 | Page loaded
+[2026-03-18 13:47:07] [PAGE  ] [admin/admin] [103.215.52.231] GET /accounts/index.php | Page loaded
+[2026-03-18 13:56:01] [PAGE  ] [-] [103.215.52.231] GET /index.php | Page loaded
+[2026-03-18 13:56:01] [PAGE  ] [-] [103.215.52.231] GET /auth/login.php | Page loaded
+[2026-03-18 14:11:23] [PAGE  ] [admin/admin] [103.215.52.231] GET /vehicles/index.php?status=rented | Page loaded
+[2026-03-18 14:11:26] [PAGE  ] [admin/admin] [103.215.52.231] GET /vehicles/quotation_builder.php | Page loaded
+[2026-03-18 14:11:30] [PAGE  ] [admin/admin] [103.215.52.231] GET /vehicles/index.php?status=rented | Page loaded
+[2026-03-18 15:51:03] [PAGE  ] [-] [35.184.120.90] POST / | Page loaded
+[2026-03-18 15:51:04] [PAGE  ] [-] [35.184.120.90] GET /auth/login.php | Page loaded
+[2026-03-18 16:27:10] [PAGE  ] [-] [103.215.52.136] GET /index.php | Page loaded
+[2026-03-18 16:27:10] [PAGE  ] [-] [103.215.52.136] GET /auth/login.php | Page loaded
+[2026-03-18 16:27:15] [PAGE  ] [-] [103.215.52.136] POST /auth/login.php | Page loaded
+[2026-03-18 16:27:15] [ACTION] [Shuhaib/staff] [103.215.52.136] POST /auth/login.php | Login successful: shuhaib (role: staff)
+[2026-03-18 16:27:16] [PAGE  ] [Shuhaib/staff] [103.215.52.136] GET /index.php | Page loaded
+[2026-03-18 16:27:16] [ERROR ] [Shuhaib/staff] [103.215.52.136] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'SELECT' | {"file":"/home/u230826074/domains/abrarfuturetech.com/public_html/subdomains/orentin/index.php:163","screen":"index.php","user_id":4}
+[2026-03-18 16:27:20] [PAGE  ] [Shuhaib/staff] [103.215.52.136] GET /reservations/index.php | Page loaded
+[2026-03-18 16:27:21] [PAGE  ] [Shuhaib/staff] [103.215.52.136] GET /reservations/index.php | Page loaded
+[2026-03-18 16:27:35] [PAGE  ] [Shuhaib/staff] [103.215.52.136] GET /reservations/return.php?id=112 | Page loaded
+[2026-03-18 16:30:04] [PAGE  ] [Shuhaib/staff] [103.215.52.136] POST /reservations/return.php?id=112 | Page loaded
+[2026-03-18 16:30:05] [ACTION] [Shuhaib/staff] [103.215.52.136] POST /reservations/return.php?id=112 | Returned reservation (ID: 112)
+[2026-03-18 16:30:06] [PAGE  ] [Shuhaib/staff] [103.215.52.136] GET /reservations/bill.php?id=112 | Page loaded
+[2026-03-18 19:05:47] [PAGE  ] [-] [49.15.238.134] GET /index.php | Page loaded
+[2026-03-18 19:05:48] [PAGE  ] [-] [49.15.238.134] GET /auth/login.php | Page loaded
+[2026-03-18 19:06:06] [PAGE  ] [-] [49.15.238.134] POST /auth/login.php | Page loaded
+[2026-03-18 19:06:06] [ACTION] [admin/admin] [49.15.238.134] POST /auth/login.php | Login successful: Admin (role: admin)
+[2026-03-18 19:06:14] [PAGE  ] [admin/admin] [49.15.238.134] GET /auth/login.php | Page loaded
+[2026-03-18 19:06:15] [PAGE  ] [admin/admin] [49.15.238.134] GET /index.php | Page loaded
+[2026-03-18 19:06:30] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/index.php?overdue=1 | Page loaded
+[2026-03-18 19:06:35] [PAGE  ] [admin/admin] [49.15.238.134] GET /index.php | Page loaded
+[2026-03-18 19:06:59] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/index.php?status=rented | Page loaded
+[2026-03-18 19:07:18] [PAGE  ] [admin/admin] [49.15.238.134] GET /index.php | Page loaded
+[2026-03-18 19:07:25] [PAGE  ] [admin/admin] [49.15.238.134] GET /index.php | Page loaded
+[2026-03-18 19:07:28] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/index.php?status=available | Page loaded
+[2026-03-18 19:08:38] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/index.php?status=available&page=2 | Page loaded
+[2026-03-18 19:09:07] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/index.php?status=available&page=3 | Page loaded
+[2026-03-18 19:20:39] [PAGE  ] [-] [103.154.37.133] GET / | Page loaded
+[2026-03-18 19:20:39] [PAGE  ] [-] [103.154.37.133] GET /auth/login.php | Page loaded
+[2026-03-18 19:20:42] [PAGE  ] [-] [103.154.37.133] POST /auth/login.php | Page loaded
+[2026-03-18 19:20:42] [ACTION] [admin/admin] [103.154.37.133] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-18 19:20:42] [PAGE  ] [admin/admin] [103.154.37.133] GET /index.php | Page loaded
+[2026-03-18 19:20:46] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php | Page loaded
+[2026-03-18 19:21:41] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php?page=2 | Page loaded
+[2026-03-18 19:22:32] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/show.php?id=99 | Page loaded
+[2026-03-18 19:23:01] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php?page=3 | Page loaded
+[2026-03-18 19:23:13] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php?page=4 | Page loaded
+[2026-03-18 19:23:21] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php?page=5 | Page loaded
+[2026-03-18 19:23:29] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php?page=6 | Page loaded
+[2026-03-18 19:23:36] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php?page=7 | Page loaded
+[2026-03-18 19:54:11] [PAGE  ] [admin/admin] [49.15.238.134] GET /accounts/index.php | Page loaded
+[2026-03-18 19:56:05] [PAGE  ] [admin/admin] [49.15.238.134] GET /staff/index.php | Page loaded
+[2026-03-18 19:56:08] [PAGE  ] [admin/admin] [49.15.238.134] GET /staff/show.php?id=1 | Page loaded
+[2026-03-18 19:56:19] [PAGE  ] [admin/admin] [49.15.238.134] POST /staff/show.php?id=1 | Page loaded
+[2026-03-18 19:56:19] [PAGE  ] [admin/admin] [49.15.238.134] GET /staff/show.php?id=1 | Page loaded
+[2026-03-18 19:56:30] [PAGE  ] [admin/admin] [49.15.238.134] GET /accounts/index.php | Page loaded
+[2026-03-18 19:57:59] [PAGE  ] [admin/admin] [49.15.238.134] POST /accounts/index.php | Page loaded
+[2026-03-18 19:57:59] [ACTION] [admin/admin] [49.15.238.134] POST /accounts/index.php | Ledger: posted expense Utilities amount=10 (entry ID: 747)
+[2026-03-18 19:57:59] [PAGE  ] [admin/admin] [49.15.238.134] GET /accounts/index.php | Page loaded
+[2026-03-18 19:58:39] [PAGE  ] [admin/admin] [49.15.238.134] POST /accounts/index.php | Page loaded
+[2026-03-18 19:58:39] [ACTION] [admin/admin] [49.15.238.134] POST /accounts/index.php | Ledger: posted expense Meta amount=500 (entry ID: 748)
+[2026-03-18 19:58:39] [PAGE  ] [admin/admin] [49.15.238.134] GET /accounts/index.php | Page loaded
+[2026-03-18 20:00:19] [PAGE  ] [admin/admin] [49.15.238.134] GET /index.php | Page loaded
+[2026-03-18 20:00:21] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/index.php | Page loaded
+[2026-03-18 20:00:32] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/index.php?search=6&rented_date= | Page loaded
+[2026-03-18 20:00:34] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/index.php?search=6&rented_date= | Page loaded
+[2026-03-18 20:00:38] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/show.php?id=44 | Page loaded
+[2026-03-18 20:01:08] [PAGE  ] [admin/admin] [49.15.238.134] POST /vehicles/add_expense.php | Page loaded
+[2026-03-18 20:01:08] [ACTION] [admin/admin] [49.15.238.134] POST /vehicles/add_expense.php | Ledger: posted expense Vehicle Expense amount=100 (entry ID: 749)
+[2026-03-18 20:01:09] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/show.php?id=44 | Page loaded
+[2026-03-18 20:01:13] [PAGE  ] [admin/admin] [49.15.238.134] GET /index.php | Page loaded
+[2026-03-18 20:01:15] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/index.php | Page loaded
+[2026-03-18 20:01:43] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/index.php?search=8485&rented_date= | Page loaded
+[2026-03-18 20:01:45] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/show.php?id=15 | Page loaded
+[2026-03-18 20:02:18] [PAGE  ] [admin/admin] [49.15.238.134] POST /vehicles/add_expense.php | Page loaded
+[2026-03-18 20:02:18] [ACTION] [admin/admin] [49.15.238.134] POST /vehicles/add_expense.php | Ledger: posted expense Vehicle Expense amount=110 (entry ID: 750)
+[2026-03-18 20:02:18] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/show.php?id=15 | Page loaded
+[2026-03-18 20:05:12] [PAGE  ] [admin/admin] [49.15.238.134] GET /accounts/index.php | Page loaded
+[2026-03-18 20:05:34] [PAGE  ] [admin/admin] [49.15.238.134] POST /accounts/index.php | Page loaded
+[2026-03-18 20:05:34] [ACTION] [admin/admin] [49.15.238.134] POST /accounts/index.php | Ledger: posted expense Investment amount=300 (entry ID: 751)
+[2026-03-18 20:05:35] [PAGE  ] [admin/admin] [49.15.238.134] GET /accounts/index.php | Page loaded
+[2026-03-18 20:05:41] [PAGE  ] [admin/admin] [49.15.238.134] GET /index.php | Page loaded
+[2026-03-18 20:08:10] [PAGE  ] [admin/admin] [49.15.238.134] GET /accounts/index.php | Page loaded
+[2026-03-18 20:08:42] [PAGE  ] [admin/admin] [49.15.238.134] GET /index.php | Page loaded
+[2026-03-18 20:08:46] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/index.php | Page loaded
+[2026-03-18 20:08:55] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/index.php?search=Ch&rented_date= | Page loaded
+[2026-03-18 20:08:56] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/show.php?id=11 | Page loaded
+[2026-03-18 20:09:17] [PAGE  ] [admin/admin] [49.15.238.134] POST /vehicles/add_expense.php | Page loaded
+[2026-03-18 20:09:17] [ACTION] [admin/admin] [49.15.238.134] POST /vehicles/add_expense.php | Ledger: posted expense Vehicle Expense amount=1300 (entry ID: 752)
+[2026-03-18 20:09:17] [PAGE  ] [admin/admin] [49.15.238.134] GET /vehicles/show.php?id=11 | Page loaded
+[2026-03-18 20:09:19] [PAGE  ] [admin/admin] [49.15.238.134] GET /index.php | Page loaded
+[2026-03-18 20:46:42] [PAGE  ] [admin/admin] [103.215.52.136] GET / | Page loaded
+[2026-03-18 20:46:49] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php | Page loaded
+[2026-03-18 20:46:57] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?page=2 | Page loaded
+[2026-03-18 20:47:01] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/show.php?id=35 | Page loaded
+[2026-03-18 20:50:12] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/index.php | Page loaded
+[2026-03-18 20:50:13] [PAGE  ] [admin/admin] [103.215.52.136] GET /index.php | Page loaded
+[2026-03-18 20:50:15] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available | Page loaded
+[2026-03-18 20:50:20] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/show.php?id=35 | Page loaded
+[2026-03-18 20:50:30] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available | Page loaded
+[2026-03-18 20:50:36] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/show.php?id=34 | Page loaded
+[2026-03-18 20:50:52] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available | Page loaded
+[2026-03-18 20:51:02] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=2 | Page loaded
+[2026-03-18 20:51:07] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=3 | Page loaded
+[2026-03-18 20:51:17] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=2 | Page loaded
+[2026-03-18 20:54:44] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=3 | Page loaded
+[2026-03-18 20:54:49] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=1 | Page loaded
+[2026-03-18 20:54:56] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/show.php?id=35 | Page loaded
+[2026-03-18 20:54:59] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=1 | Page loaded
+[2026-03-18 20:55:15] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/show.php?id=35 | Page loaded
+[2026-03-18 20:56:04] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=1 | Page loaded
+[2026-03-18 20:56:06] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available | Page loaded
+[2026-03-18 20:56:11] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/show.php?id=34 | Page loaded
+[2026-03-18 20:56:19] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available | Page loaded
+[2026-03-18 20:56:23] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=2 | Page loaded
+[2026-03-18 20:56:27] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=3 | Page loaded
+[2026-03-18 20:56:30] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/show.php?id=10 | Page loaded
+[2026-03-18 21:01:09] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php | Page loaded
+[2026-03-18 21:01:17] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?page=2 | Page loaded
+[2026-03-18 21:01:20] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/show.php?id=34 | Page loaded
+[2026-03-18 21:01:39] [PAGE  ] [-] [103.154.37.133] GET / | Page loaded
+[2026-03-18 21:01:39] [PAGE  ] [-] [103.154.37.133] GET /auth/login.php | Page loaded
+[2026-03-18 21:01:42] [PAGE  ] [-] [103.154.37.133] POST /auth/login.php | Page loaded
+[2026-03-18 21:01:42] [ACTION] [admin/admin] [103.154.37.133] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-18 21:01:42] [PAGE  ] [admin/admin] [103.154.37.133] GET /index.php | Page loaded
+[2026-03-18 21:01:44] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php | Page loaded
+[2026-03-18 21:01:59] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php?search=9048834&from_date=&to_date= | Page loaded
+[2026-03-18 21:02:25] [PAGE  ] [admin/admin] [103.154.37.133] GET /index.php | Page loaded
+[2026-03-18 21:02:28] [PAGE  ] [admin/admin] [103.154.37.133] GET /vehicles/index.php | Page loaded
+[2026-03-18 21:02:36] [PAGE  ] [admin/admin] [103.154.37.133] GET /vehicles/index.php?search=swift&rented_date= | Page loaded
+[2026-03-18 21:03:00] [PAGE  ] [admin/admin] [103.154.37.133] GET /vehicles/show.php?id=35 | Page loaded
+[2026-03-18 21:03:43] [PAGE  ] [admin/admin] [103.154.37.133] GET /vehicles/index.php | Page loaded
+[2026-03-18 21:03:52] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php | Page loaded
+[2026-03-18 21:03:53] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/create.php | Page loaded
+[2026-03-18 21:04:15] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/available_vehicles.php?start=2026-12-01+21%3A00%3A00&end=2026-12-10+01%3A00%3A00 | Page loaded
+[2026-03-18 21:04:30] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php | Page loaded
+[2026-03-18 21:04:35] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php?search=9048834&from_date=&to_date= | Page loaded
+[2026-03-18 21:04:42] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php | Page loaded
+[2026-03-18 21:04:44] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/create.php | Page loaded
+[2026-03-18 21:04:56] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/available_vehicles.php?start=2026-03-10+21%3A00%3A00&end=2026-03-20+01%3A00%3A00 | Page loaded
+[2026-03-18 21:05:11] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/available_vehicles.php?start=2026-03-02+21%3A00%3A00&end=2026-03-20+01%3A00%3A00 | Page loaded
+[2026-03-18 21:05:16] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/available_vehicles.php?start=2026-03-25+21%3A00%3A00&end=2026-03-28+01%3A00%3A00 | Page loaded
+[2026-03-18 21:05:26] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php | Page loaded
+[2026-03-18 21:10:12] [PAGE  ] [-] [103.215.52.136] GET / | Page loaded
+[2026-03-18 21:10:13] [PAGE  ] [-] [103.215.52.136] GET /auth/login.php | Page loaded
+[2026-03-18 21:10:26] [PAGE  ] [-] [103.215.52.136] POST /auth/login.php | Page loaded
+[2026-03-18 21:10:26] [ACTION] [-] [103.215.52.136] POST /auth/login.php | Login failed for username: admin
+[2026-03-18 21:10:44] [PAGE  ] [-] [103.215.52.136] POST /auth/login.php | Page loaded
+[2026-03-18 21:10:44] [ACTION] [admin/admin] [103.215.52.136] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-18 21:10:45] [PAGE  ] [admin/admin] [103.215.52.136] GET /index.php | Page loaded
+[2026-03-18 21:10:57] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 21:11:34] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=229 | Page loaded
+[2026-03-18 21:11:45] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 21:12:12] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=221 | Page loaded
+[2026-03-18 21:12:21] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 21:13:48] [PAGE  ] [-] [103.154.37.133] GET /reservations/index.php?page=7 | Page loaded
+[2026-03-18 21:13:48] [PAGE  ] [-] [103.154.37.133] GET /auth/login.php | Page loaded
+[2026-03-18 21:21:03] [PAGE  ] [admin/admin] [103.215.52.136] GET /clients/index.php | Page loaded
+[2026-03-18 21:21:06] [PAGE  ] [admin/admin] [103.215.52.136] GET /clients/create.php | Page loaded
+[2026-03-18 21:22:26] [PAGE  ] [admin/admin] [103.215.52.136] POST /clients/create.php | Page loaded
+[2026-03-18 21:22:26] [ACTION] [admin/admin] [103.215.52.136] POST /clients/create.php | Created client: shafi frnd vengoor (ID: 61)
+[2026-03-18 21:22:26] [PAGE  ] [admin/admin] [103.215.52.136] GET /clients/show.php?id=61 | Page loaded
+[2026-03-18 21:22:40] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/index.php | Page loaded
+[2026-03-18 21:22:43] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/create.php | Page loaded
+[2026-03-18 21:25:13] [PAGE  ] [admin/admin] [103.154.37.133] GET /reservations/index.php | Page loaded
+[2026-03-18 21:26:53] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/available_vehicles.php?start=2026-03-02+21%3A20%3A00&end=2026-04-01+01%3A00%3A00 | Page loaded
+[2026-03-18 21:27:04] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/available_vehicles.php?start=2026-03-02+21%3A20%3A00&end=2026-04-01+21%3A20%3A00 | Page loaded
+[2026-03-18 21:28:42] [PAGE  ] [admin/admin] [103.215.52.136] POST /reservations/create.php | Page loaded
+[2026-03-18 21:28:42] [ACTION] [admin/admin] [103.215.52.136] POST /reservations/create.php | Ledger: posted income Reservation Advance amount=12000 (entry ID: 753)
+[2026-03-18 21:28:42] [ACTION] [admin/admin] [103.215.52.136] POST /reservations/create.php | Created reservation (ID: 115) [Advance: $12000 (account)]
+[2026-03-18 21:28:42] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/show.php?id=115 | Page loaded
+[2026-03-18 21:28:56] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/deliver.php?id=115 | Page loaded
+[2026-03-18 21:31:06] [PAGE  ] [admin/admin] [103.215.52.136] POST /reservations/deliver.php?id=115 | Page loaded
+[2026-03-18 21:31:07] [ACTION] [admin/admin] [103.215.52.136] POST /reservations/deliver.php?id=115 | Delivered reservation (ID: 115)
+[2026-03-18 21:31:07] [ACTION] [admin/admin] [103.215.52.136] POST /reservations/deliver.php?id=115 | Ledger: posted income Reservation Delivery amount=6000 (entry ID: 754)
+[2026-03-18 21:31:07] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/show.php?id=115 | Page loaded
+[2026-03-18 21:31:12] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php | Page loaded
+[2026-03-18 21:31:14] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available | Page loaded
+[2026-03-18 21:31:17] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=2 | Page loaded
+[2026-03-18 21:31:20] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=3 | Page loaded
+[2026-03-18 21:31:28] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 21:31:35] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=226 | Page loaded
+[2026-03-18 21:31:57] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 21:33:18] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/index.php | Page loaded
+[2026-03-18 21:34:13] [PAGE  ] [admin/admin] [103.215.52.136] GET /accounts/index.php | Page loaded
+[2026-03-18 21:34:52] [PAGE  ] [admin/admin] [103.215.52.136] GET /accounts/index.php?type=expense&source=&category=&date_from=2026-03-01&date_to=2026-03-18&account= | Page loaded
+[2026-03-18 21:35:27] [PAGE  ] [admin/admin] [103.215.52.136] GET /settings/general.php | Page loaded
+[2026-03-18 21:35:30] [PAGE  ] [admin/admin] [103.215.52.136] GET /settings/expense_categories.php | Page loaded
+[2026-03-18 21:35:52] [PAGE  ] [admin/admin] [103.215.52.136] POST /settings/expense_categories.php | Page loaded
+[2026-03-18 21:35:52] [ACTION] [admin/admin] [103.215.52.136] POST /settings/expense_categories.php | Updated expense categories settings
+[2026-03-18 21:35:52] [PAGE  ] [admin/admin] [103.215.52.136] GET /settings/expense_categories.php | Page loaded
+[2026-03-18 21:36:08] [PAGE  ] [admin/admin] [103.215.52.136] GET /accounts/index.php | Page loaded
+[2026-03-18 21:36:13] [PAGE  ] [admin/admin] [103.215.52.136] GET /accounts/index.php?type=expense&source=&category=&date_from=2026-03-01&date_to=2026-03-18&account= | Page loaded
+[2026-03-18 21:38:09] [PAGE  ] [admin/admin] [103.215.52.136] POST /accounts/index.php?type=expense&source=&category=&date_from=2026-03-01&date_to=2026-03-18&account= | Page loaded
+[2026-03-18 21:38:09] [ACTION] [admin/admin] [103.215.52.136] POST /accounts/index.php?type=expense&source=&category=&date_from=2026-03-01&date_to=2026-03-18&account= | Ledger: posted expense Error amount=12000 (entry ID: 755)
+[2026-03-18 21:38:09] [PAGE  ] [admin/admin] [103.215.52.136] GET /accounts/index.php | Page loaded
+[2026-03-18 21:38:32] [PAGE  ] [admin/admin] [103.215.52.136] GET /accounts/index.php?type=expense&source=&category=&date_from=2026-03-01&date_to=2026-03-18&account= | Page loaded
+[2026-03-18 21:38:35] [PAGE  ] [admin/admin] [103.215.52.136] GET /accounts/index.php | Page loaded
+[2026-03-18 21:38:36] [PAGE  ] [admin/admin] [103.215.52.136] GET /settings/expense_categories.php | Page loaded
+[2026-03-18 21:38:37] [PAGE  ] [admin/admin] [103.215.52.136] GET /settings/expense_categories.php | Page loaded
+[2026-03-18 21:38:39] [PAGE  ] [admin/admin] [103.215.52.136] GET /index.php | Page loaded
+[2026-03-18 21:40:35] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 21:41:41] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=208 | Page loaded
+[2026-03-18 21:41:50] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/edit.php?id=208 | Page loaded
+[2026-03-18 21:41:58] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=208 | Page loaded
+[2026-03-18 21:42:02] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 21:43:40] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 21:45:01] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 21:45:01] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: 9895989093 (ID: 237)
+[2026-03-18 21:45:01] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=237 | Page loaded
+[2026-03-18 21:45:03] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 21:52:49] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 21:52:49] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: 9895989093 (ID: 238)
+[2026-03-18 21:52:49] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=238 | Page loaded
+[2026-03-18 21:53:10] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 21:53:12] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 21:56:57] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET / | Page loaded
+[2026-03-18 22:06:44] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 22:06:44] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: vs (ID: 239)
+[2026-03-18 22:06:44] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=239 | Page loaded
+[2026-03-18 22:07:53] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:08:00] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 22:11:26] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 22:11:26] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: 9526949463 (ID: 240)
+[2026-03-18 22:11:26] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=240 | Page loaded
+[2026-03-18 22:11:36] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 22:11:38] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:12:29] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=239 | Page loaded
+[2026-03-18 22:12:32] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:13:23] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php?view=kanban&q=&staff_filter=0&source_filter=&status_filter=closed_won&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-18 22:13:27] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php?view=kanban&q=&staff_filter=0&source_filter=&status_filter=&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-18 22:15:35] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/edit.php?id=239 | Page loaded
+[2026-03-18 22:16:09] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php?view=kanban&q=&staff_filter=0&source_filter=&status_filter=&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-18 22:16:31] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/edit.php?id=240 | Page loaded
+[2026-03-18 22:16:42] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/edit.php?id=240 | Page loaded
+[2026-03-18 22:16:42] [ACTION] [admin/admin] [103.215.52.136] POST /leads/edit.php?id=240 | Updated lead (ID: 240)
+[2026-03-18 22:16:42] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=240 | Page loaded
+[2026-03-18 22:16:45] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/edit.php?id=240 | Page loaded
+[2026-03-18 22:16:47] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:16:49] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 22:17:55] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 22:17:55] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: care n cure (ID: 241)
+[2026-03-18 22:17:55] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=241 | Page loaded
+[2026-03-18 22:33:20] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:33:23] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 22:36:01] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/availability.php | Page loaded
+[2026-03-18 22:36:05] [PAGE  ] [admin/admin] [103.215.52.136] GET /index.php | Page loaded
+[2026-03-18 22:36:06] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET / | Page loaded
+[2026-03-18 22:36:10] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available | Page loaded
+[2026-03-18 22:36:13] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:36:15] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=2 | Page loaded
+[2026-03-18 22:36:19] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=3 | Page loaded
+[2026-03-18 22:36:26] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available | Page loaded
+[2026-03-18 22:36:31] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=2 | Page loaded
+[2026-03-18 22:36:36] [PAGE  ] [admin/admin] [103.215.52.136] GET /vehicles/index.php?status=available&page=3 | Page loaded
+[2026-03-18 22:37:53] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /leads/create.php | Page loaded
+[2026-03-18 22:38:37] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:38:47] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] POST /leads/create.php | Page loaded
+[2026-03-18 22:38:47] [ACTION] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] POST /leads/create.php | Created lead: Nazurul haque (ID: 242)
+[2026-03-18 22:38:48] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /leads/show.php?id=242 | Page loaded
+[2026-03-18 22:38:57] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /leads/edit.php?id=242 | Page loaded
+[2026-03-18 22:39:03] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] POST /leads/edit.php?id=242 | Page loaded
+[2026-03-18 22:39:03] [ACTION] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] POST /leads/edit.php?id=242 | Updated lead (ID: 242)
+[2026-03-18 22:39:03] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /leads/show.php?id=242 | Page loaded
+[2026-03-18 22:39:07] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /leads/convert.php?id=242 | Page loaded
+[2026-03-18 22:39:50] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 22:40:19] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] POST /leads/convert.php?id=242 | Page loaded
+[2026-03-18 22:40:19] [ACTION] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] POST /leads/convert.php?id=242 | Converted lead (ID: 242) to client (ID: 62)
+[2026-03-18 22:40:19] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /clients/show.php?id=62 | Page loaded
+[2026-03-18 22:40:24] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /reservations/index.php | Page loaded
+[2026-03-18 22:40:26] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /reservations/create.php | Page loaded
+[2026-03-18 22:41:11] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /reservations/available_vehicles.php?start=2026-03-21+09%3A00%3A00&end=2026-04-04+01%3A00%3A00 | Page loaded
+[2026-03-18 22:41:29] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /reservations/available_vehicles.php?start=2026-03-21+09%3A00%3A00&end=2026-04-04+10%3A00%3A00 | Page loaded
+[2026-03-18 22:42:04] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 22:42:04] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: aam (ID: 243)
+[2026-03-18 22:42:04] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=243 | Page loaded
+[2026-03-18 22:42:18] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] POST /reservations/create.php | Page loaded
+[2026-03-18 22:42:18] [ACTION] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] POST /reservations/create.php | Ledger: posted income Reservation Advance amount=5000 (entry ID: 756)
+[2026-03-18 22:42:18] [ACTION] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] POST /reservations/create.php | Created reservation (ID: 116) [Advance: $5000 (account)]
+[2026-03-18 22:42:18] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /reservations/show.php?id=116 | Page loaded
+[2026-03-18 22:42:19] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:42:21] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /reservations/bill.php?id=116 | Page loaded
+[2026-03-18 22:42:22] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 22:45:01] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /reservations/show.php?id=116 | Page loaded
+[2026-03-18 22:45:33] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 22:45:33] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: +97431651181 (ID: 244)
+[2026-03-18 22:45:33] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=244 | Page loaded
+[2026-03-18 22:45:35] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:45:38] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 22:46:33] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /reservations/index.php | Page loaded
+[2026-03-18 22:46:57] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 22:46:57] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: say we (ID: 245)
+[2026-03-18 22:46:57] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=245 | Page loaded
+[2026-03-18 22:47:34] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:47:35] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 22:48:09] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 22:48:09] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: ms (ID: 246)
+[2026-03-18 22:48:09] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=246 | Page loaded
+[2026-03-18 22:48:12] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:48:14] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 22:48:49] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 22:48:49] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: abdurahiman kunnimmal (ID: 247)
+[2026-03-18 22:48:49] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=247 | Page loaded
+[2026-03-18 22:48:55] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:48:57] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 22:49:33] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 22:49:33] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: noorudheen (ID: 248)
+[2026-03-18 22:49:33] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=248 | Page loaded
+[2026-03-18 22:49:45] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:49:47] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 22:50:55] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 22:50:55] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: ershad (ID: 249)
+[2026-03-18 22:50:55] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=249 | Page loaded
+[2026-03-18 22:51:05] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:51:06] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 22:51:46] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /index.php | Page loaded
+[2026-03-18 22:51:55] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /vehicles/index.php | Page loaded
+[2026-03-18 22:51:58] [PAGE  ] [admin/admin] [2402:3a80:4220:24d4:0:48:4e93:6901] GET /vehicles/quotation_builder.php | Page loaded
+[2026-03-18 22:52:40] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 22:52:40] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: infal kp (ID: 250)
+[2026-03-18 22:52:40] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=250 | Page loaded
+[2026-03-18 22:55:22] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:55:24] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 22:56:29] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 22:56:29] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: 8157868787 (ID: 251)
+[2026-03-18 22:56:29] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=251 | Page loaded
+[2026-03-18 22:57:22] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 22:57:23] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 22:59:31] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 22:59:31] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: arun (ID: 252)
+[2026-03-18 22:59:31] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=252 | Page loaded
+[2026-03-18 23:01:45] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/edit.php?id=252 | Page loaded
+[2026-03-18 23:01:54] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/edit.php?id=252 | Page loaded
+[2026-03-18 23:01:54] [ACTION] [admin/admin] [103.215.52.136] POST /leads/edit.php?id=252 | Updated lead (ID: 252)
+[2026-03-18 23:01:54] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=252 | Page loaded
+[2026-03-18 23:02:11] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:02:12] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:03:27] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:03:27] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: thajuknr100 (ID: 253)
+[2026-03-18 23:03:28] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=253 | Page loaded
+[2026-03-18 23:03:32] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/index.php | Page loaded
+[2026-03-18 23:03:35] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:03:37] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:11:34] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:11:34] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: +1(226)977-5556 (ID: 254)
+[2026-03-18 23:11:34] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=254 | Page loaded
+[2026-03-18 23:11:42] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:11:43] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:15:36] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:15:36] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: aswin sreedhar (ID: 255)
+[2026-03-18 23:15:36] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=255 | Page loaded
+[2026-03-18 23:17:22] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:17:23] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:17:28] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:17:34] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:17:52] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:19:08] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:19:08] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: rajesh pandari (ID: 256)
+[2026-03-18 23:19:08] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=256 | Page loaded
+[2026-03-18 23:19:18] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:19:19] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:20:18] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:20:19] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: +1(365)880-3044 (ID: 257)
+[2026-03-18 23:20:20] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=257 | Page loaded
+[2026-03-18 23:20:27] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:20:36] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:21:23] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:21:23] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: sinaj (ID: 258)
+[2026-03-18 23:21:23] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=258 | Page loaded
+[2026-03-18 23:21:43] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:21:45] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:22:44] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:22:44] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: xtreme (ID: 259)
+[2026-03-18 23:22:45] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=259 | Page loaded
+[2026-03-18 23:23:00] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:23:02] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:24:17] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:24:17] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: +1(647)897-9925 (ID: 260)
+[2026-03-18 23:24:17] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=260 | Page loaded
+[2026-03-18 23:24:39] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:24:51] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:27:36] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:27:36] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: aswin (ID: 261)
+[2026-03-18 23:27:36] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=261 | Page loaded
+[2026-03-18 23:29:02] [PAGE  ] [admin/admin] [103.215.52.136] GET /clients/index.php | Page loaded
+[2026-03-18 23:29:04] [PAGE  ] [admin/admin] [103.215.52.136] GET /clients/create.php | Page loaded
+[2026-03-18 23:31:20] [PAGE  ] [admin/admin] [103.215.52.136] POST /clients/create.php | Page loaded
+[2026-03-18 23:31:20] [ACTION] [admin/admin] [103.215.52.136] POST /clients/create.php | Created client: noufal nisdon infoway pmna (ID: 63)
+[2026-03-18 23:31:20] [PAGE  ] [admin/admin] [103.215.52.136] GET /clients/show.php?id=63 | Page loaded
+[2026-03-18 23:31:34] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/index.php | Page loaded
+[2026-03-18 23:31:36] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/create.php | Page loaded
+[2026-03-18 23:32:04] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/available_vehicles.php?start=2026-03-19+22%3A00%3A00&end=2026-03-21+01%3A00%3A00 | Page loaded
+[2026-03-18 23:32:08] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/available_vehicles.php?start=2026-03-19+22%3A00%3A00&end=2026-03-21+10%3A00%3A00 | Page loaded
+[2026-03-18 23:32:08] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/available_vehicles.php?start=2026-03-19+22%3A00%3A00&end=2026-03-21+11%3A00%3A00 | Page loaded
+[2026-03-18 23:32:09] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/available_vehicles.php?start=2026-03-19+22%3A00%3A00&end=2026-03-21+10%3A00%3A00 | Page loaded
+[2026-03-18 23:32:14] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/available_vehicles.php?start=2026-03-19+22%3A00%3A00&end=2026-03-21+22%3A00%3A00 | Page loaded
+[2026-03-18 23:32:53] [PAGE  ] [admin/admin] [103.215.52.136] POST /reservations/create.php | Page loaded
+[2026-03-18 23:32:53] [ACTION] [admin/admin] [103.215.52.136] POST /reservations/create.php | Ledger: posted income Reservation Advance amount=500 (entry ID: 757)
+[2026-03-18 23:32:53] [ACTION] [admin/admin] [103.215.52.136] POST /reservations/create.php | Created reservation (ID: 117) [Advance: $500 (account)]
+[2026-03-18 23:32:53] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/show.php?id=117 | Page loaded
+[2026-03-18 23:32:57] [PAGE  ] [admin/admin] [103.215.52.136] GET /clients/index.php | Page loaded
+[2026-03-18 23:32:59] [PAGE  ] [admin/admin] [103.215.52.136] GET /clients/create.php | Page loaded
+[2026-03-18 23:34:36] [PAGE  ] [admin/admin] [103.215.52.136] POST /clients/create.php | Page loaded
+[2026-03-18 23:34:36] [ACTION] [admin/admin] [103.215.52.136] POST /clients/create.php | Created client: febin valamboor (ID: 64)
+[2026-03-18 23:34:36] [PAGE  ] [admin/admin] [103.215.52.136] GET /clients/show.php?id=64 | Page loaded
+[2026-03-18 23:34:40] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/index.php | Page loaded
+[2026-03-18 23:34:43] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/create.php | Page loaded
+[2026-03-18 23:35:03] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/available_vehicles.php?start=2026-03-19+23%3A30%3A00&end=2026-03-20+01%3A00%3A00 | Page loaded
+[2026-03-18 23:35:06] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/available_vehicles.php?start=2026-03-19+22%3A30%3A00&end=2026-03-20+01%3A00%3A00 | Page loaded
+[2026-03-18 23:35:09] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/available_vehicles.php?start=2026-03-19+22%3A00%3A00&end=2026-03-20+01%3A00%3A00 | Page loaded
+[2026-03-18 23:35:14] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/available_vehicles.php?start=2026-03-19+22%3A00%3A00&end=2026-03-20+10%3A00%3A00 | Page loaded
+[2026-03-18 23:35:17] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/available_vehicles.php?start=2026-03-19+22%3A00%3A00&end=2026-03-20+22%3A00%3A00 | Page loaded
+[2026-03-18 23:35:54] [PAGE  ] [admin/admin] [103.215.52.136] POST /reservations/create.php | Page loaded
+[2026-03-18 23:35:54] [ACTION] [admin/admin] [103.215.52.136] POST /reservations/create.php | Ledger: posted income Reservation Advance amount=500 (entry ID: 758)
+[2026-03-18 23:35:54] [ACTION] [admin/admin] [103.215.52.136] POST /reservations/create.php | Created reservation (ID: 118) [Advance: $500 (account)]
+[2026-03-18 23:35:54] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/show.php?id=118 | Page loaded
+[2026-03-18 23:35:58] [PAGE  ] [admin/admin] [103.215.52.136] GET /reservations/index.php | Page loaded
+[2026-03-18 23:36:23] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:36:51] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:37:18] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:37:25] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:38:26] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:38:26] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: +97450360710 (ID: 262)
+[2026-03-18 23:38:27] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=262 | Page loaded
+[2026-03-18 23:39:03] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:39:05] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:40:11] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:40:11] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: shafan khan (ID: 263)
+[2026-03-18 23:40:11] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=263 | Page loaded
+[2026-03-18 23:40:23] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:40:26] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:41:32] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:41:32] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: m (ID: 264)
+[2026-03-18 23:41:33] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=264 | Page loaded
+[2026-03-18 23:41:49] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:41:50] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:43:03] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:43:03] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: maneeex (ID: 265)
+[2026-03-18 23:43:03] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=265 | Page loaded
+[2026-03-18 23:43:13] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:43:15] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:44:21] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:44:21] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: jobin philip (ID: 266)
+[2026-03-18 23:44:21] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=266 | Page loaded
+[2026-03-18 23:44:49] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:44:51] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:45:39] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:45:39] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: shihab t (ID: 267)
+[2026-03-18 23:45:39] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=267 | Page loaded
+[2026-03-18 23:45:50] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:45:51] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:46:36] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:46:36] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: +917034093438 (ID: 268)
+[2026-03-18 23:46:36] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=268 | Page loaded
+[2026-03-18 23:46:37] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:46:44] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:47:21] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:47:21] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: +919562381303 (ID: 269)
+[2026-03-18 23:47:22] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=269 | Page loaded
+[2026-03-18 23:47:31] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:47:32] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:47:35] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:48:32] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:48:32] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: saneeb (ID: 270)
+[2026-03-18 23:48:32] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=270 | Page loaded
+[2026-03-18 23:48:35] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:48:38] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:49:33] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:49:33] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: pp (ID: 271)
+[2026-03-18 23:49:33] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=271 | Page loaded
+[2026-03-18 23:49:49] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:49:50] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:51:11] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:51:11] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: +919995637232 (ID: 272)
+[2026-03-18 23:51:11] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=272 | Page loaded
+[2026-03-18 23:51:25] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:51:26] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:51:55] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:51:55] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: +966555687607 (ID: 273)
+[2026-03-18 23:51:55] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=273 | Page loaded
+[2026-03-18 23:51:57] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:52:08] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:53:30] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:53:30] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: ashique (ID: 274)
+[2026-03-18 23:53:30] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=274 | Page loaded
+[2026-03-18 23:54:11] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:54:16] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:55:18] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:55:18] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: prabhu (ID: 275)
+[2026-03-18 23:55:18] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=275 | Page loaded
+[2026-03-18 23:55:51] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:55:53] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:56:51] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:56:51] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: nazurul haq (ID: 276)
+[2026-03-18 23:56:51] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=276 | Page loaded
+[2026-03-18 23:56:53] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:56:59] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=276 | Page loaded
+[2026-03-18 23:57:05] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/edit.php?id=276 | Page loaded
+[2026-03-18 23:57:11] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/edit.php?id=276 | Page loaded
+[2026-03-18 23:57:11] [ACTION] [admin/admin] [103.215.52.136] POST /leads/edit.php?id=276 | Updated lead (ID: 276)
+[2026-03-18 23:57:12] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=276 | Page loaded
+[2026-03-18 23:57:14] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:57:16] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:58:08] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:58:08] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: meemi rashid (ID: 277)
+[2026-03-18 23:58:08] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=277 | Page loaded
+[2026-03-18 23:58:10] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:58:14] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/edit.php?id=277 | Page loaded
+[2026-03-18 23:58:21] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/edit.php?id=277 | Page loaded
+[2026-03-18 23:58:21] [ACTION] [admin/admin] [103.215.52.136] POST /leads/edit.php?id=277 | Updated lead (ID: 277)
+[2026-03-18 23:58:21] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=277 | Page loaded
+[2026-03-18 23:58:26] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/pipeline.php | Page loaded
+[2026-03-18 23:58:29] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/create.php | Page loaded
+[2026-03-18 23:59:55] [PAGE  ] [admin/admin] [103.215.52.136] POST /leads/create.php | Page loaded
+[2026-03-18 23:59:55] [ACTION] [admin/admin] [103.215.52.136] POST /leads/create.php | Created lead: musthafa pp (ID: 278)
+[2026-03-18 23:59:55] [PAGE  ] [admin/admin] [103.215.52.136] GET /leads/show.php?id=278 | Page loaded

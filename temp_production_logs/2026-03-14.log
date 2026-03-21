@@ -1,0 +1,68 @@
+[2026-03-14 11:07:05] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-14 11:07:13] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-14 11:07:15] [PAGE  ] [admin/admin] [::1] GET /vehicles/create.php | Page loaded
+[2026-03-14 11:15:54] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-14 11:15:56] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=14 | Page loaded
+[2026-03-14 11:20:06] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-14 11:20:07] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=6 | Page loaded
+[2026-03-14 11:20:09] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=6 | Page loaded
+[2026-03-14 11:20:28] [PAGE  ] [admin/admin] [::1] POST /vehicles/edit.php?id=6 | Page loaded
+[2026-03-14 11:20:28] [ACTION] [admin/admin] [::1] POST /vehicles/edit.php?id=6 | Vehicle edit submit attempt (ID: 6)
+[2026-03-14 11:20:28] [ERROR ] [admin/admin] [::1] POST /vehicles/edit.php?id=6 | Vehicle edit insurance metadata save failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pollution_expiry_date' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\vehicles\\edit.php:138","screen":"vehicles/edit.php","vehicle_id":6}
+[2026-03-14 11:20:28] [ACTION] [admin/admin] [::1] POST /vehicles/edit.php?id=6 | Updated vehicle (ID: 6)
+[2026-03-14 11:20:28] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=6 | Page loaded
+[2026-03-14 11:20:40] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-14 11:20:43] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=6 | Page loaded
+[2026-03-14 11:20:45] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=6 | Page loaded
+[2026-03-14 11:21:39] [PAGE  ] [admin/admin] [::1] POST /vehicles/edit.php?id=6 | Page loaded
+[2026-03-14 11:21:39] [ACTION] [admin/admin] [::1] POST /vehicles/edit.php?id=6 | Vehicle edit submit attempt (ID: 6)
+[2026-03-14 11:21:39] [ACTION] [admin/admin] [::1] POST /vehicles/edit.php?id=6 | Updated vehicle (ID: 6)
+[2026-03-14 11:21:39] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=6 | Page loaded
+[2026-03-14 11:22:10] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=6 | Page loaded
+[2026-03-14 11:22:18] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=6 | Page loaded
+[2026-03-14 11:22:21] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-14 11:22:22] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=2 | Page loaded
+[2026-03-14 11:22:36] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=2 | Page loaded
+[2026-03-14 11:22:47] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-14 11:39:14] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-14 11:39:15] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=6 | Page loaded
+[2026-03-14 11:39:36] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=6 | Page loaded
+[2026-03-14 11:39:53] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=6 | Page loaded
+[2026-03-14 11:49:10] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=6 | Page loaded
+[2026-03-14 11:49:27] [PAGE  ] [admin/admin] [::1] POST /vehicles/show.php?id=6 | Page loaded
+[2026-03-14 11:49:27] [ACTION] [admin/admin] [::1] POST /vehicles/show.php?id=6 | Updated vehicle storage details (ID: 6)
+[2026-03-14 11:49:27] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=6 | Page loaded
+[2026-03-14 11:49:34] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-14 11:49:35] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=1 | Page loaded
+[2026-03-14 11:50:43] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-14 12:05:51] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-14 12:05:55] [PAGE  ] [admin/admin] [::1] GET /settings/notifications.php | Page loaded
+[2026-03-14 12:06:03] [PAGE  ] [admin/admin] [::1] POST /settings/notifications.php | Page loaded
+[2026-03-14 12:06:03] [ACTION] [admin/admin] [::1] POST /settings/notifications.php | Updated notification settings
+[2026-03-14 12:06:03] [PAGE  ] [admin/admin] [::1] GET /settings/notifications.php | Page loaded
+[2026-03-14 12:06:55] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-14 20:11:29] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-14 20:11:39] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-14 20:11:42] [PAGE  ] [admin/admin] [::1] GET /vehicles/quotation_builder.php | Page loaded
+[2026-03-14 20:26:50] [PAGE  ] [admin/admin] [::1] GET /vehicles/quotation_builder.php | Page loaded
+[2026-03-14 20:26:55] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-14 20:26:57] [PAGE  ] [admin/admin] [::1] GET /vehicles/quotation_builder.php | Page loaded
+[2026-03-14 20:31:52] [PAGE  ] [admin/admin] [::1] GET /vehicles/quotation_builder.php | Page loaded
+[2026-03-14 20:42:18] [PAGE  ] [admin/admin] [::1] GET /vehicles/quotation_builder.php | Page loaded
+[2026-03-14 20:52:18] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-14 20:52:23] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=5 | Page loaded
+[2026-03-14 20:52:29] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-14 20:52:31] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=1 | Page loaded
+[2026-03-14 20:52:35] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-14 20:52:37] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=3 | Page loaded
+[2026-03-14 20:52:41] [PAGE  ] [admin/admin] [::1] GET /vehicles/quotation.php?id=3 | Page loaded
+[2026-03-14 20:52:50] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=3 | Page loaded
+[2026-03-14 20:52:54] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=3 | Page loaded
+[2026-03-14 20:53:21] [PAGE  ] [admin/admin] [::1] POST /vehicles/edit.php?id=3 | Page loaded
+[2026-03-14 20:53:21] [ACTION] [admin/admin] [::1] POST /vehicles/edit.php?id=3 | Vehicle edit submit attempt (ID: 3)
+[2026-03-14 20:53:21] [ACTION] [admin/admin] [::1] POST /vehicles/edit.php?id=3 | Updated vehicle (ID: 3)
+[2026-03-14 20:53:21] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=3 | Page loaded
+[2026-03-14 20:53:24] [PAGE  ] [admin/admin] [::1] GET /vehicles/quotation.php?id=3 | Page loaded
+[2026-03-14 20:53:43] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=3 | Page loaded
+[2026-03-14 20:53:46] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-14 21:06:31] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded

@@ -132,6 +132,39 @@ if ($isAdmin) {
         'screen' => 'index.php',
     ]);
     }
+    // Monthly accounts (current 15th-to-15th billing period)
+    $accMonth=['total'=>0.0,'cash'=>0.0,'ac'=>0.0,'credit'=>0.0];
+    $accPeriodLabel='';
+    try{
+        $istD=(int)$istNow->format('d');$istMn=(int)$istNow->format('n');$istYr=(int)$istNow->format('Y');
+        if($istD>=15){
+            $mPS=sprintf('%04d-%02d-15',$istYr,$istMn);
+            $nMn=$istMn===12?1:$istMn+1;$nYr=$istMn===12?$istYr+1:$istYr;
+            $mPE=sprintf('%04d-%02d-15',$nYr,$nMn);
+        }else{
+            $pm=$istMn===1?12:$istMn-1;$py=$istMn===1?$istYr-1:$istYr;
+            $mPS=sprintf('%04d-%02d-15',$py,$pm);
+            $mPE=sprintf('%04d-%02d-15',$istYr,$istMn);
+        }
+        $accPeriodLabel=date('d M',strtotime($mPS)).' – '.date('d M',strtotime($mPE));
+        // Bank (AC) monthly net = income - expense via payment_mode='account'
+        $mbi=$pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='account' AND txn_type='income' AND voided_at IS NULL AND DATE(posted_at) BETWEEN ? AND ?");
+        $mbi->execute([$mPS,$mPE]);$mbiV=(float)$mbi->fetchColumn();
+        $mbe=$pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='account' AND txn_type='expense' AND voided_at IS NULL AND DATE(posted_at) BETWEEN ? AND ?");
+        $mbe->execute([$mPS,$mPE]);$mbeV=(float)$mbe->fetchColumn();
+        $accMonth['ac']=$mbiV-$mbeV;
+        $mci=$pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income' AND voided_at IS NULL AND DATE(posted_at) BETWEEN ? AND ?");
+        $mci->execute([$mPS,$mPE]);$mciV=(float)$mci->fetchColumn();
+        $mce=$pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense' AND voided_at IS NULL AND DATE(posted_at) BETWEEN ? AND ?");
+        $mce->execute([$mPS,$mPE]);$mceV=(float)$mce->fetchColumn();
+        $accMonth['cash']=$mciV-$mceV;
+        $mcr=$pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income' AND voided_at IS NULL AND DATE(posted_at) BETWEEN ? AND ?");
+        $mcr->execute([$mPS,$mPE]);$accMonth['credit']=(float)$mcr->fetchColumn();
+        $accMonth['total']=$accMonth['cash']+$accMonth['ac']+$accMonth['credit'];
+    }catch(Throwable $e){
+        $accMonth=$accounts;$accPeriodLabel='';
+        app_log('ERROR','Dashboard: monthly accounts query failed - '.$e->getMessage(),['file'=>$e->getFile().':'.$e->getLine(),'screen'=>'index.php']);
+    }
 }
 
 // Staff-only data
@@ -274,14 +307,58 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
     </section>
 
     <section>
-        <h3 class="text-white text-lg font-light mb-4 uppercase tracking-wider border-l-2 border-mb-accent pl-2">Accounts</h3>
+        <h3 class="text-white text-lg font-light mb-4 uppercase tracking-wider border-l-2 border-mb-accent pl-2 flex items-center flex-wrap gap-3">
+            <span>Accounts</span>
+            <span class="inline-flex items-center bg-mb-black/60 border border-mb-subtle/20 rounded-lg p-0.5">
+                <button id="acc-btn-monthly" onclick="switchAccView('monthly')" class="px-2.5 py-1 rounded-md bg-mb-accent text-white text-xs font-medium normal-case tracking-normal transition-all">Monthly</button>
+                <button id="acc-btn-alltime" onclick="switchAccView('alltime')" class="px-2.5 py-1 rounded-md text-mb-subtle hover:text-white text-xs font-medium normal-case tracking-normal transition-all">All-time</button>
+            </span>
+            <span id="acc-period-lbl" class="text-mb-subtle text-xs font-normal normal-case tracking-normal"><?= e($accPeriodLabel) ?></span>
+        </h3>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div class="bg-mb-surface/50 border border-mb-subtle/20 p-4 rounded text-center"><p class="text-xs text-mb-silver uppercase mb-1">Total</p><p class="text-2xl text-white font-light">$<?= number_format($accounts['total']) ?></p></div>
-            <div class="bg-mb-surface/50 border border-mb-subtle/20 p-4 rounded text-center"><p class="text-xs text-mb-silver uppercase mb-1">Cash</p><p class="text-2xl text-green-400 font-light">$<?= number_format($accounts['cash']) ?></p></div>
-            <div class="bg-mb-surface/50 border border-mb-subtle/20 p-4 rounded text-center"><p class="text-xs text-mb-silver uppercase mb-1">Bank (AC)</p><p class="text-2xl text-blue-400 font-light">$<?= number_format($accounts['ac']) ?></p></div>
-            <div class="bg-mb-surface/50 border border-mb-subtle/20 p-4 rounded text-center"><p class="text-xs text-mb-silver uppercase mb-1">Credit</p><p class="text-2xl text-red-400 font-light">$<?= number_format($accounts['credit']) ?></p></div>
+            <div class="bg-mb-surface/50 border border-mb-subtle/20 p-4 rounded text-center">
+                <p class="text-xs text-mb-silver uppercase mb-1">Total</p>
+                <p class="text-2xl text-white font-light">
+                    <span class="acc-m">$<?= number_format($accMonth['total']) ?></span>
+                    <span class="acc-a" style="display:none">$<?= number_format($accounts['total']) ?></span>
+                </p>
+            </div>
+            <div class="bg-mb-surface/50 border border-mb-subtle/20 p-4 rounded text-center">
+                <p class="text-xs text-mb-silver uppercase mb-1">Cash</p>
+                <p class="text-2xl text-green-400 font-light">
+                    <span class="acc-m">$<?= number_format($accMonth['cash']) ?></span>
+                    <span class="acc-a" style="display:none">$<?= number_format($accounts['cash']) ?></span>
+                </p>
+            </div>
+            <div class="bg-mb-surface/50 border border-mb-subtle/20 p-4 rounded text-center">
+                <p class="text-xs text-mb-silver uppercase mb-1">Bank (AC)</p>
+                <p class="text-2xl text-blue-400 font-light">
+                    <span class="acc-m">$<?= number_format($accMonth['ac']) ?></span>
+                    <span class="acc-a" style="display:none">$<?= number_format($accounts['ac']) ?></span>
+                </p>
+                <p class="text-xs text-mb-subtle mt-1 acc-m">Net this period</p>
+                <p class="text-xs text-mb-subtle mt-1 acc-a" style="display:none">Current balance</p>
+            </div>
+            <div class="bg-mb-surface/50 border border-mb-subtle/20 p-4 rounded text-center">
+                <p class="text-xs text-mb-silver uppercase mb-1">Credit</p>
+                <p class="text-2xl text-red-400 font-light">
+                    <span class="acc-m">$<?= number_format($accMonth['credit']) ?></span>
+                    <span class="acc-a" style="display:none">$<?= number_format($accounts['credit']) ?></span>
+                </p>
+            </div>
         </div>
     </section>
+    <script>
+    function switchAccView(v){
+        var isM=v==='monthly';
+        document.querySelectorAll('.acc-m').forEach(function(el){el.style.display=isM?'':'none';});
+        document.querySelectorAll('.acc-a').forEach(function(el){el.style.display=isM?'none':'';});
+        document.getElementById('acc-btn-monthly').className='px-2.5 py-1 rounded-md text-xs font-medium normal-case tracking-normal transition-all '+(isM?'bg-mb-accent text-white':'text-mb-subtle hover:text-white');
+        document.getElementById('acc-btn-alltime').className='px-2.5 py-1 rounded-md text-xs font-medium normal-case tracking-normal transition-all '+(isM?'text-mb-subtle hover:text-white':'bg-mb-accent text-white');
+        var lbl=document.getElementById('acc-period-lbl');
+        if(lbl) lbl.style.display=isM?'':'none';
+    }
+    </script>
 
     <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
         <?php foreach([['Investments','investments/index.php'],['GPS Tracking','gps/index.php'],['Reservations','reservations/index.php'],['Accounts','accounts/index.php'],['Clients','clients/index.php'],['Staff','staff/index.php']] as [$n,$h]):?>

@@ -614,13 +614,13 @@ if (($v['status'] ?? '') === 'maintenance') {
     <!-- Booking Calendar -->
     <?php
     $bookedRanges = [];
-    foreach ($reservations as $res) {
-        if (in_array($res['status'], ['confirmed', 'active', 'pending'])) {
+    foreach ($reservations as $r) {
+        if (in_array($r['status'], ['confirmed', 'active', 'pending'])) {
             $bookedRanges[] = [
-                'start'  => date('Y-m-d', strtotime($res['start_date'])),
-                'end'    => date('Y-m-d', strtotime($res['end_date'])),
-                'client' => $res['client_name'],
-                'status' => $res['status'],
+                'start'  => date('Y-m-d', strtotime($r['start_date'])),
+                'end'    => date('Y-m-d', strtotime($r['end_date'])),
+                'client' => $r['client_name'],
+                'status' => $r['status'],
             ];
         }
     }
@@ -640,11 +640,11 @@ if (($v['status'] ?? '') === 'maintenance') {
         <div class="p-6">
             <div class="flex items-center justify-between mb-6">
                 <button id="cal-prev" class="w-8 h-8 flex items-center justify-center rounded-full border border-mb-subtle/20 hover:border-mb-accent/50 hover:text-mb-accent transition-all text-mb-silver">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                 </button>
                 <span id="cal-title" class="text-white font-light text-sm tracking-wide"></span>
                 <button id="cal-next" class="w-8 h-8 flex items-center justify-center rounded-full border border-mb-subtle/20 hover:border-mb-accent/50 hover:text-mb-accent transition-all text-mb-silver">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
                 </button>
             </div>
             <div id="cal-grid" class="select-none"></div>
@@ -653,72 +653,69 @@ if (($v['status'] ?? '') === 'maintenance') {
     </div>
     <script>
     (function () {
-        var BOOKED = <?= $bookedJson ?>;
-        var DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-        var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-        var viewYear, viewMonth;
-        var today = new Date(); today.setHours(0,0,0,0);
+        const BOOKED = <?= $bookedJson ?>;
+        const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        let viewYear, viewMonth;
+        const today = new Date(); today.setHours(0,0,0,0);
         viewYear  = today.getFullYear();
         viewMonth = today.getMonth();
         function getBookingForDate(d) {
-            var ds = d.toISOString().slice(0,10);
-            for (var i = 0; i < BOOKED.length; i++) { if (ds >= BOOKED[i].start && ds <= BOOKED[i].end) return BOOKED[i]; }
+            const ds = d.toISOString().slice(0,10);
+            for (const b of BOOKED) { if (ds >= b.start && ds <= b.end) return b; }
             return null;
         }
-        function isStart(d) { var ds = d.toISOString().slice(0,10); return BOOKED.some(function(b){ return b.start === ds; }); }
-        function isEnd(d)   { var ds = d.toISOString().slice(0,10); return BOOKED.some(function(b){ return b.end   === ds; }); }
+        function isStart(d) { const ds = d.toISOString().slice(0,10); return BOOKED.some(b => b.start === ds); }
+        function isEnd(d)   { const ds = d.toISOString().slice(0,10); return BOOKED.some(b => b.end   === ds); }
         function render() {
-            var grid  = document.getElementById('cal-grid');
-            var title = document.getElementById('cal-title');
+            const grid  = document.getElementById('cal-grid');
+            const title = document.getElementById('cal-title');
             title.textContent = MONTHS[viewMonth] + ' ' + viewYear;
-            var firstDay    = new Date(viewYear, viewMonth, 1).getDay();
-            var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-            var html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">';
-            for (var di = 0; di < DAYS.length; di++) {
-                html += '<div style="text-align:center;font-size:10px;text-transform:uppercase;color:#6b7280;padding:6px 0;font-weight:500;">' + DAYS[di] + '</div>';
-            }
-            for (var ei = 0; ei < firstDay; ei++) html += '<div style="height:36px;"></div>';
-            for (var day = 1; day <= daysInMonth; day++) {
-                var d = new Date(viewYear, viewMonth, day);
-                var booking = getBookingForDate(d);
-                var isTdy = d.getTime() === today.getTime();
-                var style = 'height:36px;display:flex;align-items:center;justify-content:center;font-size:12px;border-radius:6px;cursor:default;';
-                var extra = '';
+            const firstDay    = new Date(viewYear, viewMonth, 1).getDay();
+            const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+            let html = '<div class="grid grid-cols-7 gap-px">';
+            for (const d of DAYS) html += `<div class="text-center text-[10px] uppercase text-mb-subtle/60 py-1.5 font-medium tracking-wider">${d}</div>`;
+            for (let i = 0; i < firstDay; i++) html += '<div class="h-9"></div>';
+            for (let day = 1; day <= daysInMonth; day++) {
+                const d = new Date(viewYear, viewMonth, day);
+                const booking = getBookingForDate(d);
+                const isToday = d.getTime() === today.getTime();
+                let cls = 'h-9 flex items-center justify-center text-xs rounded-md transition-all ';
+                let dataAttr = '';
                 if (booking) {
-                    var s = isStart(d), e = isEnd(d);
-                    style += 'color:#fff;font-weight:500;cursor:pointer;';
-                    if (s && e)      style += 'background:rgba(239,68,68,0.7);margin:0 4px;';
-                    else if (s)      style += 'background:rgba(239,68,68,0.7);border-radius:6px 0 0 6px;margin-left:4px;';
-                    else if (e)      style += 'background:rgba(239,68,68,0.7);border-radius:0 6px 6px 0;margin-right:4px;';
-                    else             style += 'background:rgba(239,68,68,0.4);border-radius:0;';
-                    extra = ' data-client="' + booking.client.replace(/"/g,'&quot;') + '" data-status="' + booking.status + '" data-start="' + booking.start + '" data-end="' + booking.end + '" onclick="calClick(this)"';
-                } else if (isTdy) {
-                    style += 'background:rgba(var(--mb-accent-rgb,59,130,246),0.7);color:#fff;font-weight:600;outline:1px solid rgba(59,130,246,0.8);';
+                    const s = isStart(d), e = isEnd(d);
+                    cls += 'text-white font-medium cursor-pointer ';
+                    if (s && e) cls += 'bg-red-500/70 rounded-md mx-1 ';
+                    else if (s) cls += 'bg-red-500/70 rounded-l-md rounded-r-none ml-1 ';
+                    else if (e) cls += 'bg-red-500/70 rounded-r-md rounded-l-none mr-1 ';
+                    else        cls += 'bg-red-500/40 rounded-none ';
+                    dataAttr = `data-client="${booking.client}" data-status="${booking.status}" data-start="${booking.start}" data-end="${booking.end}"`;
+                } else if (isToday) {
+                    cls += 'bg-mb-accent/70 text-white font-semibold ring-1 ring-mb-accent ';
                 } else {
-                    style += 'color:#9ca3af;';
+                    cls += 'text-mb-silver hover:bg-mb-black/40 ';
                 }
-                html += '<div style="' + style + '"' + extra + '>' + day + '</div>';
+                html += `<div class="${cls}" ${dataAttr} onclick="calClick(this)">${day}</div>`;
             }
             html += '</div>';
             grid.innerHTML = html;
         }
         window.calClick = function(el) {
-            var tip = document.getElementById('cal-tip');
-            if (!el.dataset.client) { tip.style.display='none'; return; }
-            var s = new Date(el.dataset.start), e = new Date(el.dataset.end);
-            var opts = {day:'numeric',month:'short',year:'numeric'};
-            var days = Math.round((e - s) / 86400000) + 1;
-            tip.style.display = 'block';
-            tip.innerHTML = '<span style="color:#fff;font-weight:500;">' + el.dataset.client + '</span> &mdash; <span style="color:#facc15;text-transform:capitalize;">' + el.dataset.status + '</span><br><span style="color:#6b7280;">' + s.toLocaleDateString('en-GB',opts) + ' &rarr; ' + e.toLocaleDateString('en-GB',opts) + '</span> <span style="color:#60a5fa;margin-left:8px;">' + days + ' day' + (days > 1 ? 's' : '') + '</span>';
+            const tip = document.getElementById('cal-tip');
+            if (!el.dataset.client) { tip.classList.add('hidden'); return; }
+            const s = new Date(el.dataset.start), e = new Date(el.dataset.end);
+            const fmt = d => d.toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'});
+            const days = Math.round((e - s) / 86400000) + 1;
+            tip.classList.remove('hidden');
+            tip.innerHTML = `<span class="text-white font-medium">${el.dataset.client}</span> &mdash; <span class="capitalize text-yellow-400">${el.dataset.status}</span><br><span class="text-mb-subtle">${fmt(s)} &rarr; ${fmt(e)}</span> <span class="text-mb-accent ml-2">${days} day${days > 1 ? 's' : ''}</span>`;
         };
-        document.getElementById('cal-prev').onclick = function() { viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } render(); };
-        document.getElementById('cal-next').onclick = function() { viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } render(); };
+        document.getElementById('cal-prev').onclick = () => { viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } render(); };
+        document.getElementById('cal-next').onclick = () => { viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } render(); };
         render();
     })();
     </script>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
 
         <!-- Documents -->
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">

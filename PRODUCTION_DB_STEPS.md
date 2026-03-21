@@ -11,7 +11,7 @@ This file tracks all database changes that need to be applied to **production** 
 
 ## Pending
 
-_(nothing pending — all migrations applied as of 2026-03-19)_
+| 2026-03-21 | attendance_admin_controls | `migrations/releases/2026-03-21_attendance_admin_controls.sql` | Adds `admin_note` (VARCHAR 500) and `is_manual_punch` (TINYINT) columns to `staff_attendance`. Run before deploying admin attendance control features. |
 
 ---
 

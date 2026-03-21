@@ -149,10 +149,11 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 
     <div class="hidden md:grid grid-cols-12 gap-4 px-5 py-2 border-b border-mb-subtle/10 text-[10px] uppercase tracking-wider text-mb-subtle/60">
-      <div class="col-span-3">Staff</div>
+      <div class="col-span-2">Staff</div>
       <div class="col-span-3">Punch In</div>
       <div class="col-span-3">Punch Out</div>
-      <div class="col-span-3 text-right">Duration</div>
+      <div class="col-span-2 text-right">Duration</div>
+      <div class="col-span-2 text-right px-2">Actions</div>
     </div>
 
     <?php if (empty($staffPageRows)): ?>
@@ -188,7 +189,7 @@ require_once __DIR__ . '/../includes/header.php';
       <div class="px-5 py-4 hover:bg-mb-black/20 transition-colors">
         <div class="grid grid-cols-12 gap-4 items-start">
           <!-- Name + Status -->
-          <div class="col-span-3 flex items-center gap-3">
+          <div class="col-span-2 flex items-center gap-3">
             <div class="w-8 h-8 rounded-full bg-mb-accent/10 border border-mb-accent/20 flex items-center justify-center text-[11px] font-semibold text-mb-accent flex-shrink-0">
               <?= strtoupper(substr($s['name'], 0, 2)) ?>
             </div>
@@ -235,14 +236,44 @@ require_once __DIR__ . '/../includes/header.php';
           </div>
 
           <!-- Duration -->
-          <div class="col-span-3 text-right">
+          <div class="col-span-2 text-right px-2">
             <?php if ($workedStr): ?>
               <span class="text-mb-accent text-sm font-medium"><?= $workedStr ?></span>
-              <div class="text-[10px] text-mb-subtle mt-0.5">net work time</div>
             <?php elseif ($openBrk): ?>
-              <span class="text-amber-400 text-[11px]">Break since <?= fmt_t($openBrk['break_start']) ?></span>
+              <span class="text-amber-400 text-[11px]">On Break</span>
             <?php elseif ($pinTime): ?>
               <span class="text-mb-subtle text-[11px]">Ongoing</span>
+            <?php endif; ?>
+          </div>
+
+          <!-- Actions -->
+          <div class="col-span-2 text-right flex flex-col items-end gap-1.5 px-2">
+            <?php if ($att): ?>
+              <div class="flex items-center gap-2">
+                <?php if (!$poutTime): ?>
+                  <button type="button" onclick="adminForcePunchOut(<?= $att['id'] ?>)" 
+                    class="text-[10px] bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded hover:bg-red-500/20 transition-colors" title="Force Punch Out">
+                    Punch Out
+                  </button>
+                <?php endif; ?>
+                <button type="button" onclick="openEditModal(<?= e(json_encode([
+                  'id' => $att['id'],
+                  'name' => $s['name'],
+                  'punch_in' => $att['punch_in'],
+                  'punch_out' => $att['punch_out'],
+                  'late_reason' => $att['late_reason'],
+                  'early_reason' => $att['early_punchout_reason'],
+                  'admin_note' => $att['admin_note'] ?? '',
+                ])) ?>)" 
+                  class="text-[10px] bg-mb-accent/10 text-mb-accent border border-mb-accent/20 px-2 py-0.5 rounded hover:bg-mb-accent/20 transition-colors">
+                  Edit
+                </button>
+              </div>
+              <?php if ($att['admin_note'] ?? null): ?>
+                <div class="text-[9px] text-mb-subtle/60 truncate max-w-[100px]" title="<?= e($att['admin_note']) ?>">
+                  Note: <?= e($att['admin_note']) ?>
+                </div>
+              <?php endif; ?>
             <?php endif; ?>
           </div>
         </div>
@@ -273,6 +304,110 @@ require_once __DIR__ . '/../includes/header.php';
     <?php endforeach; ?>
   </div>
 </div>
+
+<!-- Edit Attendance Modal -->
+<div id="editModal" class="hidden fixed inset-0 bg-mb-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-mb-surface border border-mb-subtle/20 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div class="px-6 py-4 border-b border-mb-subtle/10 flex items-center justify-between bg-mb-black/20">
+            <h3 class="text-white font-medium">Edit Attendance: <span id="editStaffName" class="text-mb-accent"></span></h3>
+            <button onclick="closeEditModal()" class="text-mb-subtle hover:text-white transition-colors">&times;</button>
+        </div>
+        <form id="editForm" class="p-6 space-y-4">
+            <input type="hidden" name="id" id="editId">
+            <input type="hidden" name="action" value="edit_attendance">
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                    <label class="text-[11px] uppercase tracking-wider text-mb-subtle font-medium">Punch In</label>
+                    <input type="datetime-local" name="punch_in" id="editPunchIn" step="1"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-[11px] uppercase tracking-wider text-mb-subtle font-medium">Punch Out</label>
+                    <input type="datetime-local" name="punch_out" id="editPunchOut" step="1"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors">
+                </div>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="text-[11px] uppercase tracking-wider text-mb-subtle font-medium">Late Reason</label>
+                <textarea name="late_reason" id="editLateReason" rows="2"
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors resize-none"></textarea>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="text-[11px] uppercase tracking-wider text-mb-subtle font-medium">Early Leave Reason</label>
+                <textarea name="early_punchout_reason" id="editEarlyReason" rows="2"
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors resize-none"></textarea>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="text-[11px] uppercase tracking-wider text-mb-subtle font-medium">Admin Note</label>
+                <input type="text" name="admin_note" id="editAdminNote" placeholder="Why are you editing this?"
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors">
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-4 border-t border-mb-subtle/10">
+                <button type="button" onclick="closeEditModal()" class="px-4 py-2 text-sm text-mb-subtle hover:text-white transition-colors">Cancel</button>
+                <button type="submit" class="bg-mb-accent text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-mb-accent/80 shadow-lg shadow-mb-accent/20 transition-all">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function adminForcePunchOut(id) {
+    if(!confirm('Force punch out this staff member? This will also close any open breaks.')) return;
+    const body = new URLSearchParams();
+    body.append('action', 'force_punch_out');
+    body.append('id', id);
+
+    fetch('admin_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body
+    })
+    .then(r => r.json())
+    .then(res => {
+        if(res.ok) location.reload();
+        else alert(res.message);
+    });
+}
+
+function openEditModal(data) {
+    document.getElementById('editId').value = data.id;
+    document.getElementById('editStaffName').textContent = data.name;
+    document.getElementById('editPunchIn').value = data.punch_in ? data.punch_in.replace(' ', 'T') : '';
+    document.getElementById('editPunchOut').value = data.punch_out ? data.punch_out.replace(' ', 'T') : '';
+    document.getElementById('editLateReason').value = data.late_reason || '';
+    document.getElementById('editEarlyReason').value = data.early_reason || '';
+    document.getElementById('editAdminNote').value = data.admin_note || '';
+    
+    document.getElementById('editModal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.add('hidden');
+}
+
+document.getElementById('editForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const fd = new FormData(this);
+    const body = new URLSearchParams(fd);
+
+    fetch('admin_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body
+    })
+    .then(r => r.json())
+    .then(res => {
+        if(res.ok) location.reload();
+        else alert(res.message);
+    });
+});
+</script>
+
 <?php
 echo render_pagination(
     $pgStaff,

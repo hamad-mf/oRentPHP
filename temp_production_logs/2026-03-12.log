@@ -1,0 +1,160 @@
+[2026-03-12 10:17:33] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-12 10:17:36] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-12 10:17:37] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-12 10:17:38] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-12 10:17:40] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=24 | Page loaded
+[2026-03-12 10:55:28] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=24 | Page loaded
+[2026-03-12 10:55:30] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 10:56:30] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-12 10:56:30] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: posted expense Office Expense amount=900 (entry ID: 104)
+[2026-03-12 10:56:30] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 10:56:39] [PAGE  ] [admin/admin] [::1] GET /accounts/credit.php | Page loaded
+[2026-03-12 10:56:48] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 10:56:49] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-12 10:56:52] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 10:57:04] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-12 10:57:07] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=24 | Page loaded
+[2026-03-12 11:04:22] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=24 | Page loaded
+[2026-03-12 11:04:22] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=24 | Delivered reservation (ID: 24)
+[2026-03-12 11:04:22] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=24 | Ledger: posted income Reservation Delivery amount=10850 (entry ID: 105)
+[2026-03-12 11:04:22] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=24 | Ledger: posted income Security Deposit Collected amount=1477.5 (entry ID: 106)
+[2026-03-12 11:04:22] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=24 | Page loaded
+[2026-03-12 11:04:34] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 11:04:50] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-12 11:04:50] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: posted expense Utilities amount=850 (entry ID: 107)
+[2026-03-12 11:04:50] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 11:04:53] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-12 11:13:55] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-12 11:14:35] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-12 11:14:42] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 11:15:11] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 11:17:47] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 11:19:13] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-12 11:19:14] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-12 11:19:27] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-12+11%3A15%3A00&end=2026-03-25+01%3A00%3A00 | Page loaded
+[2026-03-12 11:19:32] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-12+11%3A15%3A00&end=2026-04-11+11%3A15%3A00 | Page loaded
+[2026-03-12 11:20:21] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-12 11:20:21] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Ledger: posted income Reservation Advance amount=2000 (entry ID: 108)
+[2026-03-12 11:20:21] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Ledger: posted income Reservation Delivery (Prepaid) amount=150 (entry ID: 109)
+[2026-03-12 11:20:21] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 26) [Advance: $2000 (cash)] [Delivery Prepaid: $150 (cash)]
+[2026-03-12 11:20:21] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=26 | Page loaded
+[2026-03-12 11:20:29] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 11:20:38] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-12 11:20:44] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=26 | Page loaded
+[2026-03-12 11:22:00] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=26 | Page loaded
+[2026-03-12 11:22:00] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=26 | Delivered reservation (ID: 26)
+[2026-03-12 11:22:00] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=26 | Ledger: posted income Reservation Delivery amount=4500 (entry ID: 110)
+[2026-03-12 11:22:00] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=26 | Ledger: posted income Security Deposit Collected amount=600 (entry ID: 111)
+[2026-03-12 11:22:00] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=26 | Page loaded
+[2026-03-12 11:22:12] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=26 | Page loaded
+[2026-03-12 11:22:53] [PAGE  ] [admin/admin] [::1] POST /reservations/return.php?id=26 | Page loaded
+[2026-03-12 11:22:53] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=26 | Returned reservation (ID: 26)
+[2026-03-12 11:22:53] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=26 | Ledger: posted income Reservation Return amount=200 (entry ID: 112)
+[2026-03-12 11:22:53] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=26 | Ledger: posted expense Security Deposit Returned amount=600 (entry ID: 113)
+[2026-03-12 11:22:53] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=26 | Page loaded
+[2026-03-12 11:22:55] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=26 | Page loaded
+[2026-03-12 11:22:57] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=26 | Page loaded
+[2026-03-12 11:23:11] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=26 | Page loaded
+[2026-03-12 11:23:14] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 11:23:46] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-12 11:23:52] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 11:38:05] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 11:38:08] [PAGE  ] [admin/admin] [::1] GET /accounts/credit.php | Page loaded
+[2026-03-12 11:38:10] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 11:38:21] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-12 11:38:21] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: posted income test amount=500 (entry ID: 114)
+[2026-03-12 11:38:21] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 11:38:43] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-12 11:38:43] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: deleted manual entry ID 114 by user 1
+[2026-03-12 11:38:43] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 11:39:04] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-12 11:39:10] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 11:41:40] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-12 11:52:26] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=26 | Page loaded
+[2026-03-12 11:52:30] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 11:52:40] [PAGE  ] [admin/admin] [::1] GET /accounts/credit.php | Page loaded
+[2026-03-12 11:52:45] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 11:52:47] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-12 11:52:54] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 12:07:20] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 12:07:20] [ERROR ] [admin/admin] [::1] GET /accounts/index.php | Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'voided_at' in 'where clause' | {"file":"D:\\WORK\\oRentPHP\\accounts\\index.php:171","trace":["#0 D:\\WORK\\oRentPHP\\accounts\\index.php(171): PDO->query('SELECT DISTINCT...')","#1 {main}"]}
+[2026-03-12 12:07:51] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 12:07:59] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=&date_from=2026-03-01&date_to=2026-03-12&account=&include_voided=1 | Page loaded
+[2026-03-12 12:08:03] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=&date_from=2026-03-01&date_to=2026-03-12&account= | Page loaded
+[2026-03-12 12:08:11] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-12 12:08:19] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:03:33] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-12 20:03:40] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:14:31] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 20:14:49] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:15:00] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-12 20:15:08] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:15:10] [PAGE  ] [admin/admin] [::1] GET /accounts/credit.php | Page loaded
+[2026-03-12 20:16:38] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:16:55] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-12 20:16:55] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: posted income for void amount=1200 (entry ID: 115)
+[2026-03-12 20:16:55] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:17:06] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-12 20:17:12] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:17:34] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-12 20:17:43] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 20:21:47] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-12 20:21:49] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:22:13] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 20:22:21] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:22:44] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-12 20:22:44] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: voided entry ID 115 by user 1
+[2026-03-12 20:22:44] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:23:07] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=&date_from=2026-03-01&date_to=2026-03-12&account=&include_voided=1 | Page loaded
+[2026-03-12 20:23:17] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=&date_from=2026-03-01&date_to=2026-03-12&account= | Page loaded
+[2026-03-12 20:23:25] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 20:23:45] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:23:50] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=&date_from=2026-03-01&date_to=2026-03-12&account=&include_voided=1 | Page loaded
+[2026-03-12 20:24:00] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=&date_from=2026-03-01&date_to=2026-03-12&account= | Page loaded
+[2026-03-12 20:24:01] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=&date_from=2026-03-01&date_to=2026-03-12&account=&include_voided=1 | Page loaded
+[2026-03-12 20:30:51] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-12 20:30:58] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php?include_voided=1 | Page loaded
+[2026-03-12 20:31:03] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:32:19] [PAGE  ] [admin/admin] [::1] GET /accounts/credit.php | Page loaded
+[2026-03-12 20:35:41] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:35:58] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-12 20:35:59] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-12 20:37:18] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=24 | Page loaded
+[2026-03-12 20:37:35] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 20:37:49] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:37:58] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-12 20:38:05] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:38:06] [PAGE  ] [admin/admin] [::1] GET /accounts/credit.php | Page loaded
+[2026-03-12 20:38:18] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-12 20:38:20] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=24 | Page loaded
+[2026-03-12 20:39:22] [PAGE  ] [admin/admin] [::1] POST /reservations/return.php?id=24 | Page loaded
+[2026-03-12 20:39:22] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=24 | Returned reservation (ID: 24)
+[2026-03-12 20:39:22] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=24 | Ledger: posted income Reservation Return amount=200 (entry ID: 116)
+[2026-03-12 20:39:22] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=24 | Ledger: posted expense Security Deposit Returned amount=1477.5 (entry ID: 117)
+[2026-03-12 20:39:22] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=24 | Page loaded
+[2026-03-12 20:39:24] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=24 | Page loaded
+[2026-03-12 20:39:36] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 20:39:44] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:39:52] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-12 20:41:13] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:41:49] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-12 20:41:49] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: voided entry ID 116 by user 1
+[2026-03-12 20:41:49] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:41:53] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=&date_from=2026-03-01&date_to=2026-03-12&account=&include_voided=1 | Page loaded
+[2026-03-12 20:42:08] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-12 20:42:10] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php?include_voided=1 | Page loaded
+[2026-03-12 20:42:16] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 20:42:38] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:42:50] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 20:43:17] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:43:18] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
+[2026-03-12 20:43:30] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-12 20:49:57] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-12 20:49:59] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-12 20:50:04] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 20:50:13] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-12 20:50:15] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=1 | Page loaded
+[2026-03-12 20:50:19] [PAGE  ] [admin/admin] [::1] GET ///vehicles/catalog.php?vehicle_id=1 | Page loaded
+[2026-03-12 20:50:32] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 20:51:19] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-12 20:51:23] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded

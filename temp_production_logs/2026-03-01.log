@@ -1,0 +1,852 @@
+[2026-03-01 16:22:51] [PAGE  ] [-] [::1] GET /oRentPHP/ | Page loaded
+[2026-03-01 16:22:51] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-01 16:24:04] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-01 16:24:13] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 16:24:19] [PAGE  ] [admin/admin] [::1] GET /vehicles/create.php | Page loaded
+[2026-03-01 16:50:14] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-01 16:50:29] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-01 16:50:29] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-01 16:50:29] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 16:50:35] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 16:52:54] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 16:53:05] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 16:53:35] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 16:53:35] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: posted income test amount=10000 (entry ID: 1)
+[2026-03-01 16:53:35] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 16:53:59] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 16:55:20] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 16:57:12] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 16:57:34] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 16:57:34] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 16:57:39] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 16:57:50] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 16:57:56] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 16:58:08] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 16:59:39] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 16:59:39] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: posted income Bonus amount=500 (entry ID: 2)
+[2026-03-01 16:59:39] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 16:59:42] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 16:59:46] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 16:59:47] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:05:13] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-01 17:07:49] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-01 17:07:53] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:08:06] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 17:08:06] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:08:23] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 17:08:23] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: posted income ttt amount=10000 (entry ID: 1)
+[2026-03-01 17:08:23] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:08:44] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 17:09:10] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:10:03] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:11:02] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:11:06] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:11:07] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 17:11:08] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:11:49] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-01 17:11:49] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-01 17:11:49] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-01 17:11:54] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-01 17:11:54] [ACTION] [-] [::1] POST /auth/login.php | Login failed for username: admin
+[2026-03-01 17:12:06] [PAGE  ] [-] [::1] GET /reset_admin.php | Page loaded
+[2026-03-01 17:12:13] [PAGE  ] [-] [::1] POST /reset_admin.php | Page loaded
+[2026-03-01 17:12:18] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-01 17:12:18] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-01 17:12:18] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 17:12:22] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:12:35] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 17:12:35] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: posted income sd amount=10000 (entry ID: 1)
+[2026-03-01 17:12:35] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:12:57] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 17:12:57] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: posted income df amount=1000 (entry ID: 2)
+[2026-03-01 17:12:57] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:13:21] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 17:13:45] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-01 17:13:45] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-01 17:13:45] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-01 17:13:49] [PAGE  ] [-] [::1] POST /reset_admin.php | Page loaded
+[2026-03-01 17:13:56] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-01 17:13:56] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-01 17:13:56] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 17:14:00] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 17:14:01] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:19:38] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 17:19:40] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 17:19:47] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 17:19:54] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 17:19:56] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 17:19:59] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-01 17:20:01] [PAGE  ] [admin/admin] [::1] GET /clients/create.php | Page loaded
+[2026-03-01 17:20:10] [PAGE  ] [admin/admin] [::1] POST /clients/create.php | Page loaded
+[2026-03-01 17:20:10] [ERROR ] [admin/admin] [::1] POST /clients/create.php | Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'proof_file' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\clients\\create.php:51","trace":["#0 D:\\WORK\\oRentPHP\\clients\\create.php(51): PDO->prepare('INSERT INTO cli...')","#1 {main}"]}
+[2026-03-01 17:20:16] [PAGE  ] [admin/admin] [::1] GET /clients/create.php | Page loaded
+[2026-03-01 17:20:26] [PAGE  ] [admin/admin] [::1] POST /clients/create.php | Page loaded
+[2026-03-01 17:20:26] [ERROR ] [admin/admin] [::1] POST /clients/create.php | Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'proof_file' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\clients\\create.php:51","trace":["#0 D:\\WORK\\oRentPHP\\clients\\create.php(51): PDO->prepare('INSERT INTO cli...')","#1 {main}"]}
+[2026-03-01 17:20:58] [PAGE  ] [admin/admin] [::1] GET /clients/create.php | Page loaded
+[2026-03-01 17:21:00] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 17:21:02] [PAGE  ] [admin/admin] [::1] GET /vehicles/create.php | Page loaded
+[2026-03-01 17:21:30] [PAGE  ] [admin/admin] [::1] POST /vehicles/create.php | Page loaded
+[2026-03-01 17:21:30] [ACTION] [admin/admin] [::1] POST /vehicles/create.php | Created vehicle: Mercedes-Benz S-Class S 350d (ID: 1)
+[2026-03-01 17:21:30] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=1 | Page loaded
+[2026-03-01 17:21:32] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 17:24:32] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-01 17:24:32] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-01 17:24:32] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-01 17:24:44] [PAGE  ] [-] [::1] POST /reset_admin.php | Page loaded
+[2026-03-01 17:24:51] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-01 17:24:51] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-01 17:24:51] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 17:24:55] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 17:24:55] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:25:05] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-01 17:25:07] [PAGE  ] [admin/admin] [::1] GET /clients/create.php | Page loaded
+[2026-03-01 17:25:22] [PAGE  ] [admin/admin] [::1] POST /clients/create.php | Page loaded
+[2026-03-01 17:25:22] [ACTION] [admin/admin] [::1] POST /clients/create.php | Created client: hamad (ID: 1)
+[2026-03-01 17:25:22] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=1 | Page loaded
+[2026-03-01 17:25:25] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 17:25:27] [PAGE  ] [admin/admin] [::1] GET /vehicles/create.php | Page loaded
+[2026-03-01 17:26:03] [PAGE  ] [admin/admin] [::1] POST /vehicles/create.php | Page loaded
+[2026-03-01 17:26:03] [ACTION] [admin/admin] [::1] POST /vehicles/create.php | Created vehicle: Mercedes-Benz S-Class S 350d (ID: 1)
+[2026-03-01 17:26:03] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=1 | Page loaded
+[2026-03-01 17:26:05] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 17:26:07] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 17:26:17] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+12%3A55%3A00&end=2026-03-10+01%3A00%3A00 | Page loaded
+[2026-03-01 17:26:23] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+20%3A55%3A00&end=2026-03-10+01%3A00%3A00 | Page loaded
+[2026-03-01 17:26:25] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+20%3A00%3A00&end=2026-03-10+01%3A00%3A00 | Page loaded
+[2026-03-01 17:26:30] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+20%3A00%3A00&end=2026-03-10+08%3A00%3A00 | Page loaded
+[2026-03-01 17:26:32] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+20%3A00%3A00&end=2026-03-10+20%3A00%3A00 | Page loaded
+[2026-03-01 17:26:43] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-01 17:26:43] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 1)
+[2026-03-01 17:26:43] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=1 | Page loaded
+[2026-03-01 17:26:47] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=1 | Page loaded
+[2026-03-01 17:28:21] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:28:24] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 17:30:05] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:30:07] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 17:30:10] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=1 | Page loaded
+[2026-03-01 17:30:50] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=1 | Page loaded
+[2026-03-01 17:30:50] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=1 | Delivered reservation (ID: 1)
+[2026-03-01 17:30:50] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=1 | Ledger: posted income Reservation Delivery amount=1200 (entry ID: 1)
+[2026-03-01 17:30:50] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=1 | Page loaded
+[2026-03-01 17:30:54] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:31:00] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 17:31:04] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=1 | Page loaded
+[2026-03-01 17:31:40] [PAGE  ] [admin/admin] [::1] POST /reservations/return.php?id=1 | Page loaded
+[2026-03-01 17:32:35] [PAGE  ] [admin/admin] [::1] POST /reservations/return.php?id=1 | Page loaded
+[2026-03-01 17:36:58] [PAGE  ] [admin/admin] [::1] POST /reservations/return.php?id=1 | Page loaded
+[2026-03-01 17:36:58] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=1 | Returned reservation (ID: 1)
+[2026-03-01 17:36:58] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=1 | Ledger: posted income Reservation Return amount=100 (entry ID: 2)
+[2026-03-01 17:36:58] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=1 | Page loaded
+[2026-03-01 17:37:12] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=1 | Page loaded
+[2026-03-01 17:37:21] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 17:37:31] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 17:37:58] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=reservation&date_from=2026-03-01&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 17:38:01] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&date_from=2026-03-01&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 17:38:03] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=manual&date_from=2026-03-01&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 17:38:04] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&date_from=2026-03-01&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 17:38:07] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=income&source=&date_from=2026-03-01&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 17:38:09] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=expense&source=&date_from=2026-03-01&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 17:38:10] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&date_from=2026-03-01&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 17:38:14] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&date_from=2026-03-01&date_to=2026-03-01&account=1 | Page loaded
+[2026-03-01 17:38:15] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&date_from=2026-03-01&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 17:38:44] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 17:38:52] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 17:38:56] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-01 17:38:57] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 17:38:59] [PAGE  ] [admin/admin] [::1] GET /leads/create.php | Page loaded
+[2026-03-01 17:39:16] [PAGE  ] [admin/admin] [::1] POST /leads/create.php | Page loaded
+[2026-03-01 17:39:16] [ACTION] [admin/admin] [::1] POST /leads/create.php | Created lead: test2 (ID: 1)
+[2026-03-01 17:39:16] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 17:39:19] [PAGE  ] [admin/admin] [::1] POST /leads/followup_save.php | Page loaded
+[2026-03-01 17:39:19] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 17:39:25] [PAGE  ] [admin/admin] [::1] POST /leads/followup_save.php | Page loaded
+[2026-03-01 17:39:25] [ERROR ] [admin/admin] [::1] POST /leads/followup_save.php | Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'type' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\leads\\followup_save.php:46","trace":["#0 D:\\WORK\\oRentPHP\\leads\\followup_save.php(46): PDO->prepare('INSERT INTO lea...')","#1 {main}"]}
+[2026-03-01 17:51:35] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 17:51:41] [PAGE  ] [admin/admin] [::1] POST /leads/followup_save.php | Page loaded
+[2026-03-01 17:51:41] [ERROR ] [admin/admin] [::1] POST /leads/followup_save.php | Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'notes' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\leads\\followup_save.php:46","trace":["#0 D:\\WORK\\oRentPHP\\leads\\followup_save.php(46): PDO->prepare('INSERT INTO lea...')","#1 {main}"]}
+[2026-03-01 17:51:43] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 17:51:47] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 17:51:49] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 17:52:12] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 17:52:16] [PAGE  ] [admin/admin] [::1] POST /leads/followup_save.php | Page loaded
+[2026-03-01 17:52:16] [ERROR ] [admin/admin] [::1] POST /leads/followup_save.php | Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'notes' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\leads\\followup_save.php:46","trace":["#0 D:\\WORK\\oRentPHP\\leads\\followup_save.php(46): PDO->prepare('INSERT INTO lea...')","#1 {main}"]}
+[2026-03-01 17:52:47] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 17:52:47] [PAGE  ] [admin/admin] [::1] GET /leads/index.php | Page loaded
+[2026-03-01 17:52:47] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 17:52:49] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-01 17:52:49] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-01 17:52:49] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-01 17:52:56] [PAGE  ] [-] [::1] POST /reset_admin.php | Page loaded
+[2026-03-01 17:53:01] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-01 17:53:02] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-01 17:53:02] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 17:53:06] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 17:53:09] [PAGE  ] [admin/admin] [::1] GET /leads/create.php | Page loaded
+[2026-03-01 17:53:20] [PAGE  ] [admin/admin] [::1] POST /leads/create.php | Page loaded
+[2026-03-01 17:53:20] [ACTION] [admin/admin] [::1] POST /leads/create.php | Created lead: test2 (ID: 1)
+[2026-03-01 17:53:20] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 17:53:24] [PAGE  ] [admin/admin] [::1] POST /leads/followup_save.php | Page loaded
+[2026-03-01 17:53:24] [ERROR ] [admin/admin] [::1] POST /leads/followup_save.php | Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'notes' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\leads\\followup_save.php:46","trace":["#0 D:\\WORK\\oRentPHP\\leads\\followup_save.php(46): PDO->prepare('INSERT INTO lea...')","#1 {main}"]}
+[2026-03-01 19:05:30] [PAGE  ] [admin/admin] [::1] POST /reset_admin.php | Page loaded
+[2026-03-01 19:05:34] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 19:05:34] [PAGE  ] [admin/admin] [::1] GET /leads/index.php | Page loaded
+[2026-03-01 19:05:34] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 19:05:36] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-01 19:05:36] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-01 19:05:36] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-01 19:05:41] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-01 19:05:41] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-01 19:05:41] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 19:05:45] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-01 19:05:48] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 19:05:51] [PAGE  ] [admin/admin] [::1] GET /leads/create.php | Page loaded
+[2026-03-01 19:05:53] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-01 19:05:55] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 19:05:58] [PAGE  ] [admin/admin] [::1] GET /leads/create.php | Page loaded
+[2026-03-01 19:06:10] [PAGE  ] [admin/admin] [::1] POST /leads/create.php | Page loaded
+[2026-03-01 19:06:10] [ACTION] [admin/admin] [::1] POST /leads/create.php | Created lead: hamad (ID: 1)
+[2026-03-01 19:06:10] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 19:06:16] [PAGE  ] [admin/admin] [::1] POST /leads/followup_save.php | Page loaded
+[2026-03-01 19:06:16] [ACTION] [admin/admin] [::1] POST /leads/followup_save.php | Scheduled followup for lead (ID: 1)
+[2026-03-01 19:06:17] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 19:06:18] [PAGE  ] [admin/admin] [::1] POST /leads/followup_done.php | Page loaded
+[2026-03-01 19:06:18] [ACTION] [admin/admin] [::1] POST /leads/followup_done.php | Marked followup done for lead (ID: 1)
+[2026-03-01 19:06:18] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 19:06:20] [PAGE  ] [admin/admin] [::1] GET /leads/index.php | Page loaded
+[2026-03-01 19:06:20] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 19:06:23] [PAGE  ] [admin/admin] [::1] POST /leads/edit.php | Page loaded
+[2026-03-01 19:06:23] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 19:06:30] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 19:06:39] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 19:06:42] [PAGE  ] [admin/admin] [::1] POST /leads/edit.php | Page loaded
+[2026-03-01 19:06:42] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 19:06:45] [PAGE  ] [admin/admin] [::1] POST /leads/edit.php | Page loaded
+[2026-03-01 19:06:45] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 19:06:48] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 19:06:51] [PAGE  ] [admin/admin] [::1] POST /leads/convert.php | Page loaded
+[2026-03-01 19:06:51] [ACTION] [admin/admin] [::1] POST /leads/convert.php | Converted lead (ID: 1) to client (ID: 1)
+[2026-03-01 19:06:51] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=1 | Page loaded
+[2026-03-01 19:06:53] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-01 19:06:55] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 19:06:56] [PAGE  ] [admin/admin] [::1] GET /vehicles/create.php | Page loaded
+[2026-03-01 19:07:40] [PAGE  ] [admin/admin] [::1] POST /vehicles/create.php | Page loaded
+[2026-03-01 19:07:40] [ACTION] [admin/admin] [::1] POST /vehicles/create.php | Created vehicle: Mercedes-Benz S-Class S 350d (ID: 1)
+[2026-03-01 19:07:40] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=1 | Page loaded
+[2026-03-01 19:07:42] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 19:07:43] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 19:07:46] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 19:07:47] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 19:08:00] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+14%3A35%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 19:08:05] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+19%3A35%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 19:08:09] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+19%3A00%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 19:08:11] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+07%3A00%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 19:08:13] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+07%3A00%3A00&end=2026-03-05+07%3A00%3A00 | Page loaded
+[2026-03-01 19:08:22] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-01 19:08:22] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 1)
+[2026-03-01 19:08:22] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=1 | Page loaded
+[2026-03-01 19:08:29] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=1 | Page loaded
+[2026-03-01 19:08:44] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-01 19:09:01] [PAGE  ] [admin/admin] [::1] POST /settings/general.php | Page loaded
+[2026-03-01 19:09:01] [ACTION] [admin/admin] [::1] POST /settings/general.php | Updated general settings
+[2026-03-01 19:09:01] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-01 19:09:03] [PAGE  ] [admin/admin] [::1] GET /settings/lead_sources.php | Page loaded
+[2026-03-01 19:09:06] [PAGE  ] [admin/admin] [::1] GET /settings/damage_costs.php | Page loaded
+[2026-03-01 19:09:13] [PAGE  ] [admin/admin] [::1] POST /settings/damage_costs.php | Page loaded
+[2026-03-01 19:09:13] [ACTION] [admin/admin] [::1] POST /settings/damage_costs.php | Updated damage costs settings
+[2026-03-01 19:09:13] [PAGE  ] [admin/admin] [::1] GET /settings/damage_costs.php | Page loaded
+[2026-03-01 19:09:15] [PAGE  ] [admin/admin] [::1] GET /settings/lead_sources.php | Page loaded
+[2026-03-01 19:09:16] [PAGE  ] [admin/admin] [::1] GET /settings/staff_permissions.php | Page loaded
+[2026-03-01 19:09:21] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-01 19:09:24] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 19:09:26] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=1 | Page loaded
+[2026-03-01 19:09:59] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=1 | Page loaded
+[2026-03-01 19:09:59] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=1 | Delivered reservation (ID: 1)
+[2026-03-01 19:09:59] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=1 | Ledger: posted income Reservation Delivery amount=650 (entry ID: 1)
+[2026-03-01 19:09:59] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=1 | Page loaded
+[2026-03-01 19:10:13] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 19:10:19] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 19:10:32] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 19:10:33] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 19:11:06] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 19:11:14] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 19:17:50] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 19:18:04] [PAGE  ] [admin/admin] [::1] POST /index.php | Page loaded
+[2026-03-01 19:18:04] [ACTION] [admin/admin] [::1] POST /index.php | Updated daily target to 10000
+[2026-03-01 19:18:11] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 19:18:16] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 19:18:21] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 19:18:23] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 19:18:25] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=1 | Page loaded
+[2026-03-01 19:19:33] [PAGE  ] [admin/admin] [::1] POST /reservations/return.php?id=1 | Page loaded
+[2026-03-01 19:19:34] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=1 | Returned reservation (ID: 1)
+[2026-03-01 19:19:34] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=1 | Ledger: posted income Reservation Return amount=350 (entry ID: 2)
+[2026-03-01 19:19:34] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=1 | Page loaded
+[2026-03-01 19:19:40] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=1 | Page loaded
+[2026-03-01 19:19:42] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 19:19:52] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 19:19:54] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 19:20:13] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 19:20:15] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 19:20:24] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+14%3A50%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 19:20:27] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+15%3A50%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 19:20:30] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+15%3A00%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 19:20:33] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+15%3A00%3A00&end=2026-03-05+04%3A00%3A00 | Page loaded
+[2026-03-01 19:20:35] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+15%3A00%3A00&end=2026-03-05+03%3A00%3A00 | Page loaded
+[2026-03-01 19:20:40] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+15%3A00%3A00&end=2026-03-05+15%3A00%3A00 | Page loaded
+[2026-03-01 19:20:49] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-01 19:20:49] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 2)
+[2026-03-01 19:20:49] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-01 19:21:04] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=2 | Page loaded
+[2026-03-01 19:21:33] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=2 | Page loaded
+[2026-03-01 19:21:33] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=2 | Delivered reservation (ID: 2)
+[2026-03-01 19:21:33] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=2 | Ledger: posted income Reservation Delivery amount=650 (entry ID: 3)
+[2026-03-01 19:21:33] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-01 19:21:45] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 19:22:04] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 19:22:06] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 19:22:16] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 19:22:19] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-01 19:22:24] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=2 | Page loaded
+[2026-03-01 19:22:32] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-01 19:22:34] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=2 | Page loaded
+[2026-03-01 19:23:55] [PAGE  ] [admin/admin] [::1] POST /reservations/return.php?id=2 | Page loaded
+[2026-03-01 19:23:55] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=2 | Returned reservation (ID: 2)
+[2026-03-01 19:23:55] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=2 | Ledger: posted income Reservation Return amount=350 (entry ID: 4)
+[2026-03-01 19:23:55] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=2 | Page loaded
+[2026-03-01 19:24:00] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-01 19:24:02] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 19:24:13] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 19:24:14] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 19:24:15] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 19:25:05] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 19:25:05] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: posted expense maintenece amount=500 (entry ID: 5)
+[2026-03-01 19:25:05] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:07:06] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-01 20:07:06] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:07:09] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-01 20:07:09] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-01 20:07:09] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-01 20:07:13] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-01 20:07:13] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-01 20:07:13] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 20:07:17] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 20:07:19] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:07:23] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:07:42] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 20:07:42] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:09:19] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:09:21] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 20:09:22] [PAGE  ] [admin/admin] [::1] GET /vehicles/create.php | Page loaded
+[2026-03-01 20:10:02] [PAGE  ] [admin/admin] [::1] POST /vehicles/create.php | Page loaded
+[2026-03-01 20:10:02] [ACTION] [admin/admin] [::1] POST /vehicles/create.php | Created vehicle: Mercedes-Benz GLE-SUV (ID: 1)
+[2026-03-01 20:10:02] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=1 | Page loaded
+[2026-03-01 20:10:05] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-01 20:10:06] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 20:10:07] [PAGE  ] [admin/admin] [::1] GET /leads/create.php | Page loaded
+[2026-03-01 20:10:20] [PAGE  ] [admin/admin] [::1] POST /leads/create.php | Page loaded
+[2026-03-01 20:10:20] [ACTION] [admin/admin] [::1] POST /leads/create.php | Created lead: hamad (ID: 1)
+[2026-03-01 20:10:20] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 20:10:24] [PAGE  ] [admin/admin] [::1] POST /leads/followup_save.php | Page loaded
+[2026-03-01 20:10:24] [ACTION] [admin/admin] [::1] POST /leads/followup_save.php | Scheduled followup for lead (ID: 1)
+[2026-03-01 20:10:24] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 20:10:26] [PAGE  ] [admin/admin] [::1] POST /leads/followup_done.php | Page loaded
+[2026-03-01 20:10:26] [ACTION] [admin/admin] [::1] POST /leads/followup_done.php | Marked followup done for lead (ID: 1)
+[2026-03-01 20:10:26] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 20:10:28] [PAGE  ] [admin/admin] [::1] GET /leads/index.php | Page loaded
+[2026-03-01 20:10:28] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 20:10:29] [PAGE  ] [admin/admin] [::1] POST /leads/edit.php | Page loaded
+[2026-03-01 20:10:29] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 20:10:31] [PAGE  ] [admin/admin] [::1] POST /leads/edit.php | Page loaded
+[2026-03-01 20:10:31] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 20:10:34] [PAGE  ] [admin/admin] [::1] POST /leads/edit.php | Page loaded
+[2026-03-01 20:10:34] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 20:10:36] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=1 | Page loaded
+[2026-03-01 20:10:38] [PAGE  ] [admin/admin] [::1] POST /leads/convert.php | Page loaded
+[2026-03-01 20:10:38] [ACTION] [admin/admin] [::1] POST /leads/convert.php | Converted lead (ID: 1) to client (ID: 1)
+[2026-03-01 20:10:38] [PAGE  ] [admin/admin] [::1] GET /clients/show.php?id=1 | Page loaded
+[2026-03-01 20:10:43] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-01 20:10:45] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:10:46] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 20:10:57] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+15%3A40%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 20:11:01] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+19%3A40%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 20:11:03] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+19%3A00%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 20:11:05] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+07%3A00%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 20:11:06] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+07%3A00%3A00&end=2026-03-05+07%3A00%3A00 | Page loaded
+[2026-03-01 20:11:16] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-01 20:11:16] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 1)
+[2026-03-01 20:11:16] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=1 | Page loaded
+[2026-03-01 20:11:21] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 20:11:29] [PAGE  ] [admin/admin] [::1] POST /index.php | Page loaded
+[2026-03-01 20:11:29] [ACTION] [admin/admin] [::1] POST /index.php | Updated daily target to 10000
+[2026-03-01 20:11:32] [PAGE  ] [admin/admin] [::1] GET /vehicles/requests.php | Page loaded
+[2026-03-01 20:11:33] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:11:34] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 20:11:36] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:11:38] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=1 | Page loaded
+[2026-03-01 20:11:44] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-01 20:11:57] [PAGE  ] [admin/admin] [::1] POST /settings/general.php | Page loaded
+[2026-03-01 20:11:57] [ACTION] [admin/admin] [::1] POST /settings/general.php | Updated general settings
+[2026-03-01 20:11:57] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-01 20:11:59] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:12:00] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=1 | Page loaded
+[2026-03-01 20:12:47] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=1 | Page loaded
+[2026-03-01 20:12:47] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=1 | Delivered reservation (ID: 1)
+[2026-03-01 20:12:47] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=1 | Ledger: posted income Reservation Delivery amount=600 (entry ID: 1)
+[2026-03-01 20:12:47] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=1 | Page loaded
+[2026-03-01 20:13:00] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:13:19] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 20:13:26] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:13:29] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:13:48] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 20:13:48] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: posted income test amount=400 (entry ID: 2)
+[2026-03-01 20:13:49] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:13:54] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 20:13:59] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:14:02] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 20:14:04] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:14:05] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=1 | Page loaded
+[2026-03-01 20:15:16] [PAGE  ] [admin/admin] [::1] POST /reservations/return.php?id=1 | Page loaded
+[2026-03-01 20:15:16] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=1 | Returned reservation (ID: 1)
+[2026-03-01 20:15:16] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=1 | Ledger: posted income Reservation Return amount=300 (entry ID: 3)
+[2026-03-01 20:15:16] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=1 | Page loaded
+[2026-03-01 20:15:21] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=1 | Page loaded
+[2026-03-01 20:15:22] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 20:15:39] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:15:41] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:16:01] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:16:02] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 20:16:10] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:16:12] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:16:37] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 20:17:02] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 20:17:03] [PAGE  ] [admin/admin] [::1] GET /vehicles/requests.php | Page loaded
+[2026-03-01 20:17:04] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:17:13] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=1 | Page loaded
+[2026-03-01 20:17:25] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=1 | Page loaded
+[2026-03-01 20:17:42] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=1 | Page loaded
+[2026-03-01 20:17:44] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:19:47] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 20:19:48] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:19:52] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 20:20:00] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:20:01] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:20:08] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=reservation&date_from=2026-03-01&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 20:20:13] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&date_from=2026-03-01&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 20:20:22] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&date_from=2026-03-31&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 20:20:24] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&date_from=2026-03-01&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 20:20:29] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&date_from=2026-04-01&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 20:20:33] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&date_from=0002-04-01&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 20:25:58] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php?type=&source=&date_from=0002-04-01&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 20:25:58] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:26:04] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 20:26:04] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:26:43] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 20:26:43] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: posted expense 12 amount=1000 (entry ID: 4)
+[2026-03-01 20:26:43] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:27:09] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 20:27:09] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: deleted manual entry ID 4 by user 1
+[2026-03-01 20:27:09] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:31:51] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:31:57] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&date_from=2026-03-02&date_to=2026-03-01&account= | Page loaded
+[2026-03-01 20:32:05] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&date_from=2026-03-03&date_to=2026-03-03&account= | Page loaded
+[2026-03-01 20:32:14] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&date_from=2026-03-01&date_to=2026-03-03&account= | Page loaded
+[2026-03-01 20:32:53] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php?type=&source=&date_from=2026-03-01&date_to=2026-03-03&account= | Page loaded
+[2026-03-01 20:32:53] [ACTION] [admin/admin] [::1] POST /accounts/index.php?type=&source=&date_from=2026-03-01&date_to=2026-03-03&account= | Ledger: posted expense 12 amount=100 (entry ID: 5)
+[2026-03-01 20:32:53] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:33:05] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 20:33:05] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: deleted manual entry ID 5 by user 1
+[2026-03-01 20:33:05] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:33:21] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 20:33:21] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: posted expense sdf amount=2000 (entry ID: 6)
+[2026-03-01 20:33:21] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:33:36] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php | Page loaded
+[2026-03-01 20:33:36] [ACTION] [admin/admin] [::1] POST /accounts/index.php | Ledger: posted income sd amount=500 (entry ID: 7)
+[2026-03-01 20:33:36] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:33:42] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 20:33:51] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 20:33:59] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 20:34:03] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 20:34:05] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 21:04:29] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 21:04:44] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 21:04:51] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 21:05:32] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 21:05:37] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 21:05:38] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 21:05:40] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=1 | Page loaded
+[2026-03-01 21:06:44] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=1 | Page loaded
+[2026-03-01 21:06:46] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:06:53] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?tracking=yes | Page loaded
+[2026-03-01 21:06:55] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?tracking=no | Page loaded
+[2026-03-01 21:06:56] [PAGE  ] [admin/admin] [::1] GET /gps/index.php? | Page loaded
+[2026-03-01 21:07:44] [PAGE  ] [admin/admin] [::1] POST /gps/index.php? | Page loaded
+[2026-03-01 21:07:44] [ACTION] [admin/admin] [::1] POST /gps/index.php? | GPS update for reservation #1 (Mercedes-Benz GLE-SUV - hamad): tracking=Yes, location=thrissur, reason=n/a
+[2026-03-01 21:07:44] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:07:52] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?tracking=yes | Page loaded
+[2026-03-01 21:07:53] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?tracking=no | Page loaded
+[2026-03-01 21:07:54] [PAGE  ] [admin/admin] [::1] GET /gps/index.php? | Page loaded
+[2026-03-01 21:08:05] [PAGE  ] [admin/admin] [::1] POST /gps/index.php? | Page loaded
+[2026-03-01 21:08:05] [ACTION] [admin/admin] [::1] POST /gps/index.php? | GPS update for reservation #1 (Mercedes-Benz GLE-SUV - hamad): tracking=No, location=thrissur, reason=df
+[2026-03-01 21:08:05] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:08:10] [PAGE  ] [admin/admin] [::1] POST /gps/index.php | Page loaded
+[2026-03-01 21:08:10] [ACTION] [admin/admin] [::1] POST /gps/index.php | GPS update for reservation #1 (Mercedes-Benz GLE-SUV - hamad): tracking=Yes, location=thrissur, reason=df
+[2026-03-01 21:08:10] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:08:17] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?status=pending | Page loaded
+[2026-03-01 21:08:18] [PAGE  ] [admin/admin] [::1] GET /gps/index.php? | Page loaded
+[2026-03-01 21:08:28] [PAGE  ] [admin/admin] [::1] POST /gps/index.php? | Page loaded
+[2026-03-01 21:08:28] [ACTION] [admin/admin] [::1] POST /gps/index.php? | GPS update for reservation #1 (Mercedes-Benz GLE-SUV - hamad): tracking=No, location=thrissur, reason=df
+[2026-03-01 21:08:28] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:08:30] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 21:08:40] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 21:08:42] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 21:08:56] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+16%3A35%3A00&end=2026-03-04+01%3A00%3A00 | Page loaded
+[2026-03-01 21:09:01] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-01 21:09:01] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 2)
+[2026-03-01 21:09:01] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-01 21:09:04] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:09:13] [PAGE  ] [admin/admin] [::1] POST /gps/index.php | Page loaded
+[2026-03-01 21:09:13] [ACTION] [admin/admin] [::1] POST /gps/index.php | GPS update for reservation #2 (Mercedes-Benz GLE-SUV - hamad): tracking=Yes, location=ssd, reason=n/a
+[2026-03-01 21:09:13] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:09:17] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?tracking=yes | Page loaded
+[2026-03-01 21:09:19] [PAGE  ] [admin/admin] [::1] GET /gps/index.php? | Page loaded
+[2026-03-01 21:09:21] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 21:09:24] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=2 | Page loaded
+[2026-03-01 21:09:48] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=2 | Page loaded
+[2026-03-01 21:09:48] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=2 | Delivered reservation (ID: 2)
+[2026-03-01 21:09:48] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=2 | Ledger: posted income Reservation Delivery amount=550 (entry ID: 8)
+[2026-03-01 21:09:48] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-01 21:09:50] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:09:57] [PAGE  ] [admin/admin] [::1] POST /gps/index.php | Page loaded
+[2026-03-01 21:09:57] [ACTION] [admin/admin] [::1] POST /gps/index.php | GPS update for reservation #2 (Mercedes-Benz GLE-SUV - hamad): tracking=No, location=ssd, reason=erer
+[2026-03-01 21:09:57] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:10:02] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 21:10:14] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?status=active&tracking=no | Page loaded
+[2026-03-01 21:10:22] [PAGE  ] [admin/admin] [::1] POST /gps/index.php?status=active&tracking=no | Page loaded
+[2026-03-01 21:10:22] [ACTION] [admin/admin] [::1] POST /gps/index.php?status=active&tracking=no | GPS update for reservation #2 (Mercedes-Benz GLE-SUV - hamad): tracking=Yes, location=ssd, reason=erer
+[2026-03-01 21:10:22] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?status=active&tracking=no | Page loaded
+[2026-03-01 21:10:25] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?status=active | Page loaded
+[2026-03-01 21:10:29] [PAGE  ] [admin/admin] [::1] GET /gps/index.php? | Page loaded
+[2026-03-01 21:10:35] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 21:10:37] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 21:10:39] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 21:10:42] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 21:10:50] [PAGE  ] [admin/admin] [::1] GET /reservations/edit.php?id=2 | Page loaded
+[2026-03-01 21:10:50] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-01 21:10:54] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 21:10:59] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php?status=pending | Page loaded
+[2026-03-01 21:11:01] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php? | Page loaded
+[2026-03-01 21:11:18] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 21:11:27] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+16%3A40%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 21:11:47] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 21:11:59] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+16%3A40%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 21:12:03] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 21:12:41] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:12:42] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 21:12:44] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 21:12:58] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-10+16%3A40%3A00&end=20206-03-20+01%3A00%3A00 | Page loaded
+[2026-03-01 21:13:06] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-10+16%3A40%3A00&end=2026-03-20+01%3A00%3A00 | Page loaded
+[2026-03-01 21:13:12] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 21:13:26] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 21:13:38] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-10+16%3A40%3A00&end=2026-03-15+01%3A00%3A00 | Page loaded
+[2026-03-01 21:13:45] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-01 21:13:45] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 3)
+[2026-03-01 21:13:45] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=3 | Page loaded
+[2026-03-01 21:13:47] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 21:13:50] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:14:00] [PAGE  ] [admin/admin] [::1] POST /gps/index.php | Page loaded
+[2026-03-01 21:14:00] [ACTION] [admin/admin] [::1] POST /gps/index.php | GPS update for reservation #3 (Mercedes-Benz GLE-SUV - hamad): tracking=Yes, location=at garage, reason=n/a
+[2026-03-01 21:14:00] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:14:04] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 21:14:06] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=3 | Page loaded
+[2026-03-01 21:14:13] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=3 | Page loaded
+[2026-03-01 21:14:13] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=3 | Delivered reservation (ID: 3)
+[2026-03-01 21:14:13] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=3 | Ledger: posted income Reservation Delivery amount=750 (entry ID: 9)
+[2026-03-01 21:14:13] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=3 | Page loaded
+[2026-03-01 21:14:16] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:14:30] [PAGE  ] [admin/admin] [::1] POST /gps/index.php | Page loaded
+[2026-03-01 21:14:30] [ACTION] [admin/admin] [::1] POST /gps/index.php | GPS update for reservation #3 (Mercedes-Benz GLE-SUV - hamad): tracking=Yes, location=delivered in kochi, reason=n/a
+[2026-03-01 21:14:30] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:14:35] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 21:14:38] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=3 | Page loaded
+[2026-03-01 21:14:47] [PAGE  ] [admin/admin] [::1] POST /reservations/return.php?id=3 | Page loaded
+[2026-03-01 21:14:47] [ERROR ] [admin/admin] [::1] POST /reservations/return.php?id=3 | Undefined array key "km_driven" in D:\WORK\oRentPHP\reservations\return.php:125 | {"errno":2,"level":"WARNING"}
+[2026-03-01 21:14:47] [ERROR ] [admin/admin] [::1] POST /reservations/return.php?id=3 | Undefined array key "km_driven" in D:\WORK\oRentPHP\reservations\return.php:125 | {"errno":2,"level":"WARNING"}
+[2026-03-01 21:14:47] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=3 | Returned reservation (ID: 3)
+[2026-03-01 21:14:47] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=3 | Page loaded
+[2026-03-01 21:14:49] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=3 | Page loaded
+[2026-03-01 21:14:51] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:15:05] [PAGE  ] [admin/admin] [::1] POST /gps/index.php | Page loaded
+[2026-03-01 21:15:05] [ACTION] [admin/admin] [::1] POST /gps/index.php | GPS update for reservation #3 (Mercedes-Benz GLE-SUV - hamad): tracking=No, location=delivered in kochi, reason=returned
+[2026-03-01 21:15:05] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:15:07] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 21:15:10] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 21:15:11] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:15:24] [PAGE  ] [admin/admin] [::1] POST /gps/index.php | Page loaded
+[2026-03-01 21:15:24] [ACTION] [admin/admin] [::1] POST /gps/index.php | GPS update for reservation #2 (Mercedes-Benz GLE-SUV - hamad): tracking=No, location=ssd, reason=missing
+[2026-03-01 21:15:24] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:15:27] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 21:16:32] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 21:18:28] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 21:19:05] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=1 | Page loaded
+[2026-03-01 21:32:25] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-01 21:32:28] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?status=active&tracking=no | Page loaded
+[2026-03-01 21:32:39] [PAGE  ] [admin/admin] [::1] POST /gps/index.php?status=active&tracking=no | Page loaded
+[2026-03-01 21:32:39] [ACTION] [admin/admin] [::1] POST /gps/index.php?status=active&tracking=no | GPS update for reservation #2 (Mercedes-Benz GLE-SUV - hamad): tracking=Yes, location=ssd, reason=missing
+[2026-03-01 21:32:39] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?status=active&tracking=no | Page loaded
+[2026-03-01 21:32:42] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?status=active | Page loaded
+[2026-03-01 21:32:46] [PAGE  ] [admin/admin] [::1] GET /gps/index.php? | Page loaded
+[2026-03-01 21:32:58] [PAGE  ] [admin/admin] [::1] POST /gps/index.php? | Page loaded
+[2026-03-01 21:32:58] [ACTION] [admin/admin] [::1] POST /gps/index.php? | GPS update for reservation #2 (Mercedes-Benz GLE-SUV - hamad): tracking=No, location=ssd, reason=missing
+[2026-03-01 21:32:58] [PAGE  ] [admin/admin] [::1] GET /gps/index.php | Page loaded
+[2026-03-01 21:34:11] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 21:35:44] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 21:42:00] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-01 21:43:16] [PAGE  ] [-] [127.0.0.1] GET /oRentPHP/ | Page loaded
+[2026-03-01 21:43:21] [PAGE  ] [-] [127.0.0.1] HEAD /oRentPHP/ | Page loaded
+[2026-03-01 21:43:58] [PAGE  ] [-] [127.0.0.1] HEAD /oRentPHP/ | Page loaded
+[2026-03-01 21:45:20] [PAGE  ] [-] [192.168.1.2] GET /oRentPHP/ | Page loaded
+[2026-03-01 21:45:20] [PAGE  ] [-] [192.168.1.2] GET /oRentPHP/auth/login.php | Page loaded
+[2026-03-01 21:45:31] [PAGE  ] [-] [192.168.1.2] POST /oRentPHP/auth/login.php | Page loaded
+[2026-03-01 21:45:31] [ACTION] [admin/admin] [192.168.1.2] POST /oRentPHP/auth/login.php | Login successful: admin (role: admin)
+[2026-03-01 21:45:31] [PAGE  ] [admin/admin] [192.168.1.2] GET /oRentPHP/index.php | Page loaded
+[2026-03-01 21:48:42] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 22:16:49] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-01 22:16:57] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 22:19:43] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-01 22:19:45] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 22:20:21] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 22:20:35] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 22:20:37] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 22:20:56] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+17%3A50%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 22:21:09] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-15+17%3A50%3A00&end=2026-04-05+01%3A00%3A00 | Page loaded
+[2026-03-01 22:21:15] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-02+17%3A50%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 22:21:18] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 22:21:27] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=2 | Page loaded
+[2026-03-01 22:21:52] [PAGE  ] [admin/admin] [::1] POST /reservations/return.php?id=2 | Page loaded
+[2026-03-01 22:21:52] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=2 | Returned reservation (ID: 2)
+[2026-03-01 22:21:52] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=2 | Ledger: posted income Reservation Return amount=100 (entry ID: 10)
+[2026-03-01 22:21:52] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=2 | Page loaded
+[2026-03-01 22:21:54] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=2 | Page loaded
+[2026-03-01 22:21:55] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 22:21:57] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 22:22:09] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+17%3A50%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 22:22:17] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-01 22:22:17] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 4)
+[2026-03-01 22:22:17] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=4 | Page loaded
+[2026-03-01 22:22:19] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=4 | Page loaded
+[2026-03-01 22:25:08] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 22:25:13] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-01 22:25:15] [PAGE  ] [admin/admin] [::1] GET /staff/create.php | Page loaded
+[2026-03-01 22:26:06] [PAGE  ] [admin/admin] [::1] POST /staff/create.php | Page loaded
+[2026-03-01 22:26:06] [ACTION] [admin/admin] [::1] POST /staff/create.php | Created staff: staff1
+[2026-03-01 22:26:06] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-01 22:26:11] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 22:26:13] [PAGE  ] [admin/admin] [::1] GET /leads/create.php | Page loaded
+[2026-03-01 22:26:33] [PAGE  ] [admin/admin] [::1] POST /leads/create.php | Page loaded
+[2026-03-01 22:26:33] [ACTION] [admin/admin] [::1] POST /leads/create.php | Created lead: for staff 1 (ID: 2)
+[2026-03-01 22:26:33] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=2 | Page loaded
+[2026-03-01 22:26:40] [PAGE  ] [admin/admin] [::1] GET /leads/index.php | Page loaded
+[2026-03-01 22:26:40] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 22:27:00] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-01 22:27:03] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-01 22:27:03] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-01 22:27:03] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-01 22:27:09] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-01 22:27:09] [ACTION] [staff1/staff] [::1] POST /auth/login.php | Login successful: staff1 (role: staff)
+[2026-03-01 22:27:09] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-01 22:27:12] [PAGE  ] [staff1/staff] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 22:27:15] [PAGE  ] [staff1/staff] [::1] POST /leads/edit.php | Page loaded
+[2026-03-01 22:27:15] [PAGE  ] [staff1/staff] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 22:27:16] [PAGE  ] [staff1/staff] [::1] POST /leads/edit.php | Page loaded
+[2026-03-01 22:27:16] [PAGE  ] [staff1/staff] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 22:27:19] [PAGE  ] [staff1/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-01 22:27:19] [ACTION] [staff1/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-01 22:27:19] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-01 22:27:24] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-01 22:27:24] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-01 22:27:24] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 22:30:32] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 22:30:38] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=4 | Page loaded
+[2026-03-01 22:30:44] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=4 | Page loaded
+[2026-03-01 22:30:55] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 22:31:18] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 22:31:18] [PAGE  ] [admin/admin] [::1] GET /vehicles/requests.php | Page loaded
+[2026-03-01 22:31:19] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 22:31:26] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 22:32:17] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 22:32:18] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=4 | Page loaded
+[2026-03-01 22:33:24] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=4 | Page loaded
+[2026-03-01 22:33:24] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=4 | Delivered reservation (ID: 4)
+[2026-03-01 22:33:24] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=4 | Ledger: posted income Reservation Delivery amount=700 (entry ID: 11)
+[2026-03-01 22:33:24] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=4 | Page loaded
+[2026-03-01 22:33:33] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 22:33:54] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 22:33:55] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 22:33:58] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 22:34:00] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 22:34:09] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 22:36:27] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=4 | Page loaded
+[2026-03-01 22:37:11] [PAGE  ] [admin/admin] [::1] GET /settings/damage_costs.php | Page loaded
+[2026-03-01 22:37:18] [PAGE  ] [admin/admin] [::1] POST /settings/damage_costs.php | Page loaded
+[2026-03-01 22:37:18] [ACTION] [admin/admin] [::1] POST /settings/damage_costs.php | Updated damage costs settings
+[2026-03-01 22:37:18] [PAGE  ] [admin/admin] [::1] GET /settings/damage_costs.php | Page loaded
+[2026-03-01 22:37:21] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 22:37:23] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=4 | Page loaded
+[2026-03-01 22:39:32] [PAGE  ] [admin/admin] [::1] POST /reservations/return.php?id=4 | Page loaded
+[2026-03-01 22:39:32] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=4 | Returned reservation (ID: 4)
+[2026-03-01 22:39:32] [ACTION] [admin/admin] [::1] POST /reservations/return.php?id=4 | Ledger: posted income Reservation Return amount=1200 (entry ID: 12)
+[2026-03-01 22:39:32] [PAGE  ] [admin/admin] [::1] GET /reservations/bill.php?id=4 | Page loaded
+[2026-03-01 22:39:43] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=4 | Page loaded
+[2026-03-01 22:39:46] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 22:40:00] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 22:40:09] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-01 22:50:37] [PAGE  ] [admin/admin] [::1] GET /vehicles/requests.php | Page loaded
+[2026-03-01 22:50:39] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 22:50:46] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 22:51:12] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-01+18%3A20%3A00&end=2026-03-05+01%3A00%3A00 | Page loaded
+[2026-03-01 22:51:16] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-01 22:51:16] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 5)
+[2026-03-01 22:51:16] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=5 | Page loaded
+[2026-03-01 22:51:18] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 22:51:20] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=5 | Page loaded
+[2026-03-01 22:53:15] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=5 | Page loaded
+[2026-03-01 22:53:38] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-01 22:53:55] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 22:53:57] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=5 | Page loaded
+[2026-03-01 22:54:10] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=5 | Page loaded
+[2026-03-01 22:54:10] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=5 | Delivered reservation (ID: 5)
+[2026-03-01 22:54:10] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=5 | Ledger: posted income Reservation Delivery amount=650 (entry ID: 13)
+[2026-03-01 22:54:10] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=5 | Page loaded
+[2026-03-01 22:54:14] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=5 | Page loaded
+[2026-03-01 22:54:33] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-01 22:54:33] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-01 22:54:33] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-01 22:54:41] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-01 22:54:41] [ACTION] [staff1/staff] [::1] POST /auth/login.php | Login successful: staff1 (role: staff)
+[2026-03-01 22:54:41] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-01 22:54:44] [PAGE  ] [staff1/staff] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 22:58:01] [PAGE  ] [staff1/staff] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 22:58:09] [PAGE  ] [staff1/staff] [::1] GET /leads/pipeline.php?source_filter=walk_in&date_from=&date_to= | Page loaded
+[2026-03-01 22:58:11] [PAGE  ] [staff1/staff] [::1] GET /leads/pipeline.php?source_filter=&date_from=&date_to= | Page loaded
+[2026-03-01 22:58:14] [PAGE  ] [staff1/staff] [::1] POST /leads/edit.php | Page loaded
+[2026-03-01 22:58:14] [PAGE  ] [staff1/staff] [::1] GET /leads/pipeline.php?source_filter=&date_from=&date_to= | Page loaded
+[2026-03-01 22:58:16] [PAGE  ] [staff1/staff] [::1] POST /leads/edit.php | Page loaded
+[2026-03-01 22:58:16] [PAGE  ] [staff1/staff] [::1] GET /leads/pipeline.php?source_filter=&date_from=&date_to= | Page loaded
+[2026-03-01 22:58:18] [PAGE  ] [staff1/staff] [::1] POST /leads/edit.php | Page loaded
+[2026-03-01 22:58:18] [PAGE  ] [staff1/staff] [::1] GET /leads/pipeline.php?source_filter=&date_from=&date_to= | Page loaded
+[2026-03-01 22:58:21] [PAGE  ] [staff1/staff] [::1] GET /leads/show.php?id=2 | Page loaded
+[2026-03-01 22:58:23] [PAGE  ] [staff1/staff] [::1] POST /leads/convert.php | Page loaded
+[2026-03-01 22:58:23] [ACTION] [staff1/staff] [::1] POST /leads/convert.php | Converted lead (ID: 2) to client (ID: 2)
+[2026-03-01 22:58:23] [PAGE  ] [staff1/staff] [::1] GET /clients/show.php?id=2 | Page loaded
+[2026-03-01 22:58:25] [PAGE  ] [staff1/staff] [::1] GET /clients/index.php | Page loaded
+[2026-03-01 22:58:30] [PAGE  ] [staff1/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-01 22:58:30] [ACTION] [staff1/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-01 22:58:30] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-01 22:58:38] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-01 22:58:38] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-01 22:58:38] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 22:58:41] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-01 22:58:42] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-01 23:24:41] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-01 23:24:44] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-01 23:24:44] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 23:24:50] [PAGE  ] [admin/admin] [::1] GET /leads/import.php?action=template | Page loaded
+[2026-03-01 23:24:59] [PAGE  ] [admin/admin] [::1] GET /leads/import.php?action=template | Page loaded
+[2026-03-01 23:25:37] [PAGE  ] [admin/admin] [::1] POST /leads/import.php | Page loaded
+[2026-03-01 23:25:37] [ERROR ] [admin/admin] [::1] POST /leads/import.php | SimpleXMLElement::xpath(): Undefined namespace prefix in D:\WORK\oRentPHP\leads\import.php:133 | {"errno":2,"level":"WARNING"}
+[2026-03-01 23:25:37] [ERROR ] [admin/admin] [::1] POST /leads/import.php | SimpleXMLElement::xpath(): Undefined namespace prefix in D:\WORK\oRentPHP\leads\import.php:133 | {"errno":2,"level":"WARNING"}
+[2026-03-01 23:25:37] [ERROR ] [admin/admin] [::1] POST /leads/import.php | SimpleXMLElement::xpath(): Undefined namespace prefix in D:\WORK\oRentPHP\leads\import.php:133 | {"errno":2,"level":"WARNING"}
+[2026-03-01 23:25:37] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 23:25:46] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-01 23:25:56] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 23:26:15] [PAGE  ] [admin/admin] [::1] POST /leads/import.php | Page loaded
+[2026-03-01 23:26:15] [ERROR ] [admin/admin] [::1] POST /leads/import.php | SimpleXMLElement::xpath(): Undefined namespace prefix in D:\WORK\oRentPHP\leads\import.php:133 | {"errno":2,"level":"WARNING"}
+[2026-03-01 23:26:15] [ERROR ] [admin/admin] [::1] POST /leads/import.php | SimpleXMLElement::xpath(): Undefined namespace prefix in D:\WORK\oRentPHP\leads\import.php:133 | {"errno":2,"level":"WARNING"}
+[2026-03-01 23:26:15] [ERROR ] [admin/admin] [::1] POST /leads/import.php | SimpleXMLElement::xpath(): Undefined namespace prefix in D:\WORK\oRentPHP\leads\import.php:133 | {"errno":2,"level":"WARNING"}
+[2026-03-01 23:26:15] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 23:26:26] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-01 23:30:00] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 23:30:03] [PAGE  ] [admin/admin] [::1] GET /leads/import.php?action=template | Page loaded
+[2026-03-01 23:30:20] [PAGE  ] [admin/admin] [::1] POST /leads/import.php | Page loaded
+[2026-03-01 23:30:20] [PAGE  ] [admin/admin] [::1] GET /leads/import.php?stage=map | Page loaded
+[2026-03-01 23:30:47] [PAGE  ] [admin/admin] [::1] POST /leads/import.php?stage=map | Page loaded
+[2026-03-01 23:30:47] [ACTION] [admin/admin] [::1] POST /leads/import.php?stage=map | Lead import completed. File: lead_import_template.xlsx, Success: 2, Failed: 0
+[2026-03-01 23:30:47] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 23:30:59] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-01 23:31:49] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 23:31:51] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 23:31:57] [PAGE  ] [admin/admin] [::1] GET /vehicles/create.php | Page loaded
+[2026-03-01 23:33:00] [PAGE  ] [admin/admin] [::1] POST /vehicles/create.php | Page loaded
+[2026-03-01 23:33:00] [ACTION] [admin/admin] [::1] POST /vehicles/create.php | Created vehicle: test sd (ID: 2)
+[2026-03-01 23:33:00] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=2 | Page loaded
+[2026-03-01 23:33:02] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 23:33:04] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 23:33:15] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 23:33:17] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 23:33:24] [PAGE  ] [admin/admin] [::1] GET /clients/index.php | Page loaded
+[2026-03-01 23:33:26] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 23:33:27] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 23:33:38] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 23:33:40] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 23:33:46] [PAGE  ] [admin/admin] [::1] GET /reservations/return.php?id=5 | Page loaded
+[2026-03-01 23:33:48] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=5 | Page loaded
+[2026-03-01 23:33:50] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 23:33:51] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-01 23:34:04] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-10+19%3A00%3A00&end=2026-03-15+01%3A00%3A00 | Page loaded
+[2026-03-01 23:34:17] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-01 23:34:17] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 6)
+[2026-03-01 23:34:17] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=6 | Page loaded
+[2026-03-01 23:34:19] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 23:34:23] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-01 23:34:24] [PAGE  ] [admin/admin] [::1] GET /reservations/deliver.php?id=6 | Page loaded
+[2026-03-01 23:34:33] [PAGE  ] [admin/admin] [::1] POST /reservations/deliver.php?id=6 | Page loaded
+[2026-03-01 23:34:33] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=6 | Delivered reservation (ID: 6)
+[2026-03-01 23:34:33] [ACTION] [admin/admin] [::1] POST /reservations/deliver.php?id=6 | Ledger: posted income Reservation Delivery amount=222 (entry ID: 14)
+[2026-03-01 23:34:33] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=6 | Page loaded
+[2026-03-01 23:34:35] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-01 23:34:36] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 23:39:01] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 23:39:23] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php?search=&rented_date=&sort=asc | Page loaded
+[2026-03-01 23:39:26] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php?search=&rented_date=&sort=desc | Page loaded
+[2026-03-01 23:39:29] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php?search=&rented_date=&sort=asc | Page loaded
+[2026-03-01 23:40:23] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=2 | Page loaded
+[2026-03-01 23:40:29] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 23:40:36] [PAGE  ] [admin/admin] [::1] GET /vehicles/create.php | Page loaded
+[2026-03-01 23:40:59] [PAGE  ] [admin/admin] [::1] POST /vehicles/create.php | Page loaded
+[2026-03-01 23:40:59] [ACTION] [admin/admin] [::1] POST /vehicles/create.php | Created vehicle: ww www (ID: 3)
+[2026-03-01 23:40:59] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=3 | Page loaded
+[2026-03-01 23:41:01] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 23:41:07] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php?search=&rented_date=&sort=asc | Page loaded
+[2026-03-01 23:41:13] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php?search=&rented_date=&sort=desc | Page loaded
+[2026-03-01 23:41:15] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php?search=&rented_date=&sort=asc | Page loaded
+[2026-03-01 23:41:19] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=3 | Page loaded
+[2026-03-01 23:41:34] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=3 | Page loaded
+[2026-03-01 23:41:36] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 23:41:41] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=2 | Page loaded
+[2026-03-01 23:41:45] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 23:41:46] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=3 | Page loaded
+[2026-03-01 23:41:54] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=3 | Page loaded
+[2026-03-01 23:41:56] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 23:41:57] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=3 | Page loaded
+[2026-03-01 23:42:00] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=3 | Page loaded
+[2026-03-01 23:42:08] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=3 | Page loaded
+[2026-03-01 23:42:10] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 23:42:12] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=2 | Page loaded
+[2026-03-01 23:42:13] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=2 | Page loaded
+[2026-03-01 23:42:18] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=2 | Page loaded
+[2026-03-01 23:52:18] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=2 | Page loaded
+[2026-03-01 23:52:23] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=2 | Page loaded
+[2026-03-01 23:52:29] [PAGE  ] [admin/admin] [::1] POST /vehicles/edit.php?id=2 | Page loaded
+[2026-03-01 23:52:29] [ACTION] [admin/admin] [::1] POST /vehicles/edit.php?id=2 | Vehicle edit submit attempt (ID: 2)
+[2026-03-01 23:52:29] [ACTION] [admin/admin] [::1] POST /vehicles/edit.php?id=2 | Updated vehicle (ID: 2)
+[2026-03-01 23:52:29] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=2 | Page loaded
+[2026-03-01 23:52:32] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 23:52:35] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=3 | Page loaded
+[2026-03-01 23:52:39] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=3 | Page loaded
+[2026-03-01 23:52:45] [PAGE  ] [admin/admin] [::1] POST /vehicles/edit.php?id=3 | Page loaded
+[2026-03-01 23:52:45] [ACTION] [admin/admin] [::1] POST /vehicles/edit.php?id=3 | Vehicle edit submit attempt (ID: 3)
+[2026-03-01 23:52:45] [ACTION] [admin/admin] [::1] POST /vehicles/edit.php?id=3 | Updated vehicle (ID: 3)
+[2026-03-01 23:52:45] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=3 | Page loaded
+[2026-03-01 23:52:47] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-01 23:52:55] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php?search=&rented_date=&sort=asc | Page loaded
+[2026-03-01 23:53:08] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php?status=maintenance&sort=asc | Page loaded

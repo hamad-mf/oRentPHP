@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/ledger_helpers.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
@@ -65,8 +65,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("UPDATE reservations SET status='cancelled', cancellation_reason=?, cancelled_at=?, cancellation_by=?, refund_amount=? WHERE id=?")
                 ->execute([$reason, $nowSql, $admin['id'], $refund, $id]);
 
-            // 2. Free up the vehicle
-            $pdo->prepare("UPDATE vehicles SET status='available' WHERE id=?")->execute([$r['vid']]);
+            // 2. Free up the vehicle ONLY if no other active reservation exists for it
+            $pdo->prepare("UPDATE vehicles SET status='available' 
+                           WHERE id=? 
+                           AND NOT EXISTS (
+                               SELECT 1 FROM reservations 
+                               WHERE vehicle_id = ? AND status = 'active' AND id != ?
+                           )")->execute([$r['vid'], $r['vid'], $id]);
 
             // 3. Post refund as expense in ledger (reverses the income) — only if refund > 0
             if ($refund > 0) {

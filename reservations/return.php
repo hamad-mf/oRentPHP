@@ -341,7 +341,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $depositReturned,
                     $id,
                 ]);
-            $pdo->prepare("UPDATE vehicles SET status='available' WHERE id=?")->execute([$r['vehicle_id']]);
+            // Only free up the vehicle if no other active reservation exists for it
+            $pdo->prepare("UPDATE vehicles SET status='available' 
+                           WHERE id=? 
+                           AND NOT EXISTS (
+                               SELECT 1 FROM reservations 
+                               WHERE vehicle_id = ? AND status = 'active' AND id != ?
+                           )")->execute([$r['vehicle_id'], $r['vehicle_id'], $id]);
+
             $pdo->prepare("UPDATE clients SET rating=?, rating_review=? WHERE id=?")->execute([$clientRating, $clientRatingReview, $r['client_id']]);
             // Save per-reservation review history (history preserved per return)
             $pdo->prepare("

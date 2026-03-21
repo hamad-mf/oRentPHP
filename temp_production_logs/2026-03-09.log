@@ -1,0 +1,370 @@
+[2026-03-09 12:53:59] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-09 12:54:37] [PAGE  ] [admin/admin] [::1] GET / | Page loaded
+[2026-03-09 12:54:46] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 12:54:47] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-09 12:54:52] [PAGE  ] [admin/admin] [::1] GET /staff/tasks.php | Page loaded
+[2026-03-09 12:54:53] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 12:54:55] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=2 | Page loaded
+[2026-03-09 12:55:15] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 12:55:15] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 12:55:15] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 12:55:24] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 12:55:24] [ACTION] [staff2/staff] [::1] POST /auth/login.php | Login successful: staff2 (role: staff)
+[2026-03-09 12:55:24] [PAGE  ] [staff2/staff] [::1] GET /index.php | Page loaded
+[2026-03-09 12:55:24] [ERROR ] [staff2/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:122","screen":"index.php","user_id":3}
+[2026-03-09 12:55:31] [PAGE  ] [staff2/staff] [::1] GET /accounts/targets.php | Page loaded
+[2026-03-09 12:55:36] [PAGE  ] [staff2/staff] [::1] GET /accounts/index.php | Page loaded
+[2026-03-09 12:55:37] [PAGE  ] [staff2/staff] [::1] GET /gps/index.php | Page loaded
+[2026-03-09 12:55:39] [PAGE  ] [staff2/staff] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-09 12:55:40] [PAGE  ] [staff2/staff] [::1] GET /clients/index.php | Page loaded
+[2026-03-09 12:59:04] [PAGE  ] [staff2/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 12:59:04] [ACTION] [staff2/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 12:59:04] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 12:59:11] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 12:59:11] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-09 12:59:12] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 12:59:15] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 12:59:19] [PAGE  ] [admin/admin] [::1] GET /staff/create.php | Page loaded
+[2026-03-09 13:00:09] [PAGE  ] [admin/admin] [::1] POST /staff/create.php | Page loaded
+[2026-03-09 13:00:09] [ACTION] [admin/admin] [::1] POST /staff/create.php | Created staff: admin2
+[2026-03-09 13:00:09] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 13:01:25] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 13:01:32] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 13:04:21] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-09 13:04:23] [PAGE  ] [admin/admin] [::1] GET /staff/edit.php?id=1 | Page loaded
+[2026-03-09 13:04:43] [PAGE  ] [admin/admin] [::1] POST /staff/edit.php?id=1 | Page loaded
+[2026-03-09 13:04:43] [ACTION] [admin/admin] [::1] POST /staff/edit.php?id=1 | Updated staff: staff1 (ID: 1)
+[2026-03-09 13:04:43] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-09 13:04:46] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 13:04:46] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 13:04:46] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 13:04:50] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 13:04:50] [ACTION] [staff1/staff] [::1] POST /auth/login.php | Login successful: staff1 (role: staff)
+[2026-03-09 13:04:50] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-09 13:04:50] [ERROR ] [staff1/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:122","screen":"index.php","user_id":2}
+[2026-03-09 13:04:53] [PAGE  ] [staff1/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 13:04:53] [ACTION] [staff1/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 13:04:53] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 13:04:57] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 13:04:57] [ACTION] [-] [::1] POST /auth/login.php | Login failed for username: admin
+[2026-03-09 13:05:04] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 13:05:04] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-09 13:05:04] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 13:05:12] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 13:05:14] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-09 13:05:17] [PAGE  ] [admin/admin] [::1] GET /staff/edit.php?id=1 | Page loaded
+[2026-03-09 13:05:21] [PAGE  ] [admin/admin] [::1] POST /staff/edit.php?id=1 | Page loaded
+[2026-03-09 13:05:21] [ACTION] [admin/admin] [::1] POST /staff/edit.php?id=1 | Updated staff: staff1 (ID: 1)
+[2026-03-09 13:05:21] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-09 13:05:27] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 13:05:28] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=3 | Page loaded
+[2026-03-09 13:05:34] [PAGE  ] [admin/admin] [::1] GET /staff/edit.php?id=3 | Page loaded
+[2026-03-09 13:05:42] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=3 | Page loaded
+[2026-03-09 13:05:44] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 13:05:44] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 13:05:44] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 13:05:50] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 13:05:50] [ACTION] [admin2/admin] [::1] POST /auth/login.php | Login successful: admin2 (role: admin)
+[2026-03-09 13:05:50] [PAGE  ] [admin2/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 13:05:53] [PAGE  ] [admin2/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 13:05:54] [PAGE  ] [admin2/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 13:05:54] [ACTION] [admin2/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 13:05:54] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 13:06:01] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 13:06:01] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-09 13:06:01] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 13:09:39] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 13:09:43] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-09 13:09:44] [PAGE  ] [admin/admin] [::1] GET /staff/edit.php?id=1 | Page loaded
+[2026-03-09 13:12:59] [PAGE  ] [admin/admin] [::1] GET /staff/edit.php?id=1 | Page loaded
+[2026-03-09 13:13:07] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 13:13:07] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 13:13:07] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 13:13:11] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 13:13:11] [ACTION] [staff1/staff] [::1] POST /auth/login.php | Login successful: staff1 (role: staff)
+[2026-03-09 13:13:11] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-09 13:13:12] [ERROR ] [staff1/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:122","screen":"index.php","user_id":2}
+[2026-03-09 13:13:13] [PAGE  ] [staff1/staff] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 13:13:18] [PAGE  ] [staff1/staff] [::1] GET /staff/show.php?id=3 | Page loaded
+[2026-03-09 13:13:30] [PAGE  ] [staff1/staff] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 13:36:21] [PAGE  ] [staff1/staff] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 13:36:23] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-09 13:36:23] [ERROR ] [staff1/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:122","screen":"index.php","user_id":2}
+[2026-03-09 13:36:25] [PAGE  ] [staff1/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 13:36:25] [ACTION] [staff1/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 13:36:25] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 13:36:29] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 13:36:30] [ACTION] [-] [::1] POST /auth/login.php | Login failed for username: admin
+[2026-03-09 13:36:35] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 13:36:35] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-09 13:36:35] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 13:36:47] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-09 13:39:14] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-09 13:39:16] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-09 13:39:24] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+13%3A35%3A00&end=2026-05-20+01%3A00%3A00 | Page loaded
+[2026-03-09 13:39:28] [PAGE  ] [admin/admin] [::1] POST /reservations/create.php | Page loaded
+[2026-03-09 13:39:29] [ACTION] [admin/admin] [::1] POST /reservations/create.php | Created reservation (ID: 18)
+[2026-03-09 13:39:29] [PAGE  ] [admin/admin] [::1] GET /reservations/show.php?id=18 | Page loaded
+[2026-03-09 13:39:30] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 13:51:43] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-09 13:52:24] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-09&page=2 | Page loaded
+[2026-03-09 13:52:32] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?date_from=2026-03-01&date_to=2026-03-09&page=3 | Page loaded
+[2026-03-09 13:52:43] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-09 13:52:47] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=1 | Page loaded
+[2026-03-09 13:52:51] [PAGE  ] [admin/admin] [::1] GET /vehicles/edit.php?id=1 | Page loaded
+[2026-03-09 13:52:58] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 13:53:01] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-09 13:53:05] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=6 | Page loaded
+[2026-03-09 13:53:24] [PAGE  ] [admin/admin] [::1] POST /vehicles/add_expense.php | Page loaded
+[2026-03-09 13:53:24] [ACTION] [admin/admin] [::1] POST /vehicles/add_expense.php | Ledger: posted expense Vehicle Expense amount=12 (entry ID: 61)
+[2026-03-09 13:53:24] [PAGE  ] [admin/admin] [::1] GET /vehicles/show.php?id=6 | Page loaded
+[2026-03-09 13:53:34] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-09 13:53:56] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-09 13:54:02] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-09 13:54:05] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list | Page loaded
+[2026-03-09 13:54:24] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list&staff_filter=1&source_filter=&status_filter=&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-09 13:54:26] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list&staff_filter=4&source_filter=&status_filter=&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-09 13:54:28] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list&staff_filter=2&source_filter=&status_filter=&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-09 13:54:29] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list&staff_filter=3&source_filter=&status_filter=&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-09 13:54:31] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list&staff_filter=0&source_filter=&status_filter=&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-09 13:54:33] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list&staff_filter=0&source_filter=walk_in&status_filter=&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-09 13:54:35] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list&staff_filter=0&source_filter=phone&status_filter=&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-09 13:54:37] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list&staff_filter=0&source_filter=&status_filter=&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-09 13:54:39] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list&staff_filter=0&source_filter=&status_filter=new&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-09 13:54:41] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list&staff_filter=0&source_filter=&status_filter=contacted&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-09 13:54:43] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list&staff_filter=0&source_filter=&status_filter=&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-09 13:54:45] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list&staff_filter=0&source_filter=&status_filter=&sort=oldest&date_from=&date_to= | Page loaded
+[2026-03-09 13:54:47] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list&staff_filter=0&source_filter=&status_filter=&sort=newest&date_from=&date_to= | Page loaded
+[2026-03-09 13:54:54] [PAGE  ] [admin/admin] [::1] GET /leads/show.php?id=8 | Page loaded
+[2026-03-09 13:54:57] [PAGE  ] [admin/admin] [::1] GET /leads/index.php | Page loaded
+[2026-03-09 13:54:57] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-09 13:54:59] [PAGE  ] [admin/admin] [::1] GET /leads/pipeline.php?view=list | Page loaded
+[2026-03-09 14:02:43] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 14:11:51] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-09 14:11:58] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Manual+Expense&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:12:04] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Vehicle+Expense&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:12:14] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Vehicle+Expense&date_from=2026-03-01&date_to=2026-03-09&account=1 | Page loaded
+[2026-03-09 14:12:19] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Vehicle+Expense&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:12:25] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Staff+Advance&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:12:29] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Salary&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:12:33] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Reservation+Cancellation+Refund&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:12:35] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Transfer+Out&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:12:39] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=EMI+Payment&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:12:42] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=test&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:13:44] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php?type=&source=&category=test&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:13:44] [ACTION] [admin/admin] [::1] POST /accounts/index.php?type=&source=&category=test&date_from=2026-03-01&date_to=2026-03-09&account= | Ledger: posted expense man test amount=12 (entry ID: 62)
+[2026-03-09 14:13:44] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-09 14:13:47] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Manual+Expense&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:13:54] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Manual+Expense&date_from=2026-03-01&date_to=2026-03-09&account=1 | Page loaded
+[2026-03-09 14:13:56] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Manual+Expense&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:14:00] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Vehicle+Expense&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:14:02] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Manual+Expense&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:14:05] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:17:42] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Manual+Expense&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:19:09] [PAGE  ] [-] [127.0.0.1] CLI (cli) | Page loaded
+[2026-03-09 14:19:57] [PAGE  ] [-] [127.0.0.1] CLI (cli) | Page loaded
+[2026-03-09 14:21:00] [PAGE  ] [-] [127.0.0.1] CLI (cli) | Page loaded
+[2026-03-09 14:21:00] [ERROR ] [-] [127.0.0.1] CLI (cli) | FATAL: Uncaught Error: Undefined constant "x" in Command line code:1
+Stack trace:
+#0 {main}
+  thrown | {"file":"Command line code:1","type":1}
+[2026-03-09 14:21:11] [PAGE  ] [-] [127.0.0.1] CLI (cli) | Page loaded
+[2026-03-09 14:21:11] [ERROR ] [-] [127.0.0.1] CLI (cli) | FATAL: Uncaught Error: Undefined constant "x" in Command line code:1
+Stack trace:
+#0 {main}
+  thrown | {"file":"Command line code:1","type":1}
+[2026-03-09 14:22:21] [PAGE  ] [-] [127.0.0.1] CLI (cli) | Page loaded
+[2026-03-09 14:23:32] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Manual+Expense&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:23:44] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:23:59] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php?type=&source=&category=&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:23:59] [ACTION] [admin/admin] [::1] POST /accounts/index.php?type=&source=&category=&date_from=2026-03-01&date_to=2026-03-09&account= | Ledger: posted expense Manual Expense amount=567 (entry ID: 63)
+[2026-03-09 14:23:59] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-09 14:38:42] [PAGE  ] [-] [127.0.0.1] CLI (cli) | Page loaded
+[2026-03-09 14:41:37] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-09 14:41:40] [PAGE  ] [admin/admin] [::1] GET /settings/expense_categories.php | Page loaded
+[2026-03-09 14:42:10] [PAGE  ] [admin/admin] [::1] POST /settings/expense_categories.php | Page loaded
+[2026-03-09 14:42:10] [ACTION] [admin/admin] [::1] POST /settings/expense_categories.php | Updated expense categories settings
+[2026-03-09 14:42:10] [PAGE  ] [admin/admin] [::1] GET /settings/expense_categories.php | Page loaded
+[2026-03-09 14:42:13] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-09 14:42:22] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Office+Expense&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:42:39] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php?type=&source=&category=Office+Expense&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:42:39] [ACTION] [admin/admin] [::1] POST /accounts/index.php?type=&source=&category=Office+Expense&date_from=2026-03-01&date_to=2026-03-09&account= | Ledger: posted expense Garage Cleaning amount=12 (entry ID: 64)
+[2026-03-09 14:42:39] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-09 14:42:48] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Garage+Cleaning&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:42:57] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Garage+Cleaning&date_from=2026-03-01&date_to=2026-03-09&account=2 | Page loaded
+[2026-03-09 14:42:59] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Garage+Cleaning&date_from=2026-03-01&date_to=2026-03-09&account=1 | Page loaded
+[2026-03-09 14:43:40] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Garage+Cleaning&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:44:46] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Garage+Cleaning&date_from=2026-04-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:44:56] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Garage+Cleaning&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:45:05] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 14:45:08] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php?status=rented | Page loaded
+[2026-03-09 14:45:13] [PAGE  ] [admin/admin] [::1] GET /reservations/index.php | Page loaded
+[2026-03-09 14:45:16] [PAGE  ] [admin/admin] [::1] GET /reservations/create.php | Page loaded
+[2026-03-09 14:45:44] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-26+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:48] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-25+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:48] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-24+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:48] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-23+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:49] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-22+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:49] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-21+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:49] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-20+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:49] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-19+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:50] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-18+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:50] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-17+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:50] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-16+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:50] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-15+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:51] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-14+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:51] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-13+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:51] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-12+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:51] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-11+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:52] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-10+01%3A00%3A00 | Page loaded
+[2026-03-09 14:45:58] [PAGE  ] [admin/admin] [::1] GET /reservations/available_vehicles.php?start=2026-03-09+14%3A45%3A00&end=2026-03-10+01%3A00%3A00 | Page loaded
+[2026-03-09 14:46:13] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-09 14:48:21] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-09 14:48:35] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 14:48:50] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-09 14:48:57] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Garage+Cleaning&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:49:04] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Garage+Cleaning&date_from=2026-03-01&date_to=2026-03-09&account=credit | Page loaded
+[2026-03-09 14:49:06] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Garage+Cleaning&date_from=2026-03-01&date_to=2026-03-09&account=cash | Page loaded
+[2026-03-09 14:49:21] [PAGE  ] [admin/admin] [::1] POST /accounts/index.php?type=&source=&category=Garage+Cleaning&date_from=2026-03-01&date_to=2026-03-09&account=cash | Page loaded
+[2026-03-09 14:49:21] [ACTION] [admin/admin] [::1] POST /accounts/index.php?type=&source=&category=Garage+Cleaning&date_from=2026-03-01&date_to=2026-03-09&account=cash | Ledger: posted expense Fuel amount=1000 (entry ID: 65)
+[2026-03-09 14:49:21] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-09 14:49:26] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Fuel&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:49:36] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Fuel&date_from=2026-03-01&date_to=2026-03-09&account=cash | Page loaded
+[2026-03-09 14:49:39] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Fuel&date_from=2026-03-01&date_to=2026-03-09&account=credit | Page loaded
+[2026-03-09 14:49:41] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Fuel&date_from=2026-03-01&date_to=2026-03-09&account=2 | Page loaded
+[2026-03-09 14:49:42] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Fuel&date_from=2026-03-01&date_to=2026-03-09&account=1 | Page loaded
+[2026-03-09 14:49:44] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php?type=&source=&category=Fuel&date_from=2026-03-01&date_to=2026-03-09&account= | Page loaded
+[2026-03-09 14:49:49] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 14:49:51] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-09 14:50:21] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php?status=available | Page loaded
+[2026-03-09 14:50:23] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php?status=rented | Page loaded
+[2026-03-09 14:50:26] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 14:51:47] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?status=active&tracking=no | Page loaded
+[2026-03-09 14:51:49] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?tracking=yes | Page loaded
+[2026-03-09 14:51:53] [PAGE  ] [admin/admin] [::1] POST /gps/index.php?tracking=yes | Page loaded
+[2026-03-09 14:51:53] [ACTION] [admin/admin] [::1] POST /gps/index.php?tracking=yes | GPS update for reservation #5 (Mercedes-Benz S-Class S 350d - hamad): at_location=No, location=Not set, reason=Initial delivery
+[2026-03-09 14:51:53] [PAGE  ] [admin/admin] [::1] GET /gps/index.php?tracking=yes | Page loaded
+[2026-03-09 14:51:55] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 14:54:46] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 14:54:48] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-09 14:55:45] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-09 14:55:49] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php?overdue=1 | Page loaded
+[2026-03-09 14:55:52] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 14:55:58] [PAGE  ] [admin/admin] [::1] GET /vehicles/index.php?overdue=1 | Page loaded
+[2026-03-09 14:57:02] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 14:57:16] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 14:57:18] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=2 | Page loaded
+[2026-03-09 14:57:27] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 14:57:30] [PAGE  ] [admin/admin] [::1] GET /staff/create.php | Page loaded
+[2026-03-09 14:58:12] [PAGE  ] [admin/admin] [::1] POST /staff/create.php | Page loaded
+[2026-03-09 14:58:12] [ACTION] [admin/admin] [::1] POST /staff/create.php | Created staff: staff3
+[2026-03-09 14:58:12] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 14:58:17] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=4 | Page loaded
+[2026-03-09 14:58:29] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 14:58:31] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=1 | Page loaded
+[2026-03-09 14:58:46] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 14:58:46] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 14:58:46] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 14:58:59] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 14:58:59] [ACTION] [staff3/staff] [::1] POST /auth/login.php | Login successful: staff3 (role: staff)
+[2026-03-09 14:58:59] [PAGE  ] [staff3/staff] [::1] GET /index.php | Page loaded
+[2026-03-09 14:58:59] [ERROR ] [staff3/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:132","screen":"index.php","user_id":5}
+[2026-03-09 14:59:16] [PAGE  ] [staff3/staff] [::1] GET /vehicles/index.php | Page loaded
+[2026-03-09 14:59:19] [PAGE  ] [staff3/staff] [::1] GET /vehicles/availability.php | Page loaded
+[2026-03-09 14:59:21] [PAGE  ] [staff3/staff] [::1] GET /leads/pipeline.php | Page loaded
+[2026-03-09 14:59:26] [PAGE  ] [staff3/staff] [::1] GET /index.php | Page loaded
+[2026-03-09 14:59:26] [ERROR ] [staff3/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:132","screen":"index.php","user_id":5}
+[2026-03-09 15:06:08] [PAGE  ] [staff3/staff] [::1] GET /index.php | Page loaded
+[2026-03-09 15:06:08] [ERROR ] [staff3/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:135","screen":"index.php","user_id":5}
+[2026-03-09 15:06:14] [PAGE  ] [staff3/staff] [::1] GET /staff/advance_history.php | Page loaded
+[2026-03-09 15:06:27] [PAGE  ] [staff3/staff] [::1] GET /index.php | Page loaded
+[2026-03-09 15:06:27] [ERROR ] [staff3/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:135","screen":"index.php","user_id":5}
+[2026-03-09 15:06:30] [PAGE  ] [staff3/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 15:06:30] [ACTION] [staff3/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 15:06:30] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 15:06:35] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 15:06:35] [ACTION] [staff1/staff] [::1] POST /auth/login.php | Login successful: staff1 (role: staff)
+[2026-03-09 15:06:35] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-09 15:06:35] [ERROR ] [staff1/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:135","screen":"index.php","user_id":2}
+[2026-03-09 15:06:50] [PAGE  ] [staff1/staff] [::1] GET /staff/advance_history.php | Page loaded
+[2026-03-09 15:07:07] [PAGE  ] [staff1/staff] [::1] GET /index.php | Page loaded
+[2026-03-09 15:07:07] [ERROR ] [staff1/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:135","screen":"index.php","user_id":2}
+[2026-03-09 15:07:11] [PAGE  ] [staff1/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 15:07:11] [ACTION] [staff1/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 15:07:11] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 15:07:17] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 15:07:17] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-09 15:07:17] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 15:07:19] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-09 15:07:29] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php | Page loaded
+[2026-03-09 15:07:29] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-09 15:07:34] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=1&year=2026 | Page loaded
+[2026-03-09 15:07:40] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=1&year=2025 | Page loaded
+[2026-03-09 15:07:48] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php?month=1&year=2025 | Page loaded
+[2026-03-09 15:08:01] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php?month=1&year=2025 | Page loaded
+[2026-03-09 15:08:01] [ACTION] [admin/admin] [::1] POST /payroll/index.php?month=1&year=2025 | Payroll generated for month=1 year=2025 by user#1
+[2026-03-09 15:08:01] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=1&year=2025 | Page loaded
+[2026-03-09 15:08:06] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 15:08:08] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=4 | Page loaded
+[2026-03-09 15:08:24] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-09 15:08:28] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=1&year=2026 | Page loaded
+[2026-03-09 15:08:35] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php?month=1&year=2026 | Page loaded
+[2026-03-09 15:08:37] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php?month=1&year=2026 | Page loaded
+[2026-03-09 15:08:37] [ACTION] [admin/admin] [::1] POST /payroll/index.php?month=1&year=2026 | Payroll generated for month=1 year=2026 by user#1
+[2026-03-09 15:08:37] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=1&year=2026 | Page loaded
+[2026-03-09 15:08:42] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 15:08:44] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=4 | Page loaded
+[2026-03-09 15:09:07] [PAGE  ] [admin/admin] [::1] POST /staff/show.php?id=4 | Page loaded
+[2026-03-09 15:09:07] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=4 | Page loaded
+[2026-03-09 15:09:14] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 15:09:14] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 15:09:14] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 15:09:23] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 15:09:23] [ACTION] [staff3/staff] [::1] POST /auth/login.php | Login successful: staff3 (role: staff)
+[2026-03-09 15:09:23] [PAGE  ] [staff3/staff] [::1] GET /index.php | Page loaded
+[2026-03-09 15:09:23] [ERROR ] [staff3/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:135","screen":"index.php","user_id":5}
+[2026-03-09 15:09:31] [PAGE  ] [staff3/staff] [::1] GET /staff/advance_history.php | Page loaded
+[2026-03-09 15:09:40] [PAGE  ] [staff3/staff] [::1] GET /index.php | Page loaded
+[2026-03-09 15:09:41] [ERROR ] [staff3/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:135","screen":"index.php","user_id":5}
+[2026-03-09 15:09:48] [PAGE  ] [staff3/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 15:09:48] [ACTION] [staff3/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 15:09:48] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 15:09:59] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 15:09:59] [ACTION] [-] [::1] POST /auth/login.php | Login failed for username: admin
+[2026-03-09 15:10:06] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 15:10:06] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-09 15:10:06] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 15:10:08] [PAGE  ] [admin/admin] [::1] GET /settings/general.php | Page loaded
+[2026-03-09 15:10:12] [PAGE  ] [admin/admin] [::1] GET /investments/index.php | Page loaded
+[2026-03-09 15:10:14] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-09 15:10:18] [PAGE  ] [admin/admin] [::1] GET /investments/index.php | Page loaded
+[2026-03-09 15:10:20] [PAGE  ] [admin/admin] [::1] GET /investments/show.php?id=1 | Page loaded
+[2026-03-09 15:10:34] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 15:10:36] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=4 | Page loaded
+[2026-03-09 15:10:41] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php | Page loaded
+[2026-03-09 15:10:45] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=1&year=2026 | Page loaded
+[2026-03-09 15:10:51] [PAGE  ] [admin/admin] [::1] POST /payroll/index.php?month=1&year=2026 | Page loaded
+[2026-03-09 15:10:51] [ACTION] [admin/admin] [::1] POST /payroll/index.php?month=1&year=2026 | Payroll#24 paid for user_id=5 net=10000 advance=5000 payable=5000
+[2026-03-09 15:10:51] [PAGE  ] [admin/admin] [::1] GET /payroll/index.php?month=1&year=2026 | Page loaded
+[2026-03-09 15:10:56] [PAGE  ] [admin/admin] [::1] GET /staff/index.php | Page loaded
+[2026-03-09 15:10:57] [PAGE  ] [admin/admin] [::1] GET /staff/show.php?id=4 | Page loaded
+[2026-03-09 15:11:02] [PAGE  ] [admin/admin] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 15:11:02] [ACTION] [admin/admin] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 15:11:02] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 15:11:12] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 15:11:12] [ACTION] [staff3/staff] [::1] POST /auth/login.php | Login successful: staff3 (role: staff)
+[2026-03-09 15:11:12] [PAGE  ] [staff3/staff] [::1] GET /index.php | Page loaded
+[2026-03-09 15:11:12] [ERROR ] [staff3/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:135","screen":"index.php","user_id":5}
+[2026-03-09 15:11:15] [PAGE  ] [staff3/staff] [::1] GET /staff/advance_history.php | Page loaded
+[2026-03-09 15:11:21] [PAGE  ] [staff3/staff] [::1] GET /index.php | Page loaded
+[2026-03-09 15:11:21] [ERROR ] [staff3/staff] [::1] GET /index.php | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:135","screen":"index.php","user_id":5}
+[2026-03-09 23:53:27] [PAGE  ] [staff3/staff] [::1] GET / | Page loaded
+[2026-03-09 23:53:27] [ERROR ] [staff3/staff] [::1] GET / | Dashboard (staff): reservations widget query failed - SQLSTATE[42S22]: Column not found: 1054 Unknown column 'v.plate_number' in 'field list' | {"file":"D:\\WORK\\oRentPHP\\index.php:135","screen":"index.php","user_id":5}
+[2026-03-09 23:53:31] [PAGE  ] [staff3/staff] [::1] GET /auth/logout.php | Page loaded
+[2026-03-09 23:53:31] [ACTION] [staff3/staff] [::1] GET /auth/logout.php | User logged out
+[2026-03-09 23:53:31] [PAGE  ] [-] [::1] GET /auth/login.php | Page loaded
+[2026-03-09 23:53:37] [PAGE  ] [-] [::1] POST /auth/login.php | Page loaded
+[2026-03-09 23:53:37] [ACTION] [admin/admin] [::1] POST /auth/login.php | Login successful: admin (role: admin)
+[2026-03-09 23:53:37] [PAGE  ] [admin/admin] [::1] GET /index.php | Page loaded
+[2026-03-09 23:53:41] [PAGE  ] [admin/admin] [::1] GET /accounts/index.php | Page loaded
+[2026-03-09 23:53:43] [PAGE  ] [admin/admin] [::1] GET /accounts/cash.php | Page loaded
