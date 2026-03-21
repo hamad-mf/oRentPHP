@@ -101,12 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $advanceMethod = reservation_payment_method_normalize($_POST['advance_payment_method'] ?? null);
     $advanceBankId = (int) ($_POST['advance_bank_account_id'] ?? 0);
     $advanceBankId = $advanceBankId > 0 ? $advanceBankId : null;
-    // Delivery charge collected at reservation
-    $deliveryPrepaidInput = (float) ($_POST['delivery_charge_prepaid'] ?? $deliveryChargeDefault);
-    $deliveryPrepaid = max(0, $deliveryPrepaidInput);
-    $deliveryPrepaidMethod = reservation_payment_method_normalize($_POST['delivery_prepaid_payment_method'] ?? null);
-    $deliveryPrepaidBankId = (int) ($_POST['delivery_prepaid_bank_account_id'] ?? 0);
-    $deliveryPrepaidBankId = $deliveryPrepaidBankId > 0 ? $deliveryPrepaidBankId : null;
+    // Delivery charge is collected at delivery time — not at booking
     $reservationNote = trim($_POST['reservation_note'] ?? '');
     $clientVoucherBalance = 0.0;
 
@@ -166,25 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $advanceBankId = null;
     }
 
-    // Delivery prepaid validation
-    if ($deliveryPrepaidInput < 0) {
-        $errors['delivery_charge_prepaid'] = 'Delivery charge cannot be negative.';
-    }
-    if ($deliveryPrepaid > 0) {
-        if ($deliveryPrepaidMethod === null) {
-            $errors['delivery_prepaid_payment_method'] = 'Please select how the delivery charge was received.';
-        }
-        if (!isset($errors['delivery_prepaid_payment_method']) && $deliveryPrepaidMethod === 'account') {
-            if ($deliveryPrepaidBankId === null) {
-                $errors['delivery_prepaid_bank_account_id'] = 'Please select the bank account for the delivery charge.';
-            }
-        } elseif ($deliveryPrepaidMethod !== 'account') {
-            $deliveryPrepaidBankId = null;
-        }
-    } else {
-        $deliveryPrepaidMethod = null;
-        $deliveryPrepaidBankId = null;
-    }
+
 
     if (!isset($errors['vehicle_id']) && !isset($errors['start_date']) && !isset($errors['end_date'])) {
         $vehicleStmt = $pdo->prepare("SELECT status FROM vehicles WHERE id=?");
@@ -207,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('Vehicle overlap');
             }
 
-            $stmt = $pdo->prepare('INSERT INTO reservations (client_id,vehicle_id,rental_type,start_date,end_date,total_price,voucher_applied,advance_paid,advance_payment_method,advance_bank_account_id,delivery_charge_prepaid,delivery_prepaid_payment_method,delivery_prepaid_bank_account_id,status,note) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $stmt = $pdo->prepare('INSERT INTO reservations (client_id,vehicle_id,rental_type,start_date,end_date,total_price,voucher_applied,advance_paid,advance_payment_method,advance_bank_account_id,status,note) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
             $stmt->execute([
                 $clientId,
                 $vehicleId,
@@ -219,9 +196,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $advancePaid,
                 $advanceMethod,
                 $advanceBankId,
-                $deliveryPrepaid,
-                $deliveryPrepaidMethod,
-                $deliveryPrepaidBankId,
                 'confirmed',
                 $reservationNote ?: null
             ]);
@@ -237,9 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($advancePaid > 0 && $advanceMethod !== null) {
                 ledger_post_reservation_event($pdo, $id, 'advance', $advancePaid, $advanceMethod, (int)$_SESSION['user']['id'], $advanceBankId);
             }
-            if ($deliveryPrepaid > 0 && $deliveryPrepaidMethod !== null) {
-                ledger_post_reservation_event($pdo, $id, 'delivery_prepaid', $deliveryPrepaid, $deliveryPrepaidMethod, (int)$_SESSION['user']['id'], $deliveryPrepaidBankId);
-            }
+
 
             // Get client name
             $cn = $pdo->prepare('SELECT name FROM clients WHERE id=?');
@@ -559,53 +531,7 @@ require_once __DIR__ . '/../includes/header.php';
                         </div>
                     </div>
 
-                    <!-- Delivery Charge Collected at Booking -->
-                    <div class="order-10">
-                        <label class="block text-sm text-mb-silver mb-2">Delivery Charge Collected (Booking)</label>
-                        <input type="number" name="delivery_charge_prepaid" id="deliveryChargePrepaid"
-                            value="<?= e($_POST['delivery_charge_prepaid'] ?? number_format($deliveryChargeDefault, 2, '.', '')) ?>" step="0.01"
-                            min="0" placeholder="0.00"
-                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500/60 text-sm">
-                        <p class="text-xs text-mb-subtle mt-1">Collected now; shown as read-only on delivery.</p>
-                        <?php if (isset($errors['delivery_charge_prepaid'])): ?>
-                            <p class="text-red-400 text-xs mt-1"><?= e($errors['delivery_charge_prepaid']) ?></p>
-                        <?php endif; ?>
-                    </div>
 
-                    <div id="deliveryPrepaidMethodWrap" class="order-11 hidden space-y-2">
-                        <label class="block text-xs text-mb-silver">Delivery Charge Payment Method</label>
-                        <div class="grid grid-cols-3 gap-2">
-                            <?php
-                            $deliveryPrepaidMethods = ['cash' => 'Cash', 'account' => 'Account', 'credit' => 'Credit'];
-                            foreach ($deliveryPrepaidMethods as $val => $label):
-                                ?>
-                                <label class="flex items-center gap-2 cursor-pointer bg-mb-black/30 border border-mb-subtle/10 rounded-lg px-3 py-2 hover:border-mb-accent/40 transition-all">
-                                    <input type="radio" name="delivery_prepaid_payment_method" value="<?= $val ?>"
-                                        <?= (($_POST['delivery_prepaid_payment_method'] ?? '') === $val) ? 'checked' : '' ?>
-                                        class="accent-mb-accent" onchange="toggleDeliveryPrepaidBankField()">
-                                    <span class="text-mb-silver text-sm"><?= $label ?></span>
-                                </label>
-                            <?php endforeach; ?>
-                        </div>
-                        <?php if (isset($errors['delivery_prepaid_payment_method'])): ?>
-                            <p class="text-red-400 text-xs mt-1"><?= e($errors['delivery_prepaid_payment_method']) ?></p>
-                        <?php endif; ?>
-                        <div id="deliveryPrepaidBankWrap" class="hidden">
-                            <label class="block text-xs text-mb-silver mb-1">Bank Account</label>
-                            <select name="delivery_prepaid_bank_account_id" id="deliveryPrepaidBankAccount"
-                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
-                                <option value="">Select account</option>
-                                <?php foreach ($activeBankAccounts as $acc): ?>
-                                    <option value="<?= (int) $acc['id'] ?>" <?= ((string)($_POST['delivery_prepaid_bank_account_id'] ?? '')) === (string)$acc['id'] ? 'selected' : '' ?>>
-                                        <?= e($acc['name']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <?php if (isset($errors['delivery_prepaid_bank_account_id'])): ?>
-                                <p class="text-red-400 text-xs mt-1"><?= e($errors['delivery_prepaid_bank_account_id']) ?></p>
-                            <?php endif; ?>
-                        </div>
-                    </div>
 
                     <!-- Reservation Note -->
                     <div class="order-12">

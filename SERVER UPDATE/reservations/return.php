@@ -863,6 +863,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <span>+$<?= number_format($deliveryPrepaid, 2) ?></span>
                             </div>
                         <?php endif; ?>
+
                         <?php if ($extensionPaid > 0): ?>
                             <div class="flex justify-between text-sky-300">
                                 <span>Extension Collected (Grace)</span>

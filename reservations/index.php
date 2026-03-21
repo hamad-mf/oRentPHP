@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/db.php';
 $pdo = db();
 require_once __DIR__ . '/../includes/settings_helpers.php';

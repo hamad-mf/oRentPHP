@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/db.php';
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
@@ -37,9 +37,6 @@ $basePrice = (float) $r['total_price'];
 $extensionPaid = max(0, (float) ($r['extension_paid_amount'] ?? 0));
 $basePriceForDelivery = max(0, $basePrice - $extensionPaid);
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
-$advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
-$deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
-$deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
 $deliveryPrepaid = max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
 // Delivery discount
 $delivDiscType = $r['delivery_discount_type'] ?? null;
@@ -246,6 +243,7 @@ function fuelBar(int $pct): string
                         <span class="text-blue-400/80">+$<?= number_format($deliveryPrepaid, 2) ?></span>
                     </div>
                 <?php endif; ?>
+
                 <?php if ($extensionPaid > 0): ?>
                     <div class="flex justify-between text-sm">
                         <span class="text-sky-400/80">Extension Collected (Grace)</span>
