@@ -124,7 +124,9 @@ if ($isAdmin) {
         $ci=(float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income' AND voided_at IS NULL")->fetchColumn();
         $ce=(float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense' AND voided_at IS NULL")->fetchColumn();
         $accounts['cash']=$ci-$ce;
-        $accounts['credit']=(float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income' AND voided_at IS NULL")->fetchColumn();
+        $cri=(float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income' AND voided_at IS NULL")->fetchColumn();
+        $cre=(float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='expense' AND voided_at IS NULL")->fetchColumn();
+        $accounts['credit']=$cri-$cre;
         $accounts['total']=$accounts['cash']+$accounts['ac']+$accounts['credit'];
     }catch(Throwable $e){
       app_log('ERROR', 'Dashboard: accounts summary query failed - ' . $e->getMessage(), [
@@ -158,8 +160,11 @@ if ($isAdmin) {
         $mce=$pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense' AND voided_at IS NULL AND DATE(posted_at) BETWEEN ? AND ?");
         $mce->execute([$mPS,$mPE]);$mceV=(float)$mce->fetchColumn();
         $accMonth['cash']=$mciV-$mceV;
-        $mcr=$pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income' AND voided_at IS NULL AND DATE(posted_at) BETWEEN ? AND ?");
-        $mcr->execute([$mPS,$mPE]);$accMonth['credit']=(float)$mcr->fetchColumn();
+        $mcri=$pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income' AND voided_at IS NULL AND DATE(posted_at) BETWEEN ? AND ?");
+        $mcri->execute([$mPS,$mPE]);$mcriV=(float)$mcri->fetchColumn();
+        $mcre=$pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='expense' AND voided_at IS NULL AND DATE(posted_at) BETWEEN ? AND ?");
+        $mcre->execute([$mPS,$mPE]);$mcreV=(float)$mcre->fetchColumn();
+        $accMonth['credit']=$mcriV-$mcreV;
         $accMonth['total']=$accMonth['cash']+$accMonth['ac']+$accMonth['credit'];
     }catch(Throwable $e){
         $accMonth=$accounts;$accPeriodLabel='';
