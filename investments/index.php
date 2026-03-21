@@ -23,11 +23,12 @@ $listSql = "SELECT
             GROUP BY i.id
             ORDER BY
                 /* Completed investments always last */
-                (paid_emis >= total_emis AND total_emis > 0) ASC,
-                /* Overdue first (next_emi_date in the past = 0), upcoming after (= 1) */
+                (SUM(s.status = 'paid') >= COUNT(s.id) AND COUNT(s.id) > 0) ASC,
+                /* Overdue first (next_emi_date in the past), upcoming after */
                 (MIN(CASE WHEN s.status='pending' THEN s.due_date END) >= CURDATE()) ASC,
-                /* Within each group: nearest date first (NULLs last) */
+                /* NULLs last (completed or no schedule) */
                 ISNULL(MIN(CASE WHEN s.status='pending' THEN s.due_date END)) ASC,
+                /* Within each group: nearest date first */
                 MIN(CASE WHEN s.status='pending' THEN s.due_date END) ASC
 ";
 $countSql = "SELECT COUNT(*) FROM emi_investments";
