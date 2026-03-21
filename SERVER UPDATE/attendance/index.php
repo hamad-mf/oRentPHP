@@ -171,6 +171,8 @@ require_once __DIR__ . '/../includes/header.php';
       $poutWarn = ($att['pout_warning'] ?? 0) == 1;
       $lateReason  = $att['late_reason']           ?? null;
       $earlyReason = $att['early_punchout_reason'] ?? null;
+      $isManual    = ($att['is_manual_punch'] ?? 0) == 1;
+      $adminNote   = $att['admin_note'] ?? null;
 
       if (!$att)                             $badge = '<span class="text-[10px] bg-red-500/10 text-red-400/80 px-2 py-0.5 rounded-full">Absent</span>';
       elseif ($pinTime && $poutTime)         $badge = '<span class="text-[10px] bg-green-500/15 text-green-400 px-2 py-0.5 rounded-full">&#10003; Present</span>';
@@ -195,7 +197,13 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
             <div>
               <div class="text-white text-sm leading-tight"><?= e($s['name']) ?></div>
-              <div class="mt-0.5"><?= $badge ?></div>
+              <div class="mt-0.5 flex items-center gap-1 flex-wrap">
+                <?= $badge ?>
+                <?php if ($isManual): ?>
+                  <span class="text-[9px] bg-purple-500/15 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded-full"
+                        title="<?= e($adminNote ?: 'Edited by Admin') ?>">&#9998; Edited</span>
+                <?php endif; ?>
+              </div>
             </div>
           </div>
 
