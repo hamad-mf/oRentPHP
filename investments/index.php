@@ -21,7 +21,15 @@ $listSql = "SELECT
             FROM emi_investments i
             LEFT JOIN emi_schedules s ON s.investment_id = i.id
             GROUP BY i.id
-            ORDER BY i.created_at DESC";
+            ORDER BY
+                /* Completed investments always last */
+                (paid_emis >= total_emis AND total_emis > 0) ASC,
+                /* Overdue first (next_emi_date in the past = 0), upcoming after (= 1) */
+                (MIN(CASE WHEN s.status='pending' THEN s.due_date END) >= CURDATE()) ASC,
+                /* Within each group: nearest date first (NULLs last) */
+                ISNULL(MIN(CASE WHEN s.status='pending' THEN s.due_date END)) ASC,
+                MIN(CASE WHEN s.status='pending' THEN s.due_date END) ASC
+";
 $countSql = "SELECT COUNT(*) FROM emi_investments";
 $pgInvest = paginate_query($pdo, $listSql, $countSql, [], $page, $perPage);
 $investments = $pgInvest['rows'];

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/db.php';
 auth_check();
 $_currentUser = current_user();
@@ -155,8 +155,12 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="relative">
                 <select name="m" onchange="this.form.submit()"
                     class="appearance-none bg-mb-surface border border-mb-subtle/30 rounded-lg pl-3 pr-8 py-2 text-white text-sm focus:outline-none focus:border-mb-accent cursor-pointer">
-                    <?php for ($i=1;$i<=12;$i++): ?>
-                    <option value="<?=$i?>" <?=$i===$selM?'selected':''?> class="bg-[#1f1f1f] text-white"><?= $months[$i-1] ?></option>
+                    <?php for ($i=1;$i<=12;$i++):
+                        $iN = $i === 12 ? 1 : $i + 1;
+                    ?>
+                    <option value="<?=$i?>" <?=$i===$selM?'selected':''?> class="bg-[#1f1f1f] text-white">
+                        15 <?= date('M', mktime(0,0,0,$i,1)) ?> – 15 <?= date('M', mktime(0,0,0,$iN,1)) ?>
+                    </option>
                     <?php endfor; ?>
                 </select>
                 <svg class="w-4 h-4 text-mb-subtle absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>

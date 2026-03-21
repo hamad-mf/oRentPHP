@@ -337,7 +337,7 @@ $s = getFlash('success');
                     <input type="hidden" name="action" value="give_advance_from_profile">
                     <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <label class="block text-xs text-mb-subtle mb-1">For Month</label>
+                            <label class="block text-xs text-mb-subtle mb-1">For Period (15–15)</label>
                             <select name="advance_month" class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-orange-400">
                                 <?php
                                 $defAdv_m = (int)date('n');
@@ -346,9 +346,12 @@ $s = getFlash('success');
                                     $defAdv_m = $defAdv_m === 12 ? 1 : $defAdv_m + 1;
                                     if ($defAdv_m === 1) $defAdv_y++;
                                 }
-                                for ($am = 1; $am <= 12; $am++): ?>
+                                for ($am = 1; $am <= 12; $am++):
+                                    $amNext = $am === 12 ? 1 : $am + 1;
+                                    $amLabel = '15 ' . date('M', mktime(0,0,0,$am,1)) . ' – 15 ' . date('M', mktime(0,0,0,$amNext,1));
+                                ?>
                                     <option value="<?= $am ?>" <?= $am === $defAdv_m ? 'selected' : '' ?>>
-                                        <?= date('M', mktime(0,0,0,$am,1)) ?>
+                                        <?= $amLabel ?>
                                     </option>
                                 <?php endfor; ?>
                             </select>
@@ -423,14 +426,17 @@ $s = getFlash('success');
                     <input type="hidden" name="action" value="add_incentive_from_profile">
                     <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <label class="block text-xs text-mb-subtle mb-1">For Month</label>
+                            <label class="block text-xs text-mb-subtle mb-1">For Period (15–15)</label>
                             <select name="incentive_month" class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-green-400">
                                 <?php
                                 $defInc_m = (int)date('n');
                                 $defInc_y = (int)date('Y');
-                                for ($im = 1; $im <= 12; $im++): ?>
+                                for ($im = 1; $im <= 12; $im++):
+                                    $imNext = $im === 12 ? 1 : $im + 1;
+                                    $imLabel = '15 ' . date('M', mktime(0,0,0,$im,1)) . ' – 15 ' . date('M', mktime(0,0,0,$imNext,1));
+                                ?>
                                     <option value="<?= $im ?>" <?= $im === $defInc_m ? 'selected' : '' ?>>
-                                        <?= date('M', mktime(0,0,0,$im,1)) ?>
+                                        <?= $imLabel ?>
                                     </option>
                                 <?php endfor; ?>
                             </select>

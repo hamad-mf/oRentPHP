@@ -799,9 +799,11 @@ require_once __DIR__ . '/../includes/header.php';
                     <label class="text-xs text-mb-subtle uppercase tracking-wider">Month</label>
                     <select name="month" onchange="this.form.submit()"
                         class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent">
-                        <?php for ($m = 1; $m <= 12; $m++): ?>
+                        <?php for ($m = 1; $m <= 12; $m++):
+                            $mn = $m === 12 ? 1 : $m + 1;
+                        ?>
                             <option value="<?= $m ?>" <?= $m === $month ? 'selected' : '' ?>>
-                                <?= date('F', mktime(0, 0, 0, $m, 1)) ?>
+                                15 <?= date('M', mktime(0,0,0,$m,1)) ?> – 15 <?= date('M', mktime(0,0,0,$mn,1)) ?>
                             </option>
                         <?php endfor; ?>
                     </select>
@@ -978,9 +980,11 @@ require_once __DIR__ . '/../includes/header.php';
                     <label class="block text-sm text-mb-silver mb-1.5">Month</label>
                     <select name="month"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent">
-                        <?php for ($m = 1; $m <= 12; $m++): ?>
+                        <?php for ($m = 1; $m <= 12; $m++):
+                            $mn = $m === 12 ? 1 : $m + 1;
+                        ?>
                             <option value="<?= $m ?>" <?= $m === (int) date('n') ? 'selected' : '' ?>>
-                                <?= date('F', mktime(0, 0, 0, $m, 1)) ?>
+                                15 <?= date('M', mktime(0,0,0,$m,1)) ?> – 15 <?= date('M', mktime(0,0,0,$mn,1)) ?>
                             </option>
                         <?php endfor; ?>
                     </select>

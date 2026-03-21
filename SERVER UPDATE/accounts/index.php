@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 auth_check();
-// current_user() reads from $_SESSION  ” must be called before header.php
+// current_user() reads from $_SESSION  " must be called before header.php
 // so that POST handlers have the correct user during form submissions
 $_currentUser = current_user();
 if (!auth_has_perm('view_finances') && ($_currentUser['role'] ?? '') !== 'admin') {
@@ -19,11 +19,11 @@ $isAdmin = ($_currentUser['role'] ?? '') === 'admin';
 $userId = (int) ($_currentUser['id'] ?? 0);
 $configuredExpenseCategories = expense_categories_get_list($pdo);
 
-//  ”  ”  Handle POST actions  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ” 
+//  "  "  Handle POST actions  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  " 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
-    //  ”  ”  Add manual income / expense  ”  ” 
+    //  "  "  Add manual income / expense  "  " 
     if (in_array($action, ['add_income', 'add_expense'], true)) {
         $txnType = $action === 'add_income' ? 'income' : 'expense';
         $category = trim($_POST['category'] ?? '');
@@ -62,18 +62,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('index.php');
     }
 
-    //  ”  ”  Delete manual entry  ”  ” 
+    //  "  "  Delete manual entry  "  " 
     if ($action === 'delete_entry' && $isAdmin) {
         $entryId = (int) ($_POST['entry_id'] ?? 0);
         if (ledger_delete_manual_entry($pdo, $entryId, $userId)) {
             flash('success', 'Entry deleted.');
         } else {
-            flash('error', 'Could not delete  ” may be a system entry.');
+            flash('error', 'Could not delete  " may be a system entry.');
         }
         redirect('index.php');
     }
 
-    //  ”  ”  Void entry (soft)  ”  ”
+    //  "  "  Void entry (soft)  "  "
     if ($action === 'void_entry' && $isAdmin) {
         $entryId = (int) ($_POST['entry_id'] ?? 0);
         $reason = trim($_POST['void_reason'] ?? '');
@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('index.php');
     }
 
-    //  ”  ”  Save bank account (create or edit)  ”  ” 
+    //  "  "  Save bank account (create or edit)  "  " 
     if ($action === 'save_account' && $isAdmin) {
         $accId = (int) ($_POST['account_id'] ?? 0);
         $name = trim($_POST['name'] ?? '');
@@ -111,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('index.php');
     }
 
-    //  ”  ”  Transfer funds between accounts  ”  ” 
+    //  "  "  Transfer funds between accounts  "  " 
     if ($action === 'transfer_funds' && $isAdmin) {
         $fromId = (int) ($_POST['from_account_id'] ?? 0);
         $toId = (int) ($_POST['to_account_id'] ?? 0);
@@ -213,6 +213,31 @@ $creditBalance = $creditIncome - $creditExpense;
 $accountsTotal = (float) array_sum(array_column($accounts, 'balance'));
 $overallTotal = $accountsTotal + $cashBalance + $creditBalance;
 
+// Monthly 15th-to-15th calculations (IST)
+$_istA = new DateTime('now', new DateTimeZone('Asia/Kolkata'));
+$_dA=(int)$_istA->format('d'); $_mnA=(int)$_istA->format('n'); $_yrA=(int)$_istA->format('Y');
+if($_dA>=15){ $accMPS=sprintf('%04d-%02d-15',$_yrA,$_mnA); $_n=$_mnA===12?1:$_mnA+1; $_y=$_mnA===12?$_yrA+1:$_yrA; $accMPE=sprintf('%04d-%02d-15',$_y,$_n); }
+else{ $_p=$_mnA===1?12:$_mnA-1; $_y=$_mnA===1?$_yrA-1:$_yrA; $accMPS=sprintf('%04d-%02d-15',$_y,$_p); $accMPE=sprintf('%04d-%02d-15',$_yrA,$_mnA); }
+$accPeriodLabel=date('d M',strtotime($accMPS)).' – '.date('d M',strtotime($accMPE));
+$_mq=$pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income' AND voided_at IS NULL AND DATE(posted_at) BETWEEN ? AND ?");
+$_mq->execute([$accMPS,$accMPE]); $mCashI=(float)$_mq->fetchColumn();
+$_mq=$pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense' AND voided_at IS NULL AND DATE(posted_at) BETWEEN ? AND ?");
+$_mq->execute([$accMPS,$accMPE]); $mCashE=(float)$_mq->fetchColumn();
+$mCashBalance=$mCashI-$mCashE;
+$_mq=$pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income' AND voided_at IS NULL AND DATE(posted_at) BETWEEN ? AND ?");
+$_mq->execute([$accMPS,$accMPE]); $mCreditI=(float)$_mq->fetchColumn();
+$_mq=$pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='expense' AND voided_at IS NULL AND DATE(posted_at) BETWEEN ? AND ?");
+$_mq->execute([$accMPS,$accMPE]); $mCreditE=(float)$_mq->fetchColumn();
+$mCreditBalance=$mCreditI-$mCreditE;
+
+// Monthly top-card totals (income, expense, net, accounts total, overall)
+$_mTotals = ledger_get_totals($pdo, $accMPS, $accMPE);
+$mTotalIncome  = (float) $_mTotals['total_income'];
+$mTotalExpense = (float) $_mTotals['total_expense'];
+$mNetBalance   = $mTotalIncome - $mTotalExpense;
+// accounts total doesn't change by period (running balance), but overall does
+$mOverallTotal = $accountsTotal + $mCashBalance + $mCreditBalance;
+
 $success = getFlash('success');
 $error   = getFlash('error');
 $pageTitle = 'Accounts & Ledger';
@@ -224,29 +249,61 @@ require_once __DIR__ . '/../includes/header.php';
     <?php if ($success): ?><div class="flex items-center gap-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg px-5 py-3 text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg><?= e($success) ?></div><?php endif; ?>
     <?php if ($error): ?><div class="flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-5 py-3 text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg><?= e($error) ?></div><?php endif; ?>
 
-    <!--  ”  ”  Summary Cards  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
+    <!--  "  "  Summary Cards  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  -->
+    <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1 bg-mb-black/60 border border-mb-subtle/20 rounded-full p-0.5">
+            <button id="accViewMonthly" onclick="switchAccView('monthly')"
+                class="text-xs px-3 py-1 rounded-full transition-colors font-medium bg-mb-accent text-white">
+                Monthly
+            </button>
+            <button id="accViewAlltime" onclick="switchAccView('alltime')"
+                class="text-xs px-3 py-1 rounded-full transition-colors font-medium text-mb-subtle hover:text-white">
+                All-time
+            </button>
+        </div>
+        <span id="accPeriodLabel" class="text-xs text-mb-subtle/70 tabular-nums"><?= e($accPeriodLabel) ?></span>
+    </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <?php
-        $cards = [
-            ['Income', '$' . number_format($totalIncome, 2), 'text-green-400', 'border-green-500/20', 'bg-green-500/5', 'period'],
-            ['Expenses', '$' . number_format($totalExpense, 2), 'text-red-400', 'border-red-500/20', 'bg-red-500/5', 'period'],
-            ['Net', '$' . number_format($netBalance, 2), $netBalance >= 0 ? 'text-mb-accent' : 'text-red-400', 'border-mb-accent/20', 'bg-mb-accent/5', 'period'],
-            ['Accounts Total', '$' . number_format($accountsTotal, 2), 'text-yellow-400', 'border-yellow-500/20', 'bg-yellow-500/5', 'bank accounts'],
-            ['Overall Total', '$' . number_format($overallTotal, 2), 'text-cyan-300', 'border-cyan-500/20', 'bg-cyan-500/5', 'accounts + cash + credit'],
-        ];
-        foreach ($cards as [$label, $val, $clr, $bdr, $bg, $sub]): ?>
-            <div class="<?= $bg ?> border <?= $bdr ?> rounded-xl p-4">
-                <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">
-                    <?= $label ?> <span class="text-[10px] opacity-60">(<?= $sub ?>)</span>
-                </p>
-                <p class="text-xl font-light <?= $clr ?>">
-                    <?= $val ?>
-                </p>
-            </div>
-        <?php endforeach; ?>
+        <!-- Income -->
+        <div class="bg-green-500/5 border border-green-500/20 rounded-xl p-4">
+            <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">Income <span class="text-[10px] opacity-60">(period)</span></p>
+            <p class="text-xl font-light text-green-400">
+                <span class="acc-monthly"><?= '$' . number_format($mTotalIncome, 2) ?></span>
+                <span class="acc-alltime hidden"><?= '$' . number_format($totalIncome, 2) ?></span>
+            </p>
+        </div>
+        <!-- Expenses -->
+        <div class="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+            <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">Expenses <span class="text-[10px] opacity-60">(period)</span></p>
+            <p class="text-xl font-light text-red-400">
+                <span class="acc-monthly"><?= '$' . number_format($mTotalExpense, 2) ?></span>
+                <span class="acc-alltime hidden"><?= '$' . number_format($totalExpense, 2) ?></span>
+            </p>
+        </div>
+        <!-- Net -->
+        <div class="bg-mb-accent/5 border border-mb-accent/20 rounded-xl p-4">
+            <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">Net <span class="text-[10px] opacity-60">(period)</span></p>
+            <p class="text-xl font-light">
+                <span class="acc-monthly <?= $mNetBalance >= 0 ? 'text-mb-accent' : 'text-red-400' ?>"><?= '$' . number_format($mNetBalance, 2) ?></span>
+                <span class="acc-alltime hidden <?= $netBalance >= 0 ? 'text-mb-accent' : 'text-red-400' ?>"><?= '$' . number_format($netBalance, 2) ?></span>
+            </p>
+        </div>
+        <!-- Accounts Total (always running balance, no period toggle) -->
+        <div class="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-4">
+            <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">Accounts Total <span class="text-[10px] opacity-60">(bank accounts)</span></p>
+            <p class="text-xl font-light text-yellow-400"><?= '$' . number_format($accountsTotal, 2) ?></p>
+        </div>
+        <!-- Overall Total -->
+        <div class="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-4">
+            <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">Overall Total <span class="text-[10px] opacity-60">(accounts + cash + credit)</span></p>
+            <p class="text-xl font-light text-cyan-300">
+                <span class="acc-monthly"><?= '$' . number_format($mOverallTotal, 2) ?></span>
+                <span class="acc-alltime hidden"><?= '$' . number_format($overallTotal, 2) ?></span>
+            </p>
+        </div>
     </div>
 
-    <!--  ”  ”  Bank Accounts Row  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
+    <!--  "  "  Bank Accounts Row  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  -->
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
         <div class="flex items-center justify-between px-6 py-4 border-b border-mb-subtle/10">
             <h2 class="text-white font-light">Accounts</h2>
@@ -265,7 +322,7 @@ require_once __DIR__ . '/../includes/header.php';
             <?php endif; ?>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-6">
-            <!-- Bank Account Cards -->
+            <!-- Bank Account Cards (always show real balance, no toggle needed) -->
             <?php foreach ($accounts as $acc): ?>
                 <div
                     class="bg-mb-black/40 border border-mb-subtle/20 rounded-xl p-4 flex items-start justify-between gap-3">
@@ -276,7 +333,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php if ($acc['bank_name']): ?>
                             <p class="text-xs text-mb-subtle mt-0.5">
                                 <?= e($acc['bank_name']) ?>
-                                <?= $acc['account_number'] ? '  ” ' . e($acc['account_number']) : '' ?>
+                                <?= $acc['account_number'] ? '  " ' . e($acc['account_number']) : '' ?>
                             </p>
                         <?php endif; ?>
                         <p
@@ -296,13 +353,21 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
                 </div>
             <?php endforeach; ?>
+
             <!-- Cash Account Card -->
             <a href="cash.php"
                 class="bg-mb-black/40 border border-green-500/20 rounded-xl p-4 flex items-start justify-between gap-3 hover:border-green-500/40 transition-colors group cursor-pointer">
                 <div>
-<p class="text-white font-medium">Cash Account</p>
+                    <p class="text-white font-medium">Cash Account</p>
                     <p class="text-xs text-mb-subtle mt-0.5">All cash transactions</p>
-                    <p class="text-lg font-light mt-2 <?= $cashBalance >= 0 ? 'text-green-400' : 'text-red-400' ?>">
+                    <!-- Monthly value (default shown) -->
+                    <p id="cashValMonthly"
+                        class="acc-monthly text-lg font-light mt-2 <?= $mCashBalance >= 0 ? 'text-green-400' : 'text-red-400' ?>">
+                        $<?= number_format($mCashBalance, 2) ?>
+                    </p>
+                    <!-- All-time value (hidden by default) -->
+                    <p id="cashValAlltime"
+                        class="acc-alltime hidden text-lg font-light mt-2 <?= $cashBalance >= 0 ? 'text-green-400' : 'text-red-400' ?>">
                         $<?= number_format($cashBalance, 2) ?>
                     </p>
                 </div>
@@ -310,13 +375,21 @@ require_once __DIR__ . '/../includes/header.php';
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"/>
                 </svg>
             </a>
+
             <!-- Credit Account Card -->
             <a href="credit.php"
                 class="bg-mb-black/40 border border-amber-500/20 rounded-xl p-4 flex items-start justify-between gap-3 hover:border-amber-500/40 transition-colors group cursor-pointer">
                 <div>
-<p class="text-white font-medium">Credit Account</p>
+                    <p class="text-white font-medium">Credit Account</p>
                     <p class="text-xs text-mb-subtle mt-0.5">Unpaid / credit transactions</p>
-                    <p class="text-lg font-light mt-2 text-amber-400">
+                    <!-- Monthly value (default shown) -->
+                    <p id="creditValMonthly"
+                        class="acc-monthly text-lg font-light mt-2 text-amber-400">
+                        $<?= number_format($mCreditBalance, 2) ?>
+                    </p>
+                    <!-- All-time value (hidden by default) -->
+                    <p id="creditValAlltime"
+                        class="acc-alltime hidden text-lg font-light mt-2 text-amber-400">
                         $<?= number_format($creditBalance, 2) ?>
                     </p>
                 </div>
@@ -324,11 +397,10 @@ require_once __DIR__ . '/../includes/header.php';
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"/>
                 </svg>
             </a>
-            
         </div>
     </div>
 
-    <!--  ”  ”  Ledger Table  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
+    <!--  "  "  Ledger Table  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  -->
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
         <div class="px-6 py-4 border-b border-mb-subtle/10">
             <div class="flex items-center flex-wrap gap-3">
@@ -452,10 +524,10 @@ require_once __DIR__ . '/../includes/header.php';
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-3 text-mb-subtle capitalize">
-                                    <?= e($row['payment_mode'] ?? ' ”') ?>
+                                    <?= e($row['payment_mode'] ?? ' "') ?>
                                 </td>
                                 <td class="px-6 py-3 text-mb-subtle">
-                                    <?= e($row['account_name'] ?? ' ”') ?>
+                                    <?= e($row['account_name'] ?? ' "') ?>
                                 </td>
                                 <td class="px-6 py-3">
                                     <?php if ($isManual): ?>
@@ -538,7 +610,7 @@ require_once __DIR__ . '/../includes/header.php';
     ?>
 </div>
 
-<!--  ”  ”  Add Income/Expense Modal  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
+<!--  "  "  Add Income/Expense Modal  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  -->
 <div id="entryModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
     <div class="w-full max-w-md bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-5">
         <h3 id="entryModalTitle" class="text-white text-lg font-light border-l-2 border-mb-accent pl-3">Add Entry</h3>
@@ -616,7 +688,7 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<!--  ”  ”  Bank Account Modal  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  ”  -->
+<!--  "  "  Bank Account Modal  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  "  -->
 <div id="accountModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
     <div class="w-full max-w-sm bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-4">
         <h3 id="accountModalTitle" class="text-white text-lg font-light border-l-2 border-mb-accent pl-3">Account</h3>
@@ -650,6 +722,35 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <script>
+    // ── Accounts view toggle (Monthly / All-time) ──────────────────────────
+    function switchAccView(v) {
+        var isMonthly = v === 'monthly';
+
+        // Toggle all monthly/alltime spans (summary cards + cash/credit cards)
+        document.querySelectorAll('.acc-monthly').forEach(function(el) {
+            el.classList.toggle('hidden', !isMonthly);
+        });
+        document.querySelectorAll('.acc-alltime').forEach(function(el) {
+            el.classList.toggle('hidden', isMonthly);
+        });
+
+        // Period label visibility
+        document.getElementById('accPeriodLabel').classList.toggle('hidden', !isMonthly);
+
+        // Button active styles
+        var btnM = document.getElementById('accViewMonthly');
+        var btnA = document.getElementById('accViewAlltime');
+        if (isMonthly) {
+            btnM.className = 'text-xs px-3 py-1 rounded-full transition-colors font-medium bg-mb-accent text-white';
+            btnA.className = 'text-xs px-3 py-1 rounded-full transition-colors font-medium text-mb-subtle hover:text-white';
+        } else {
+            btnA.className = 'text-xs px-3 py-1 rounded-full transition-colors font-medium bg-mb-accent text-white';
+            btnM.className = 'text-xs px-3 py-1 rounded-full transition-colors font-medium text-mb-subtle hover:text-white';
+        }
+    }
+    // Default: Monthly on page load
+    switchAccView('monthly');
+
     function toggleEntryBankField() {
         const modeEl = document.getElementById('entryPaymentMode');
         const wrapEl = document.getElementById('entryBankWrap');
@@ -857,4 +958,4 @@ var transferAccountsData = <?php
 ?>;
 </script>
 
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>  
