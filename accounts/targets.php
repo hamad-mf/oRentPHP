@@ -95,6 +95,13 @@ $aS->execute([$activePStart, $activePEnd]);
 $achByDay = [];
 foreach ($aS->fetchAll() as $r) $achByDay[$r['day']] = (float)$r['achieved'];
 
+// Reservations created per day
+$rS = $pdo->prepare("SELECT DATE(created_at) AS day, COUNT(*) AS cnt FROM reservations WHERE DATE(created_at)>=? AND DATE(created_at)<=? GROUP BY DATE(created_at)");
+$rS->execute([$activePStart, $activePEnd]);
+$resByDay = [];
+foreach ($rS->fetchAll() as $r) $resByDay[$r['day']] = (int)$r['cnt'];
+$totalReservations = array_sum($resByDay);
+
 $dailyRows = []; $totalAchieved = 0.0;
 $cur = strtotime($activePStart); $endTs = strtotime($activePEnd);
 while ($cur <= $endTs) {
@@ -106,7 +113,7 @@ while ($cur <= $endTs) {
     elseif ($dailyTarget > 0 && $ach >= $dailyTarget) $st = 'profit';
     elseif ($ach > 0)                                $st = 'loss';
     else                                              $st = $isTod ? 'loss' : 'loss';
-    $dailyRows[] = ['date'=>$ds,'achieved'=>$ach,'gap'=>$ach-$dailyTarget,'status'=>$st,'is_today'=>$isTod,'is_future'=>$isFut];
+    $dailyRows[] = ['date'=>$ds,'achieved'=>$ach,'gap'=>$ach-$dailyTarget,'status'=>$st,'is_today'=>$isTod,'is_future'=>$isFut,'reservations'=>($resByDay[$ds] ?? 0)];
     $cur = strtotime('+1 day', $cur);
 }
 $dailyRows = array_reverse($dailyRows);
@@ -256,6 +263,7 @@ require_once __DIR__ . '/../includes/header.php';
             <thead class="bg-mb-black/40 text-mb-subtle text-xs uppercase tracking-wider">
                 <tr>
                     <th class="px-6 py-3 text-left">Date</th>
+                    <th class="px-6 py-3 text-right">Reservations</th>
                     <th class="px-6 py-3 text-right">Daily Target</th>
                     <th class="px-6 py-3 text-right">Achieved</th>
                     <th class="px-6 py-3 text-right">Gap</th>
@@ -264,7 +272,7 @@ require_once __DIR__ . '/../includes/header.php';
             </thead>
             <tbody class="divide-y divide-mb-subtle/10">
                 <?php if (empty($dailyRowsPage)): ?>
-                <tr><td colspan="5" class="px-6 py-12 text-center text-mb-subtle italic">No data.</td></tr>
+                <tr><td colspan="6" class="px-6 py-12 text-center text-mb-subtle italic">No data.</td></tr>
                 <?php else: foreach ($dailyRowsPage as $row):
                     [$sCls,$sLbl] = match($row['status']) {
                         'profit'   => ['bg-green-500/10 text-green-400 border-green-500/30',  '&#9650; Profit'],
@@ -277,6 +285,13 @@ require_once __DIR__ . '/../includes/header.php';
                     <td class="px-6 py-3">
                         <span class="<?= $row['is_future']?'text-mb-subtle':'text-white' ?>"><?= date('D, d M Y', strtotime($row['date'])) ?></span>
                         <?php if ($row['is_today']): ?><span class="ml-2 text-[10px] bg-mb-accent/20 text-mb-accent border border-mb-accent/30 px-1.5 py-0.5 rounded-full font-medium">Today</span><?php endif; ?>
+                    </td>
+                    <td class="px-6 py-3 text-right">
+                        <?php if ($row['reservations'] > 0): ?>
+                            <span class="inline-flex items-center gap-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full px-2 py-0.5 text-xs font-medium"><?= $row['reservations'] ?></span>
+                        <?php else: ?>
+                            <span class="text-mb-subtle/40">—</span>
+                        <?php endif; ?>
                     </td>
                     <td class="px-6 py-3 text-right text-mb-silver"><?= $dailyTarget>0?'$'.number_format($dailyTarget,2):'—' ?></td>
                     <td class="px-6 py-3 text-right font-medium <?= $row['achieved']>0?'text-white':($row['achieved']<0?'text-red-400':'text-mb-subtle') ?>"><?= $row['is_future']?'—':'$'.number_format($row['achieved'],2) ?></td>
@@ -292,6 +307,11 @@ require_once __DIR__ . '/../includes/header.php';
             <tfoot class="border-t-2 border-mb-subtle/20 bg-mb-black/40">
                 <tr>
                     <td class="px-6 py-3 text-mb-silver font-medium text-xs uppercase tracking-wide">Period Total</td>
+                    <td class="px-6 py-3 text-right">
+                        <?php if ($totalReservations > 0): ?>
+                            <span class="inline-flex items-center gap-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full px-2 py-0.5 text-xs font-medium"><?= $totalReservations ?></span>
+                        <?php else: ?><span class="text-mb-subtle/40">—</span><?php endif; ?>
+                    </td>
                     <td class="px-6 py-3 text-right text-mb-silver font-medium">$<?= number_format($monthlyTarget,2) ?></td>
                     <td class="px-6 py-3 text-right font-semibold <?= $totalAchieved>0?'text-green-400':'text-mb-subtle' ?>">$<?= number_format($totalAchieved,2) ?></td>
                     <td class="px-6 py-3 text-right font-semibold <?= $diff>=0?'text-green-400':'text-red-400' ?>"><?= $diff>=0?'+':'-' ?>$<?= number_format(abs($diff),2) ?></td>
