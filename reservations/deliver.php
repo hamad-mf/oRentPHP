@@ -48,7 +48,11 @@ settings_ensure_table($pdo);
 $depositPct = (float) settings_get($pdo, 'deposit_percentage', '0');
 $deliveryPrepaid = max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
 $deliveryPrepaidMethod = $r['delivery_prepaid_payment_method'] ?? null;
-$deliveryChargeDefault = $deliveryPrepaid > 0 ? 0.0 : (float) settings_get($pdo, 'delivery_charge_default', '0');
+$reservationDeliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
+$reservationDeliveryMethod = $r['delivery_prepaid_payment_method'] ?? null;
+$reservationDeliveryBankId = (int) ($r['delivery_prepaid_bank_account_id'] ?? 0);
+$reservationDeliveryBankId = $reservationDeliveryBankId > 0 ? $reservationDeliveryBankId : null;
+$deliveryChargeDefault = $deliveryPrepaid > 0 ? 0.0 : ($reservationDeliveryCharge > 0 ? $reservationDeliveryCharge : (float) settings_get($pdo, 'delivery_charge_default', '0'));
 
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
@@ -60,10 +64,14 @@ $deliveryCharge = max(0, (float) ($_POST['delivery_charge'] ?? ($existingDeliver
 $existingDeliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
 $deliveryManualAmount = max(0, (float) ($_POST['delivery_manual_amount'] ?? $existingDeliveryManualAmount));
 $deliveryPaymentMethod = reservation_payment_method_normalize($_POST['delivery_payment_method'] ?? ($r['delivery_payment_method'] ?? 'cash')) ?? 'cash';
-// Delivery discount (applied to base + delivery charges before collecting)
+// Delivery charge has its OWN separate payment method/bank
+$deliveryChargePaymentMethod = reservation_payment_method_normalize($_POST['delivery_charge_payment_method'] ?? $reservationDeliveryMethod ?? 'cash') ?? 'cash';
+$deliveryChargeBankAccountId = (int) ($_POST['delivery_charge_bank_account_id'] ?? $reservationDeliveryBankId ?? 0);
+$deliveryChargeBankAccountId = $deliveryChargeBankAccountId > 0 ? $deliveryChargeBankAccountId : null;
+// Delivery discount (applied to base rent only — not delivery charge)
 $delivDiscType = in_array($_POST['delivery_discount_type'] ?? '', ['percent', 'amount']) ? $_POST['delivery_discount_type'] : ($r['delivery_discount_type'] ?? null);
 $delivDiscVal = max(0, (float) ($_POST['delivery_discount_value'] ?? ($r['delivery_discount_value'] ?? 0)));
-$baseWithCharge = $baseCollectNow + $deliveryCharge + $deliveryManualAmount;
+$baseWithCharge = $baseCollectNow + $deliveryManualAmount;
 $delivDiscountAmt = 0;
 if ($delivDiscType === 'percent') {
     $delivDiscountAmt = round($baseWithCharge * min($delivDiscVal, 100) / 100, 2);
@@ -71,8 +79,8 @@ if ($delivDiscType === 'percent') {
     $delivDiscountAmt = min($delivDiscVal, $baseWithCharge);
 }
 $collectNowAtDelivery = max(0, $baseWithCharge - $delivDiscountAmt);
-$suggestedDeposit = round($collectNowAtDelivery * ($depositPct / 100), 2);
-$deliveryBankAccountId = (int) ($_POST['delivery_bank_account_id'] ?? 0);
+$suggestedDeposit = round(($collectNowAtDelivery + $deliveryCharge) * ($depositPct / 100), 2);
+$deliveryBankAccountId = (int) ($_POST['delivery_bank_account_id'] ?? ($r['delivery_bank_account_id'] ?? 0));
 $deliveryBankAccountId = $deliveryBankAccountId > 0 ? $deliveryBankAccountId : null;
 $activeBankAccounts = array_values(array_filter(ledger_get_accounts($pdo), fn($a) => (int) ($a['is_active'] ?? 0) === 1));
 $configuredSecurityDepositBankId = ledger_get_active_bank_account_id(
@@ -95,6 +103,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $deliveryPaymentMethod = reservation_payment_method_normalize($_POST['delivery_payment_method'] ?? null);
     $deliveryBankAccountId = (int) ($_POST['delivery_bank_account_id'] ?? 0);
     $deliveryBankAccountId = $deliveryBankAccountId > 0 ? $deliveryBankAccountId : null;
+    // Delivery charge separate payment
+    $deliveryChargePaymentMethod = reservation_payment_method_normalize($_POST['delivery_charge_payment_method'] ?? null);
+    $deliveryChargeBankAccountId = (int) ($_POST['delivery_charge_bank_account_id'] ?? 0);
+    $deliveryChargeBankAccountId = $deliveryChargeBankAccountId > 0 ? $deliveryChargeBankAccountId : null;
     $paymentSourceType = trim($_POST['payment_source_type'] ?? 'single');
     $multiCashAmount = max(0, (float) ($_POST['multi_cash_amount'] ?? 0));
     $multiCreditAmount = max(0, (float) ($_POST['multi_credit_amount'] ?? 0));
@@ -110,7 +122,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['delivery_manual_amount'] = 'Manual delivery amount cannot be negative.';
     }
     $deliveryCharge = max(0, $deliveryCharge);
-    $baseWithCharge = $baseCollectNow + $deliveryCharge + $deliveryManualAmount;
+    // Rent-only collect-now (delivery charge is separate)
+    $baseWithCharge = $baseCollectNow + $deliveryManualAmount;
     $delivDiscountAmt = 0;
     if ($delivDiscType === 'percent') {
         $delivDiscountAmt = round($baseWithCharge * min($delivDiscVal, 100) / 100, 2);
@@ -118,13 +131,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $delivDiscountAmt = min($delivDiscVal, $baseWithCharge);
     }
     $collectNowAtDelivery = max(0, $baseWithCharge - $delivDiscountAmt);
+    // Validate rent payment method
     if ($collectNowAtDelivery > 0 && $paymentSourceType === 'single') {
         if ($deliveryPaymentMethod === null) {
-            $errors['delivery_payment_method'] = 'Please select how this delivery payment was received.';
+            $errors['delivery_payment_method'] = 'Please select how the rental payment was received.';
         }
         if ($deliveryPaymentMethod === 'account') {
             if ($deliveryBankAccountId === null) {
-                $errors['delivery_bank_account_id'] = 'Please select the bank account that received this payment.';
+                $errors['delivery_bank_account_id'] = 'Please select the bank account for the rental payment.';
             } else {
                 $chk = $pdo->prepare("SELECT COUNT(*) FROM bank_accounts WHERE id = ? AND is_active = 1");
                 $chk->execute([$deliveryBankAccountId]);
@@ -151,6 +165,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         $deliveryPaymentMethod = 'multi';
+    }
+    // Validate delivery charge payment method separately
+    if ($deliveryCharge > 0) {
+        if ($deliveryChargePaymentMethod === null) {
+            $errors['delivery_charge_payment_method'] = 'Please select how the delivery charge was received.';
+        }
+        if ($deliveryChargePaymentMethod === 'account') {
+            if ($deliveryChargeBankAccountId === null) {
+                $errors['delivery_charge_bank_account_id'] = 'Please select the bank account for the delivery charge.';
+            } else {
+                $chk = $pdo->prepare("SELECT COUNT(*) FROM bank_accounts WHERE id = ? AND is_active = 1");
+                $chk->execute([$deliveryChargeBankAccountId]);
+                if ((int) $chk->fetchColumn() === 0) {
+                    $errors['delivery_charge_bank_account_id'] = 'Selected bank account is invalid or inactive.';
+                }
+            }
+        } else {
+            $deliveryChargeBankAccountId = null;
+        }
     }
 
     if ($fuel < 0 || $fuel > 100)
@@ -225,9 +258,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id
 ]);
         $pdo->prepare("UPDATE vehicles SET status='rented' WHERE id=?")->execute([$r['vehicle_id']]);
-        $msg = 'Vehicle delivered. Amount collected at delivery: $' . number_format($collectNowAtDelivery, 2) . '.';
+        $msg = 'Vehicle delivered.';
         if ($collectNowAtDelivery > 0) {
-            $msg .= ' Method: ' . reservation_payment_method_label($deliveryPaymentMethodSave) . '.';
+            $msg .= ' Rental collected: $' . number_format($collectNowAtDelivery, 2) . ' (' . reservation_payment_method_label($deliveryPaymentMethodSave) . ').';
+        }
+        if ($deliveryCharge > 0) {
+            $msg .= ' Delivery charge: $' . number_format($deliveryCharge, 2) . ' (' . reservation_payment_method_label($deliveryChargePaymentMethod) . ').';
         }
         if ($voucherApplied > 0) {
             $msg .= ' Voucher used: $' . number_format($voucherApplied, 2) . '.';
@@ -235,16 +271,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($advancePaid > 0) {
             $msg .= ' Advance already collected: $' . number_format($advancePaid, 2) . '.';
         }
-        if ($deliveryCharge > 0) {
-            $msg .= ' Delivery charge: $' . number_format($deliveryCharge, 2) . '.';
-        }
         if ($deliveryManualAmount > 0) {
             $msg .= ' Manual additional amount: $' . number_format($deliveryManualAmount, 2) . '.';
         }
         $msg .= ' Reservation is now active.';
         app_log('ACTION', "Delivered reservation (ID: $id)");
         $ledgerUserId = (int) ($_SESSION['user']['id'] ?? 0);
-        // ── Auto-post income to ledger ──────────────────────────────────
+        // ── Post RENT to ledger ──────────────────────────────────
         if ($paymentSourceType === 'multi' && $collectNowAtDelivery > 0) {
             $splits = [];
             if ($multiCashAmount > 0)   $splits[] = ['mode' => 'cash',    'amount' => $multiCashAmount,   'bank_id' => null];
@@ -253,6 +286,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ledger_post_reservation_event_multi($pdo, $id, 'delivery', $splits, $ledgerUserId);
         } else {
             ledger_post_reservation_event($pdo, $id, 'delivery', $collectNowAtDelivery, $deliveryPaymentMethodSave, $ledgerUserId, $deliveryBankAccountId);
+        }
+        // ── Post DELIVERY CHARGE to ledger separately ──────────
+        if ($deliveryCharge > 0 && $deliveryChargePaymentMethod !== null) {
+            ledger_post_reservation_event($pdo, $id, 'delivery_charge', $deliveryCharge, $deliveryChargePaymentMethod, $ledgerUserId, $deliveryChargeBankAccountId);
         }
         if ($depositAmt > 0) {
             if ($configuredSecurityDepositBankId !== null) {
@@ -387,14 +424,51 @@ require_once __DIR__ . '/../includes/header.php';
                     </div>
                 <?php endif; ?>
                 <div class="flex items-center justify-between text-mb-silver gap-3">
-                    <span><?= $deliveryPrepaid > 0 ? 'Additional Delivery Charge' : 'Delivery Charge' ?></span>
+                    <span>Delivery Charge</span>
                     <div class="relative w-44">
                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-mb-subtle text-xs">$</span>
                         <input type="number" name="delivery_charge" id="deliveryChargeInput" step="0.01" min="0"
                             class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-7 pr-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm"
                             placeholder="0.00"
-                            value="<?= e($_POST['delivery_charge'] ?? number_format($deliveryCharge, 2, '.', '')) ?>">
+                            value="<?= e($_POST['delivery_charge'] ?? number_format($deliveryCharge, 2, '.', '')) ?>"
+                            oninput="toggleDeliveryChargeMethodSection()">
                     </div>
+                </div>
+                <!-- Delivery Charge: Separate Payment Method -->
+                <div id="deliveryChargeMethodSection" class="border border-blue-500/20 bg-blue-500/5 rounded-lg p-3 space-y-2 <?= $deliveryCharge > 0 ? '' : 'hidden' ?>">
+                    <p class="text-xs text-blue-400 font-medium uppercase tracking-wider">Delivery Charge Payment</p>
+                    <div class="flex items-center justify-between text-mb-silver gap-3">
+                        <span class="text-xs">Method</span>
+                        <div class="w-44">
+                            <select name="delivery_charge_payment_method" id="deliveryChargeMethodSel"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm"
+                                onchange="toggleDeliveryChargeBankField()">
+                                <option value="cash" <?= $deliveryChargePaymentMethod === 'cash' ? 'selected' : '' ?>>Cash</option>
+                                <option value="account" <?= $deliveryChargePaymentMethod === 'account' ? 'selected' : '' ?>>Account</option>
+                                <option value="credit" <?= $deliveryChargePaymentMethod === 'credit' ? 'selected' : '' ?>>Credit</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="deliveryChargeBankWrap" class="items-center justify-between text-mb-silver gap-3 <?= $deliveryChargePaymentMethod === 'account' ? 'flex' : 'hidden' ?>">
+                        <span class="text-xs">Bank Account</span>
+                        <div class="w-44">
+                            <select name="delivery_charge_bank_account_id" id="deliveryChargeBankSel"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm">
+                                <option value="">Select account</option>
+                                <?php foreach ($activeBankAccounts as $acc): ?>
+                                    <option value="<?= (int) $acc['id'] ?>" <?= (int) ($deliveryChargeBankAccountId ?? 0) === (int) $acc['id'] ? 'selected' : '' ?>>
+                                        <?= e($acc['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <?php if (isset($errors['delivery_charge_payment_method'])): ?>
+                        <p class="text-red-400 text-xs"><?= e($errors['delivery_charge_payment_method']) ?></p>
+                    <?php endif; ?>
+                    <?php if (isset($errors['delivery_charge_bank_account_id'])): ?>
+                        <p class="text-red-400 text-xs"><?= e($errors['delivery_charge_bank_account_id']) ?></p>
+                    <?php endif; ?>
                 </div>
                 <div class="flex items-center justify-between text-mb-silver gap-3">
                     <span>Manual Additional Amount</span>
@@ -729,7 +803,8 @@ function updateDeliveryCollectNow() {
     if (!isFinite(deliveryCharge) || deliveryCharge < 0) deliveryCharge = 0;
     let deliveryManual = parseFloat(deliveryManualAmountInput.value || "0");
     if (!isFinite(deliveryManual) || deliveryManual < 0) deliveryManual = 0;
-    const baseWithCharge = BASE_COLLECT_NOW + deliveryCharge + deliveryManual;
+    // Rent only — delivery charge is separate
+    const baseWithCharge = BASE_COLLECT_NOW + deliveryManual;
 
     const manualRow = document.getElementById("deliveryManualRow");
     const manualAmtEl = document.getElementById("deliveryManualAmt");
@@ -779,6 +854,26 @@ function updateDeliveryCollectNow() {
 }
 
 slider.addEventListener("input", () => updateFuel(slider.value));
+
+function toggleDeliveryChargeMethodSection() {
+    const chargeInput = document.getElementById('deliveryChargeInput');
+    const section = document.getElementById('deliveryChargeMethodSection');
+    if (!chargeInput || !section) return;
+    const val = parseFloat(chargeInput.value || '0');
+    section.classList.toggle('hidden', !(val > 0));
+    updateDeliveryCollectNow();
+}
+function toggleDeliveryChargeBankField() {
+    const sel = document.getElementById('deliveryChargeMethodSel');
+    const bankWrap = document.getElementById('deliveryChargeBankWrap');
+    const bankSel = document.getElementById('deliveryChargeBankSel');
+    if (!sel || !bankWrap) return;
+    const needsBank = sel.value === 'account';
+    bankWrap.classList.toggle('hidden', !needsBank);
+    bankWrap.classList.toggle('flex', needsBank);
+    if (bankSel && !needsBank) bankSel.value = '';
+}
+
 if (deliveryChargeInput) {
     deliveryChargeInput.addEventListener("input", updateDeliveryCollectNow);
     deliveryChargeInput.addEventListener("change", updateDeliveryCollectNow);

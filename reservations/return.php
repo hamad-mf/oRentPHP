@@ -155,6 +155,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $clientRatingReview = trim($_POST['client_rating_review'] ?? '');
     $returnVoucherRequest = max(0, round((float) ($_POST['return_voucher_amount'] ?? 0), 2));
     $depositReturned = max(0, (float) ($_POST['deposit_returned'] ?? 0));
+    $depositDeducted = max(0, (float) ($_POST['deposit_deducted'] ?? 0));
+    $depositHeld = max(0, (float) ($_POST['deposit_held'] ?? 0));
+    $depositHoldReason = trim($_POST['deposit_hold_reason'] ?? '');
     $returnPaymentMethod = reservation_payment_method_normalize($_POST['return_payment_method'] ?? null);
     $returnBankAccountId = (int) ($_POST['return_bank_account_id'] ?? 0);
     $returnBankAccountId = $returnBankAccountId > 0 ? $returnBankAccountId : null;
@@ -226,9 +229,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($additionalChgInput < 0)
         $errors['additional_charge'] = 'Return pickup charge cannot be negative.';
+    
+    // Deposit validation
     $maxDepositCollected = max(0, (float) ($r['deposit_amount'] ?? 0));
-    if ($depositReturned > $maxDepositCollected) {
-        $errors['deposit_returned'] = 'Deposit returned cannot exceed collected deposit ($' . number_format($maxDepositCollected, 2) . ').';
+    $alreadyDeducted = (float) ($r['deposit_deducted'] ?? 0);
+    $alreadyHeld = (float) ($r['deposit_held'] ?? 0);
+    $alreadyReturned = (float) ($r['deposit_returned'] ?? 0);
+    $remainingDeposit = $maxDepositCollected - $alreadyReturned - $alreadyDeducted - $alreadyHeld;
+    $maxReturnable = $remainingDeposit - $depositDeducted - $depositHeld;
+    
+    if ($depositReturned > $maxReturnable) {
+        $errors['deposit_returned'] = 'Deposit returned cannot exceed $' . number_format($maxReturnable, 2) . ' (Remaining deposit minus deduct/hold).';
+    }
+    if ($depositReturned < 0) $depositReturned = 0;
+    if ($depositDeducted < 0) $depositDeducted = 0;
+    if ($depositHeld < 0) $depositHeld = 0;
+    if ($depositHeld > 0 && $depositHoldReason === '') {
+        $errors['deposit_hold_reason'] = 'Please provide a reason for holding the deposit.';
     }
     if ($cashDueAtReturn > 0 && $returnPaymentSourceType === 'single') {
         if ($returnPaymentMethod === null)
@@ -322,7 +339,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $returnPaymentMethodSave = ($cashDueAtReturn > 0 && $returnPaymentSourceType === 'single') ? $returnPaymentMethod : null;
             $pdo->prepare("UPDATE reservations SET status='completed', actual_end_date=?, overdue_amount=?,
                 km_driven=?, km_overage_charge=?, damage_charge=?, additional_charge=?, chellan_amount=?, discount_type=?, discount_value=?,
-                return_voucher_applied=?, return_payment_method=?, return_paid_amount=?, early_return_credit=?, voucher_credit_issued=?, deposit_returned=? WHERE id=?")
+                return_voucher_applied=?, return_payment_method=?, return_paid_amount=?, early_return_credit=?, voucher_credit_issued=?, 
+                deposit_returned=?, deposit_deducted=?, deposit_held=?, deposit_hold_reason=? WHERE id=?")
                 ->execute([
                     $actualEndSave,
                     $overdueAmt + $lateChg,
@@ -339,6 +357,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $earlyVoucherCredit,
                     $voucherCreditIssued,
                     $depositReturned,
+                    $depositDeducted,
+                    $depositHeld,
+                    $depositHoldReason ?: null,
                     $id,
                 ]);
             // Only free up the vehicle if no other active reservation exists for it
@@ -381,7 +402,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msg .= ' | Advance collected: $' . number_format($advancePaid, 2);
             }
             if ($r['deposit_amount'] > 0) {
-                $msg .= ' | Deposit: $' . number_format((float) $r['deposit_amount'], 2) . ' (Returned: $' . number_format($depositReturned, 2) . ')';
+                $depositParts = [];
+                $depositParts[] = number_format((float) $r['deposit_amount'], 2);
+                if ($depositDeducted > 0) $depositParts[] = '-$' . number_format($depositDeducted, 2);
+                if ($depositHeld > 0) $depositParts[] = '-$' . number_format($depositHeld, 2);
+                if ($depositReturned > 0) $depositParts[] = '-$' . number_format($depositReturned, 2);
+                $msg .= ' | Deposit: $' . implode(' / ', $depositParts);
             }
             if ($voucherApplied > 0) {
                 $msg .= ' | Voucher used on booking: $' . number_format($voucherApplied, 2);
@@ -420,22 +446,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             ledger_post_reservation_event($pdo, $id, 'return', $cashDueAtReturn, $returnPaymentMethodSave, $ledgerUserId, $returnBankAccountId);
         }
+            
+            // ── Security Deposit Handling ──────────────────────────────────
+            $depositBankAccountId = ledger_get_security_deposit_account_id($pdo, $id) ?? $configuredSecurityDepositBankId;
+            
+            // 1. Post deducted amount as REAL INCOME (counts toward KPI)
+            if ($depositDeducted > 0 && $depositBankAccountId !== null) {
+                // Move out of deposit tracking
+                ledger_post($pdo, 'expense', 'Security Deposit', $depositDeducted, 'account', $depositBankAccountId,
+                    'reservation', $id, 'security_deposit_deducted',
+                    "Reservation #$id - Deposit deducted (damage/charges)",
+                    $ledgerUserId, "reservation:security_deposit_deducted:$id");
+                // Post as real income
+                ledger_post($pdo, 'income', 'Damage Charges', $depositDeducted, 'account', $depositBankAccountId,
+                    'reservation', $id, 'damage_from_deposit',
+                    "Reservation #$id - Damage charges from deposit",
+                    $ledgerUserId, "reservation:damage_from_deposit:$id");
+            }
+            
+            // 2. Post amount being HELD (stays excluded from KPI)
+            if ($depositHeld > 0 && $depositBankAccountId !== null) {
+                ledger_post($pdo, 'expense', 'Security Deposit', $depositHeld, 'account', $depositBankAccountId,
+                    'reservation', $id, 'security_deposit_held',
+                    "Reservation #$id - Deposit held: " . ($depositHoldReason ?: 'No reason provided'),
+                    $ledgerUserId, "reservation:security_deposit_held:$id");
+            }
+            
+            // 3. Post amount RETURNED to client
             if ($depositReturned > 0) {
-                $depositBankAccountId = ledger_get_security_deposit_account_id($pdo, $id) ?? $configuredSecurityDepositBankId;
                 if ($depositBankAccountId !== null) {
-                    ledger_post_security_deposit(
-                        $pdo,
-                        $id,
-                        'out',
-                        $depositReturned,
-                        $depositBankAccountId,
-                        $ledgerUserId
-                    );
+                    ledger_post_security_deposit($pdo, $id, 'out', $depositReturned, $depositBankAccountId, $ledgerUserId);
                 } else {
-                    $msg .= ' | Security deposit return ledger not posted (configure Security Deposit Bank Account in Settings > General)';
+                    $msg .= ' | Security deposit return ledger not posted (no bank account)';
                     app_log('ERROR', 'Security deposit return ledger skipped for reservation #' . $id . ': no bank account available.');
                 }
             }
+            
+            // Deposit summary for message
+            if ($maxDepositCollected > 0) {
+                $depositSummary = '';
+                if ($depositDeducted > 0) $depositSummary .= ' | Deducted: $' . number_format($depositDeducted, 2);
+                if ($depositHeld > 0) $depositSummary .= ' | Held: $' . number_format($depositHeld, 2);
+                if ($depositReturned > 0) $depositSummary .= ' | Returned: $' . number_format($depositReturned, 2);
+                if ($depositSummary) $msg .= $depositSummary;
+            }
+            
             flash('success', $msg);
             // Log staff activity
             require_once __DIR__ . '/../includes/activity_log.php';
@@ -816,29 +871,122 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php endif; ?>
                     </div>
 
-                    <?php if ((float) ($r['deposit_amount'] ?? 0) > 0): ?>
+                    <?php if ((float) ($r['deposit_amount'] ?? 0) > 0):
+                        $depositAmount = (float) ($r['deposit_amount'] ?? 0);
+                        $alreadyReturned = (float) ($r['deposit_returned'] ?? 0);
+                        $alreadyDeducted = (float) ($r['deposit_deducted'] ?? 0);
+                        $alreadyHeld = (float) ($r['deposit_held'] ?? 0);
+                        $remainingDeposit = $depositAmount - $alreadyReturned - $alreadyDeducted - $alreadyHeld;
+                        $totalCharges = $overdueAmt + $kmOverageChg + $damageChg + $additionalChg + $chellanAmt + $lateChg;
+                        $maxDeductible = min($totalCharges, $remainingDeposit);
+                    ?>
                         <div class="bg-mb-black/50 border border-mb-subtle/20 rounded-xl p-6 space-y-4">
                             <div class="flex items-center justify-between">
-                                <h3 class="text-white text-lg font-light border-l-2 border-mb-accent pl-3">Security Deposit
-                                </h3>
-                                <span class="text-mb-subtle text-sm">Amount Collected: <span
-                                        class="text-white">$<?= number_format((float) $r['deposit_amount'], 2) ?></span></span>
+                                <h3 class="text-white text-lg font-light border-l-2 border-mb-accent pl-3">Security Deposit</h3>
+                                <span class="text-mb-subtle text-sm">Collected: <span class="text-white font-medium">$<?= number_format($depositAmount, 2) ?></span></span>
                             </div>
-                            <div>
-                                <label class="block text-sm text-mb-silver mb-2">Deposit Returned to Client ($)</label>
-                                <div class="relative">
-                                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
-                                    <input type="number" name="deposit_returned" step="0.01" min="0"
-                                        max="<?= (float) $r['deposit_amount'] ?>" required
-                                        class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm"
-                                        placeholder="0.00"
-                                        value="<?= e($_POST['deposit_returned'] ?? $r['deposit_amount']) ?>">
+                            
+                            <?php if ($alreadyReturned > 0 || $alreadyDeducted > 0 || $alreadyHeld > 0): ?>
+                                <div class="bg-mb-surface rounded-lg p-3 text-xs space-y-1 border border-mb-subtle/20">
+                                    <p class="text-mb-silver font-medium mb-2">Already processed:</p>
+                                    <?php if ($alreadyReturned > 0): ?>
+                                        <p class="text-green-400">Returned: $<?= number_format($alreadyReturned, 2) ?></p>
+                                    <?php endif; ?>
+                                    <?php if ($alreadyDeducted > 0): ?>
+                                        <p class="text-red-400">Deducted: $<?= number_format($alreadyDeducted, 2) ?></p>
+                                    <?php endif; ?>
+                                    <?php if ($alreadyHeld > 0): ?>
+                                        <p class="text-yellow-400">Held: $<?= number_format($alreadyHeld, 2) ?></p>
+                                    <?php endif; ?>
                                 </div>
-                                <p class="text-xs text-mb-subtle mt-1">Amount given back to the client from their original
-                                    deposit.</p>
-                                <?php if (isset($errors['deposit_returned'])): ?>
-                                    <p class="text-red-400 text-xs mt-1"><?= e($errors['deposit_returned']) ?></p>
-                                <?php endif; ?>
+                            <?php endif; ?>
+                            
+                            <div class="bg-mb-surface rounded-xl p-4 space-y-4">
+                                <p class="text-mb-subtle text-xs">Remaining deposit: <span class="text-white font-medium">$<span id="remainingDepositDisplay"><?= number_format($remainingDeposit, 2) ?></span></span></p>
+                                
+                                <!-- Amount to Return -->
+                                <div>
+                                    <label class="block text-sm text-mb-silver mb-2">Amount to Return to Client</label>
+                                    <div class="relative">
+                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
+                                        <input type="number" name="deposit_returned" id="depositReturned" step="0.01" min="0"
+                                            max="<?= $remainingDeposit ?>"
+                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm"
+                                            placeholder="0.00"
+                                            value="<?= e($_POST['deposit_returned'] ?? $remainingDeposit) ?>"
+                                            oninput="updateDepositSummary()">
+                                    </div>
+                                    <?php if (isset($errors['deposit_returned'])): ?>
+                                        <p class="text-red-400 text-xs mt-1"><?= e($errors['deposit_returned']) ?></p>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <!-- Amount to Deduct -->
+                                <div>
+                                    <label class="block text-sm text-mb-silver mb-2">
+                                        Amount to Deduct from Deposit
+                                        <span class="text-mb-subtle text-xs ml-2">(Becomes real income)</span>
+                                    </label>
+                                    <div class="relative">
+                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
+                                        <input type="number" name="deposit_deducted" id="depositDeducted" step="0.01" min="0"
+                                            max="<?= $maxDeductible ?>"
+                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm"
+                                            placeholder="0.00"
+                                            value="<?= e($_POST['deposit_deducted'] ?? '0') ?>"
+                                            oninput="updateDepositSummary()">
+                                    </div>
+                                    <p class="text-mb-subtle text-xs mt-1">Total charges: $<?= number_format($totalCharges, 2) ?>. Max deductible: $<?= number_format($maxDeductible, 2) ?></p>
+                                </div>
+                                
+                                <!-- Amount to Hold -->
+                                <div>
+                                    <label class="block text-sm text-mb-silver mb-2">
+                                        Amount to Hold
+                                        <span class="text-mb-subtle text-xs ml-2">(Not returned yet)</span>
+                                    </label>
+                                    <div class="relative">
+                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
+                                        <input type="number" name="deposit_held" id="depositHeld" step="0.01" min="0"
+                                            max="<?= $remainingDeposit ?>"
+                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm"
+                                            placeholder="0.00"
+                                            value="<?= e($_POST['deposit_held'] ?? '0') ?>"
+                                            oninput="updateDepositSummary()">
+                                    </div>
+                                    <?php if (isset($errors['deposit_hold_reason'])): ?>
+                                        <p class="text-red-400 text-xs mt-1"><?= e($errors['deposit_hold_reason']) ?></p>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <!-- Hold Reason -->
+                                <div id="holdReasonSection" class="<?= ($depositHeld > 0 || isset($_POST['deposit_hold_reason'])) ? '' : 'hidden' ?>">
+                                    <label class="block text-sm text-mb-silver mb-2">Reason for Holding Deposit</label>
+                                    <input type="text" name="deposit_hold_reason"
+                                        placeholder="e.g., Pending damage assessment, Investigation ongoing"
+                                        value="<?= e($_POST['deposit_hold_reason'] ?? '') ?>"
+                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white placeholder-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                                </div>
+                                
+                                <!-- Summary -->
+                                <div class="bg-mb-accent/10 border border-mb-accent/30 rounded-lg p-3">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-mb-silver">Total Deposit:</span>
+                                        <span class="text-white font-medium">$<?= number_format($depositAmount, 2) ?></span>
+                                    </div>
+                                    <div class="flex justify-between text-sm mt-1">
+                                        <span class="text-mb-silver">Returning:</span>
+                                        <span class="text-green-400">-$<span id="summaryReturn">0.00</span></span>
+                                    </div>
+                                    <div class="flex justify-between text-sm mt-1">
+                                        <span class="text-mb-silver">Converting to Income:</span>
+                                        <span class="text-red-400">-$<span id="summaryDeduct">0.00</span></span>
+                                    </div>
+                                    <div class="flex justify-between text-sm mt-1">
+                                        <span class="text-mb-silver">Holding:</span>
+                                        <span class="text-yellow-400">-$<span id="summaryHold">0.00</span></span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     <?php endif; ?>
@@ -1007,6 +1155,7 @@ const LATE_RATE=' . $lateRatePerHour . ';
 const LATE_TO_DAILY_THRESHOLD_MIN = 360;
 const BASE_PRICE=' . $baseRentalValue . ';
 const CLIENT_VOUCHER_BALANCE=' . $clientVoucherBalance . ';
+const DEPOSIT_REMAINING=' . $remainingDeposit . ';
 const START_DATE = new Date("' . $r['start_date'] . '".replace(" ","T"));
 const SCHEDULED_END = new Date("' . $r['end_date'] . '".replace(" ","T"));
 
@@ -1130,6 +1279,41 @@ function toggleReturnDiscountValueField() {
     if (!typeEl || !valueWrapEl) return;
     var hasDiscount = typeEl.value === "percent" || typeEl.value === "amount";
     valueWrapEl.classList.toggle("hidden", !hasDiscount);
+}
+
+function updateDepositSummary() {
+    var depositReturned = document.getElementById(\'depositReturned\');
+    var depositDeducted = document.getElementById(\'depositDeducted\');
+    var depositHeld = document.getElementById(\'depositHeld\');
+    var holdReasonSection = document.getElementById(\'holdReasonSection\');
+    
+    if (!depositReturned || !depositDeducted || !depositHeld) return;
+    
+    var returnAmt = parseFloat(depositReturned.value) || 0;
+    var deductAmt = parseFloat(depositDeducted.value) || 0;
+    var holdAmt = parseFloat(depositHeld.value) || 0;
+    
+    if (returnAmt < 0) { returnAmt = 0; depositReturned.value = \'0.00\'; }
+    if (deductAmt < 0) { deductAmt = 0; depositDeducted.value = \'0.00\'; }
+    if (holdAmt < 0) { holdAmt = 0; depositHeld.value = \'0.00\'; }
+    
+    var remainingDisplay = document.getElementById(\'remainingDepositDisplay\');
+    var summaryReturn = document.getElementById(\'summaryReturn\');
+    var summaryDeduct = document.getElementById(\'summaryDeduct\');
+    var summaryHold = document.getElementById(\'summaryHold\');
+    
+    if (remainingDisplay) remainingDisplay.textContent = DEPOSIT_REMAINING.toFixed(2);
+    if (summaryReturn) summaryReturn.textContent = returnAmt.toFixed(2);
+    if (summaryDeduct) summaryDeduct.textContent = deductAmt.toFixed(2);
+    if (summaryHold) summaryHold.textContent = holdAmt.toFixed(2);
+    
+    if (holdReasonSection) {
+        if (holdAmt > 0) {
+            holdReasonSection.classList.remove(\'hidden\');
+        } else {
+            holdReasonSection.classList.add(\'hidden\');
+        }
+    }
 }
 
 function updateSummary(){
@@ -1416,6 +1600,7 @@ if(confirmRatingBtn){
 }
 
 updateSummary();
+updateDepositSummary();
 </script>';
 require_once __DIR__ . '/../includes/footer.php';
 ?>

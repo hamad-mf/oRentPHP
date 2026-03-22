@@ -221,6 +221,10 @@ function ledger_post_reservation_event(
             $category = 'Reservation Delivery';
             $label = 'Delivery';
             break;
+        case 'delivery_charge':
+            $category = 'Reservation Delivery Charge';
+            $label = 'Delivery charge';
+            break;
         case 'return':
             $category = 'Reservation Return';
             $label = 'Return';

@@ -36,6 +36,9 @@ $overdue = isOverdue($r['end_date'], $r['status']);
 $basePrice = (float) $r['total_price'];
 $extensionPaid = max(0, (float) ($r['extension_paid_amount'] ?? 0));
 $basePriceForDelivery = max(0, $basePrice - $extensionPaid);
+$advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
+$deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
+$deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $deliveryPrepaid = max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
 // Delivery discount
@@ -243,6 +246,17 @@ function fuelBar(int $pct): string
                         <span class="text-blue-400/80">+$<?= number_format($deliveryPrepaid, 2) ?></span>
                     </div>
                 <?php endif; ?>
+                <?php if ($deliveryCharge > 0 && $r['status'] === 'confirmed'): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-blue-300/70">Delivery Charge (quoted – due at delivery)</span>
+                        <span class="text-blue-300/70">$<?= number_format($deliveryCharge, 2) ?></span>
+                    </div>
+                <?php elseif ($deliveryCharge > 0 && in_array($r['status'], ['active', 'returned'])): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-blue-400/80">Delivery Charge Collected</span>
+                        <span class="text-blue-400/80">+$<?= number_format($deliveryCharge, 2) ?></span>
+                    </div>
+                <?php endif; ?>
 
                 <?php if ($extensionPaid > 0): ?>
                     <div class="flex justify-between text-sm">
@@ -275,11 +289,41 @@ function fuelBar(int $pct): string
                     </div>
                 <?php endif; ?>
                 <?php if ($r['status'] === 'completed' && (float) ($r['deposit_amount'] ?? 0) > 0): ?>
-                    <div class="flex justify-between text-sm border-l-2 border-orange-500/30 pl-2">
-                        <span class="text-mb-subtle italic">Security Deposit Returned</span>
-                        <span
-                            class="text-orange-400">-$<?= number_format((float) ($r['deposit_returned'] ?? 0), 2) ?></span>
-                    </div>
+                    <?php
+                    $depReturned = (float) ($r['deposit_returned'] ?? 0);
+                    $depDeducted = (float) ($r['deposit_deducted'] ?? 0);
+                    $depHeld = (float) ($r['deposit_held'] ?? 0);
+                    $depHoldReason = trim($r['deposit_hold_reason'] ?? '');
+                    ?>
+                    <?php if ($depReturned > 0): ?>
+                        <div class="flex justify-between text-sm border-l-2 border-green-500/30 pl-2">
+                            <span class="text-green-400">Returned to Client</span>
+                            <span class="text-green-400">-$<?= number_format($depReturned, 2) ?></span>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($depDeducted > 0): ?>
+                        <div class="flex justify-between text-sm border-l-2 border-red-500/30 pl-2">
+                            <span class="text-red-400">Converted to Income (Deducted)</span>
+                            <span class="text-red-400">-$<?= number_format($depDeducted, 2) ?></span>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($depHeld > 0): ?>
+                        <div class="flex justify-between text-sm border-l-2 border-yellow-500/30 pl-2">
+                            <span class="text-yellow-400">
+                                Deposit on Hold
+                                <?php if ($depHoldReason): ?>
+                                    <span class="text-mb-subtle text-xs ml-1">— <?= e($depHoldReason) ?></span>
+                                <?php endif; ?>
+                            </span>
+                            <span class="text-yellow-400">-$<?= number_format($depHeld, 2) ?></span>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($depReturned === 0 && $depDeducted === 0 && $depHeld === 0): ?>
+                        <div class="flex justify-between text-sm border-l-2 border-orange-500/30 pl-2">
+                            <span class="text-orange-400 italic">Security Deposit Status</span>
+                            <span class="text-orange-400">Pending</span>
+                        </div>
+                    <?php endif; ?>
                 <?php endif; ?>
 
                 <?php if ($overdueAmt > 0): ?>

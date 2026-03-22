@@ -12,6 +12,9 @@ This file tracks all database changes that need to be applied to **production** 
 ## Pending
 
 | 2026-03-21 | attendance_admin_controls | `migrations/releases/2026-03-21_attendance_admin_controls.sql` | Adds `admin_note` (VARCHAR 500) and `is_manual_punch` (TINYINT) columns to `staff_attendance`. Run before deploying admin attendance control features. |
+| 2026-03-22 | vehicle_challans | `migrations/releases/2026-03-22_vehicle_challans.sql` | Creates `vehicle_challans` table for tracking challans (traffic fines) per vehicle with title, amount, due_date, and status fields. |
+| 2026-03-22 | client_photo | `migrations/releases/2026-03-22_client_photo.sql` | Adds `photo` column to clients table for storing client profile picture. |
+| 2026-03-23 | deposit_tracking | `migrations/releases/2026-03-23_deposit_tracking.sql` | Adds `deposit_deducted`, `deposit_held`, `deposit_hold_reason` columns to reservations for deposit deductions and holds. |
 
 ---
 

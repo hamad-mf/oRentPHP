@@ -784,6 +784,41 @@ function fdt(?string $dt): string
                             <td>Amount Due at Return</td>
                             <td class="val">$<?= number_format($cashDueAtReturn, 2) ?></td>
                         </tr>
+                        <?php
+                        $depAmount = (float) ($r['deposit_amount'] ?? 0);
+                        $depReturned = (float) ($r['deposit_returned'] ?? 0);
+                        $depDeducted = (float) ($r['deposit_deducted'] ?? 0);
+                        $depHeld = (float) ($r['deposit_held'] ?? 0);
+                        $depHoldReason = trim($r['deposit_hold_reason'] ?? '');
+                        if ($depAmount > 0):
+                        ?>
+                            <tr style="background:#f0fdf4;color:#166534">
+                                <td style="padding:10px 16px;font-size:13px">
+                                    <strong>Security Deposit:</strong> Collected
+                                </td>
+                                <td class="val" style="padding:10px 16px;font-size:13px">$<?= number_format($depAmount, 2) ?></td>
+                            </tr>
+                            <?php if ($depReturned > 0): ?>
+                                <tr style="color:#16a34a">
+                                    <td style="padding:8px 16px;font-size:12px">&#x2713; Returned to Client</td>
+                                    <td class="val" style="padding:8px 16px;font-size:12px">-$<?= number_format($depReturned, 2) ?></td>
+                                </tr>
+                            <?php endif; ?>
+                            <?php if ($depDeducted > 0): ?>
+                                <tr style="color:#dc2626">
+                                    <td style="padding:8px 16px;font-size:12px">&#x2713; Converted to Income (Deducted)</td>
+                                    <td class="val" style="padding:8px 16px;font-size:12px">-$<?= number_format($depDeducted, 2) ?></td>
+                                </tr>
+                            <?php endif; ?>
+                            <?php if ($depHeld > 0): ?>
+                                <tr style="color:#ca8a04">
+                                    <td style="padding:8px 16px;font-size:12px">
+                                        &#x2713; On Hold<?= $depHoldReason ? ' — ' . e($depHoldReason) : '' ?>
+                                    </td>
+                                    <td class="val" style="padding:8px 16px;font-size:12px">-$<?= number_format($depHeld, 2) ?></td>
+                                </tr>
+                            <?php endif; ?>
+                        <?php endif; ?>
                         <tr class="total-row" style="background:#f8fafc;color:#1e293b">
                             <td>Total Collected for This Rental</td>
                             <td class="val">$<?= number_format($totalCollected, 2) ?></td>
