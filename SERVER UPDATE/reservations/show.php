@@ -3,13 +3,6 @@ require_once __DIR__ . '/../config/db.php';
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
 
-// ── Runtime schema guard for new held-deposit resolution columns ──────────────
-try {
-    $pdo->exec("ALTER TABLE reservations
-        ADD COLUMN IF NOT EXISTS deposit_held_resolved_at DATETIME    DEFAULT NULL,
-        ADD COLUMN IF NOT EXISTS deposit_held_action      VARCHAR(20) DEFAULT NULL");
-} catch (Throwable $e) { /* already exist */ }
-
 $rStmt = $pdo->prepare('SELECT r.*, c.name AS client_name, c.id AS cid, v.brand, v.model, v.license_plate, v.daily_rate, v.image_url FROM reservations r JOIN clients c ON r.client_id=c.id JOIN vehicles v ON r.vehicle_id=v.id WHERE r.id=?');
 $rStmt->execute([$id]);
 $r = $rStmt->fetch();
@@ -43,9 +36,6 @@ $overdue = isOverdue($r['end_date'], $r['status']);
 $basePrice = (float) $r['total_price'];
 $extensionPaid = max(0, (float) ($r['extension_paid_amount'] ?? 0));
 $basePriceForDelivery = max(0, $basePrice - $extensionPaid);
-$advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
-$deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
-$deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $deliveryPrepaid = max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
 // Delivery discount
@@ -83,20 +73,6 @@ $totalCollected = $advancePaid + $deliveryPrepaid + $extensionPaid + $baseCollec
 $refundAmount = max(0, (float) ($r['refund_amount'] ?? 0));
 $netCollected = max(0, $totalCollected - $refundAmount);
 
-// ── Held deposit resolution data ─────────────────────────────────────────────
-$depHeld        = max(0, (float) ($r['deposit_held'] ?? 0));
-$depHoldReason  = trim($r['deposit_hold_reason'] ?? '');
-$depHeldAction  = $r['deposit_held_action'] ?? null;
-$depHeldResolvedAt = $r['deposit_held_resolved_at'] ?? null;
-$showHeldActions = $r['status'] === 'completed' && $depHeld > 0 && $depHeldAction === null;
-
-// Is the hold older than 3 days?
-$heldIsExpired = false;
-if ($showHeldActions && $return) {
-    $returnTs = strtotime($return['created_at'] ?? 'now');
-    $heldIsExpired = (time() - $returnTs) > (3 * 24 * 3600);
-}
-
 $success = getFlash('success');
 $pageTitle = 'Reservation #' . $id;
 require_once __DIR__ . '/../includes/header.php';
@@ -128,7 +104,9 @@ function fuelBar(int $pct): string
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
-            <span class="text-white">Reservation #<?= $id ?></span>
+            <span class="text-white">Reservation #
+                <?= $id ?>
+            </span>
         </div>
         <!-- Actions -->
         <div class="flex items-center gap-3 flex-wrap">
@@ -183,7 +161,9 @@ function fuelBar(int $pct): string
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-5">
             <div class="flex items-start justify-between">
-                <h2 class="text-white text-xl font-light">Reservation #<?= $id ?></h2>
+                <h2 class="text-white text-xl font-light">Reservation #
+                    <?= $id ?>
+                </h2>
                 <div class="flex items-center gap-2">
                     <span class="px-3 py-1.5 rounded-full text-sm border capitalize <?= $sc ?>">
                         <?= e($r['status']) ?>
@@ -208,20 +188,32 @@ function fuelBar(int $pct): string
                     <p class="text-mb-subtle text-xs uppercase mb-1">Vehicle</p>
                     <a href="../vehicles/show.php?id=<?= $r['vehicle_id'] ?>"
                         class="text-white hover:text-mb-accent transition-colors">
-                        <?= e($r['brand']) ?> <?= e($r['model']) ?>
+                        <?= e($r['brand']) ?>
+                        <?= e($r['model']) ?>
                     </a>
-                    <p class="text-xs text-mb-subtle"><?= e($r['license_plate']) ?></p>
+                    <p class="text-xs text-mb-subtle">
+                        <?= e($r['license_plate']) ?>
+                    </p>
                 </div>
                 <div class="bg-mb-black/40 rounded-xl p-4">
                     <p class="text-mb-subtle text-xs uppercase mb-1">Period</p>
-                    <p class="text-white text-sm"><?= date('d M Y, h:i A', strtotime($r['start_date'])) ?></p>
+                    <p class="text-white text-sm">
+                        <?= date('d M Y, h:i A', strtotime($r['start_date'])) ?>
+                    </p>
                     <p class="text-mb-subtle text-xs my-0.5">→</p>
-                    <p class="text-white text-sm"><?= date('d M Y, h:i A', strtotime($r['end_date'])) ?></p>
-                    <p class="text-xs text-mb-subtle mt-1"><?= $days ?> days &bull; <?= ucfirst($r['rental_type']) ?></p>
+                    <p class="text-white text-sm">
+                        <?= date('d M Y, h:i A', strtotime($r['end_date'])) ?>
+                    </p>
+                    <p class="text-xs text-mb-subtle mt-1">
+                        <?= $days ?> days &bull;
+                        <?= ucfirst($r['rental_type']) ?>
+                    </p>
                 </div>
                 <div class="bg-mb-black/40 rounded-xl p-4">
                     <p class="text-mb-subtle text-xs uppercase mb-1">Daily Rate</p>
-                    <p class="text-mb-accent text-xl font-light">$<?= number_format($r['daily_rate'], 0) ?></p>
+                    <p class="text-mb-accent text-xl font-light">$
+                        <?= number_format($r['daily_rate'], 0) ?>
+                    </p>
                 </div>
             </div>
             <?php if (!empty($r['note'])): ?>
@@ -251,17 +243,7 @@ function fuelBar(int $pct): string
                         <span class="text-blue-400/80">+$<?= number_format($deliveryPrepaid, 2) ?></span>
                     </div>
                 <?php endif; ?>
-                <?php if ($deliveryCharge > 0 && $r['status'] === 'confirmed'): ?>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-blue-300/70">Delivery Charge (quoted – due at delivery)</span>
-                        <span class="text-blue-300/70">$<?= number_format($deliveryCharge, 2) ?></span>
-                    </div>
-                <?php elseif ($deliveryCharge > 0 && in_array($r['status'], ['active', 'returned'])): ?>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-blue-400/80">Delivery Charge Collected</span>
-                        <span class="text-blue-400/80">+$<?= number_format($deliveryCharge, 2) ?></span>
-                    </div>
-                <?php endif; ?>
+
                 <?php if ($extensionPaid > 0): ?>
                     <div class="flex justify-between text-sm">
                         <span class="text-sky-400/80">Extension Collected (Grace)</span>
@@ -270,7 +252,8 @@ function fuelBar(int $pct): string
                 <?php endif; ?>
                 <?php if ($delivDiscountAmt > 0): ?>
                     <div class="flex justify-between text-sm">
-                        <span class="text-green-500/80">Delivery Discount<?= $delivDiscType === 'percent' ? " ({$delivDiscVal}%)" : '' ?></span>
+                        <span class="text-green-500/80">Delivery
+                            Discount<?= $delivDiscType === 'percent' ? " ({$delivDiscVal}%)" : '' ?></span>
                         <span class="text-green-500/80">-$<?= number_format($delivDiscountAmt, 2) ?></span>
                     </div>
                 <?php endif; ?>
@@ -292,42 +275,11 @@ function fuelBar(int $pct): string
                     </div>
                 <?php endif; ?>
                 <?php if ($r['status'] === 'completed' && (float) ($r['deposit_amount'] ?? 0) > 0): ?>
-                    <?php
-                    $depReturned = (float) ($r['deposit_returned'] ?? 0);
-                    $depDeducted = (float) ($r['deposit_deducted'] ?? 0);
-                    ?>
-                    <?php if ($depReturned > 0): ?>
-                        <div class="flex justify-between text-sm border-l-2 border-green-500/30 pl-2">
-                            <span class="text-green-400">Returned to Client</span>
-                            <span class="text-green-400">-$<?= number_format($depReturned, 2) ?></span>
-                        </div>
-                    <?php endif; ?>
-                    <?php if ($depDeducted > 0): ?>
-                        <div class="flex justify-between text-sm border-l-2 border-red-500/30 pl-2">
-                            <span class="text-red-400">Converted to Income (Deducted)</span>
-                            <span class="text-red-400">-$<?= number_format($depDeducted, 2) ?></span>
-                        </div>
-                    <?php endif; ?>
-                    <?php if ($depHeld > 0): ?>
-                        <div class="flex justify-between text-sm border-l-2 border-yellow-500/30 pl-2">
-                            <span class="text-yellow-400">
-                                Deposit on Hold
-                                <?php if ($depHoldReason): ?>
-                                    <span class="text-mb-subtle text-xs ml-1">— <?= e($depHoldReason) ?></span>
-                                <?php endif; ?>
-                                <?php if ($depHeldAction): ?>
-                                    <span class="text-mb-subtle text-xs ml-1 capitalize">(<?= e($depHeldAction) ?>)</span>
-                                <?php endif; ?>
-                            </span>
-                            <span class="text-yellow-400">-$<?= number_format($depHeld, 2) ?></span>
-                        </div>
-                    <?php endif; ?>
-                    <?php if ($depReturned === 0.0 && $depDeducted === 0.0 && $depHeld === 0.0): ?>
-                        <div class="flex justify-between text-sm border-l-2 border-orange-500/30 pl-2">
-                            <span class="text-orange-400 italic">Security Deposit Status</span>
-                            <span class="text-orange-400">Pending</span>
-                        </div>
-                    <?php endif; ?>
+                    <div class="flex justify-between text-sm border-l-2 border-orange-500/30 pl-2">
+                        <span class="text-mb-subtle italic">Security Deposit Returned</span>
+                        <span
+                            class="text-orange-400">-$<?= number_format((float) ($r['deposit_returned'] ?? 0), 2) ?></span>
+                    </div>
                 <?php endif; ?>
 
                 <?php if ($overdueAmt > 0): ?>
@@ -336,33 +288,39 @@ function fuelBar(int $pct): string
                         <span class="text-red-400">+$<?= number_format($overdueAmt, 2) ?></span>
                     </div>
                 <?php endif; ?>
+
                 <?php if ($kmOverageChg > 0): ?>
                     <div class="flex justify-between text-sm">
                         <span class="text-yellow-500/80">KM Overage</span>
                         <span class="text-yellow-500/80">+$<?= number_format($kmOverageChg, 2) ?></span>
                     </div>
                 <?php endif; ?>
+
                 <?php if ($damageChg > 0): ?>
                     <div class="flex justify-between text-sm">
                         <span class="text-orange-500/80">Damage Charges</span>
                         <span class="text-orange-500/80">+$<?= number_format($damageChg, 2) ?></span>
                     </div>
                 <?php endif; ?>
+
                 <?php if ($additionalChg > 0): ?>
                     <div class="flex justify-between text-sm">
                         <span class="text-orange-400/80">Return Pickup Charge</span>
                         <span class="text-orange-400/80">+$<?= number_format($additionalChg, 2) ?></span>
                     </div>
                 <?php endif; ?>
+
                 <?php if ($chellanChg > 0): ?>
                     <div class="flex justify-between text-sm">
                         <span class="text-red-400/80">Chellan</span>
                         <span class="text-red-400/80">+$<?= number_format($chellanChg, 2) ?></span>
                     </div>
                 <?php endif; ?>
+
                 <?php if ($discountAmt > 0): ?>
                     <div class="flex justify-between text-sm">
-                        <span class="text-green-500/80">Return Discount<?= $discType === 'percent' ? " ($discVal%)" : "" ?></span>
+                        <span class="text-green-500/80">Return
+                            Discount<?= $discType === 'percent' ? " ($discVal%)" : "" ?></span>
                         <span class="text-green-500/80">-$<?= number_format($discountAmt, 2) ?></span>
                     </div>
                 <?php endif; ?>
@@ -395,7 +353,8 @@ function fuelBar(int $pct): string
                         </div>
                     <?php endif; ?>
                 <?php endif; ?>
-                <div class="flex justify-between items-center mt-2 bg-mb-accent/10 border border-mb-accent/30 rounded-lg px-4 py-3">
+                <div
+                    class="flex justify-between items-center mt-2 bg-mb-accent/10 border border-mb-accent/30 rounded-lg px-4 py-3">
                     <span class="text-white font-semibold text-sm">💰 <?= $r['status'] === 'cancelled' ? 'Net Retained After Refund' : 'Total Collected for This Rental' ?></span>
                     <span class="text-mb-accent font-bold text-lg">$<?= number_format($r['status'] === 'cancelled' ? $netCollected : $totalCollected, 2) ?></span>
                 </div>
@@ -408,111 +367,19 @@ function fuelBar(int $pct): string
                 <img src="<?= e($r['image_url']) ?>" class="w-full h-36 object-cover">
             <?php endif; ?>
             <div class="p-5">
-                <p class="text-white font-light"><?= e($r['brand']) ?> <?= e($r['model']) ?></p>
-                <p class="text-mb-subtle text-xs mt-1"><?= e($r['license_plate']) ?></p>
-                <p class="text-mb-accent text-sm mt-2">$<?= number_format($r['daily_rate'], 0) ?>/day</p>
+                <p class="text-white font-light">
+                    <?= e($r['brand']) ?>
+                    <?= e($r['model']) ?>
+                </p>
+                <p class="text-mb-subtle text-xs mt-1">
+                    <?= e($r['license_plate']) ?>
+                </p>
+                <p class="text-mb-accent text-sm mt-2">$
+                    <?= number_format($r['daily_rate'], 0) ?>/day
+                </p>
             </div>
         </div>
     </div>
-
-    <!-- ═══════════════════════════════════════════════════════════════════════
-         HELD DEPOSIT MANAGEMENT SECTION
-         Shown only on completed reservations where deposit_held > 0 and not yet resolved
-    ════════════════════════════════════════════════════════════════════════════ -->
-    <?php if ($showHeldActions): ?>
-        <div class="bg-yellow-500/5 border <?= $heldIsExpired ? 'border-red-500/50' : 'border-yellow-500/30' ?> rounded-xl p-6 space-y-4">
-            <div class="flex items-start justify-between gap-4 flex-wrap">
-                <div>
-                    <h3 class="text-yellow-400 font-light text-lg flex items-center gap-2">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                        </svg>
-                        Held Deposit Pending Resolution
-                    </h3>
-                    <p class="text-mb-subtle text-xs mt-1 ml-7">This deposit amount is still on hold and has not been released or converted.</p>
-                </div>
-                <span class="text-yellow-400 font-bold text-xl">$<?= number_format($depHeld, 2) ?></span>
-            </div>
-
-            <?php if ($heldIsExpired): ?>
-                <div class="flex items-center gap-3 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-sm text-red-400">
-                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    ⚠ This hold is more than 3 days old. Please resolve it as soon as possible.
-                </div>
-            <?php endif; ?>
-
-            <?php if ($depHoldReason): ?>
-                <div class="bg-mb-black/30 rounded-lg px-4 py-3 text-sm">
-                    <span class="text-mb-subtle text-xs uppercase tracking-wider">Reason for Hold</span>
-                    <p class="text-white mt-1"><?= e($depHoldReason) ?></p>
-                </div>
-            <?php endif; ?>
-
-            <?php if ($return): ?>
-                <p class="text-mb-subtle text-xs">
-                    Hold placed on: <?= date('d M Y, h:i A', strtotime($return['created_at'])) ?>
-                </p>
-            <?php endif; ?>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <!-- Release to Client -->
-                <form method="POST" action="resolve_held_deposit.php"
-                    onsubmit="return confirm('Release $<?= number_format($depHeld, 2) ?> back to the client? This will be posted as a deposit return in the ledger.')">
-                    <input type="hidden" name="reservation_id" value="<?= $id ?>">
-                    <input type="hidden" name="action" value="release">
-                    <button type="submit"
-                        class="w-full flex items-center justify-center gap-2 bg-green-600/20 border border-green-500/40 text-green-400 px-5 py-3 rounded-xl hover:bg-green-600/30 hover:border-green-500/60 transition-all text-sm font-medium">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 11l3 3L22 4M3 12v7a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                        </svg>
-                        Release to Client
-                        <span class="text-green-300 text-xs font-normal">($<?= number_format($depHeld, 2) ?>)</span>
-                    </button>
-                </form>
-
-                <!-- Convert to Income -->
-                <form method="POST" action="resolve_held_deposit.php"
-                    onsubmit="return confirm('Convert $<?= number_format($depHeld, 2) ?> to income? This will be posted as damage income in the ledger.')">
-                    <input type="hidden" name="reservation_id" value="<?= $id ?>">
-                    <input type="hidden" name="action" value="convert">
-                    <button type="submit"
-                        class="w-full flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/30 text-red-400 px-5 py-3 rounded-xl hover:bg-red-500/20 hover:border-red-500/50 transition-all text-sm font-medium">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Convert to Income
-                        <span class="text-red-300 text-xs font-normal">($<?= number_format($depHeld, 2) ?>)</span>
-                    </button>
-                </form>
-            </div>
-        </div>
-    <?php elseif ($r['status'] === 'completed' && $depHeld > 0 && $depHeldAction !== null): ?>
-        <!-- Already resolved — show summary only -->
-        <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl px-5 py-4 flex items-center justify-between gap-4 text-sm">
-            <div class="flex items-center gap-3">
-                <svg class="w-4 h-4 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-                <div>
-                    <p class="text-mb-silver">
-                        Held deposit of <span class="text-white font-medium">$<?= number_format($depHeld, 2) ?></span>
-                        was <span class="font-medium <?= $depHeldAction === 'released' ? 'text-green-400' : 'text-red-400' ?>">
-                            <?= $depHeldAction === 'released' ? 'released to client' : 'converted to income' ?>
-                        </span>
-                    </p>
-                    <?php if ($depHeldResolvedAt): ?>
-                        <p class="text-mb-subtle text-xs mt-0.5"><?= date('d M Y, h:i A', strtotime($depHeldResolvedAt)) ?></p>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <span class="text-xs text-mb-subtle capitalize border border-mb-subtle/20 rounded-full px-3 py-1"><?= e($depHeldAction) ?></span>
-        </div>
-    <?php endif; ?>
 
     <!-- Inspections -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -528,27 +395,44 @@ function fuelBar(int $pct): string
             </div>
             <?php if ($delivery): ?>
                 <div class="p-5 space-y-3 text-sm">
-                    <div class="flex justify-between"><span class="text-mb-subtle">Mileage</span><span class="text-white"><?= number_format($delivery['mileage']) ?> km</span></div>
+                    <div class="flex justify-between"><span class="text-mb-subtle">Mileage</span><span class="text-white">
+                            <?= number_format($delivery['mileage']) ?> km
+                        </span></div>
                     <div>
-                        <div class="flex justify-between mb-1"><span class="text-mb-subtle">Fuel Level</span><span class="text-white"><?= $delivery['fuel_level'] ?>%</span></div>
+                        <div class="flex justify-between mb-1"><span class="text-mb-subtle">Fuel Level</span><span
+                                class="text-white">
+                                <?= $delivery['fuel_level'] ?>%
+                            </span></div>
                         <?= fuelBar($delivery['fuel_level']) ?>
                     </div>
                     <?php if ($delivery['notes']): ?>
-                        <p class="text-mb-subtle text-xs italic"><?= e($delivery['notes']) ?></p>
+                        <p class="text-mb-subtle text-xs italic">
+                            <?= e($delivery['notes']) ?>
+                        </p>
                     <?php endif; ?>
+
+                    <!-- Delivery Photos -->
                     <?php if (!empty($delivery['photos'])): ?>
                         <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-mb-subtle/5">
                             <?php foreach ($delivery['photos'] as $p): ?>
-                                <div class="group relative aspect-square rounded-lg overflow-hidden bg-mb-black/40 border border-mb-subtle/10 hover:border-mb-accent/30 transition-all">
-                                    <img src="../<?= e($p['file_path']) ?>" class="w-full h-full object-cover cursor-pointer" onclick="openLightbox(this.src)">
-                                    <div class="absolute inset-x-0 bottom-0 bg-black/60 py-1 px-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <p class="text-[10px] text-white/80 lowercase truncate text-center"><?= e(ucwords(str_replace('_', ' ', (string) $p['view_name']))) ?></p>
+                                <div
+                                    class="group relative aspect-square rounded-lg overflow-hidden bg-mb-black/40 border border-mb-subtle/10 hover:border-mb-accent/30 transition-all">
+                                    <img src="../<?= e($p['file_path']) ?>" class="w-full h-full object-cover cursor-pointer"
+                                        onclick="openLightbox(this.src)">
+                                    <div
+                                        class="absolute inset-x-0 bottom-0 bg-black/60 py-1 px-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <p class="text-[10px] text-white/80 lowercase truncate text-center">
+                                            <?= e(ucwords(str_replace('_', ' ', (string) $p['view_name']))) ?>
+                                        </p>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
-                    <p class="text-mb-subtle text-xs"><?= e($delivery['created_at']) ?></p>
+
+                    <p class="text-mb-subtle text-xs">
+                        <?= e($delivery['created_at']) ?>
+                    </p>
                 </div>
             <?php else: ?>
                 <p class="py-8 text-center text-mb-subtle text-sm italic">Not delivered yet.</p>
@@ -568,27 +452,44 @@ function fuelBar(int $pct): string
             </div>
             <?php if ($return): ?>
                 <div class="p-5 space-y-3 text-sm">
-                    <div class="flex justify-between"><span class="text-mb-subtle">Mileage</span><span class="text-white"><?= number_format($return['mileage']) ?> km</span></div>
+                    <div class="flex justify-between"><span class="text-mb-subtle">Mileage</span><span class="text-white">
+                            <?= number_format($return['mileage']) ?> km
+                        </span></div>
                     <div>
-                        <div class="flex justify-between mb-1"><span class="text-mb-subtle">Fuel Level</span><span class="text-white"><?= $return['fuel_level'] ?>%</span></div>
+                        <div class="flex justify-between mb-1"><span class="text-mb-subtle">Fuel Level</span><span
+                                class="text-white">
+                                <?= $return['fuel_level'] ?>%
+                            </span></div>
                         <?= fuelBar($return['fuel_level']) ?>
                     </div>
                     <?php if ($return['notes']): ?>
-                        <p class="text-mb-subtle text-xs italic"><?= e($return['notes']) ?></p>
+                        <p class="text-mb-subtle text-xs italic">
+                            <?= e($return['notes']) ?>
+                        </p>
                     <?php endif; ?>
+
+                    <!-- Return Photos -->
                     <?php if (!empty($return['photos'])): ?>
                         <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-mb-subtle/5">
                             <?php foreach ($return['photos'] as $p): ?>
-                                <div class="group relative aspect-square rounded-lg overflow-hidden bg-mb-black/40 border border-mb-subtle/10 hover:border-mb-accent/30 transition-all">
-                                    <img src="../<?= e($p['file_path']) ?>" class="w-full h-full object-cover cursor-pointer" onclick="openLightbox(this.src)">
-                                    <div class="absolute inset-x-0 bottom-0 bg-black/60 py-1 px-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <p class="text-[10px] text-white/80 lowercase truncate text-center"><?= e(ucwords(str_replace('_', ' ', (string) $p['view_name']))) ?></p>
+                                <div
+                                    class="group relative aspect-square rounded-lg overflow-hidden bg-mb-black/40 border border-mb-subtle/10 hover:border-mb-accent/30 transition-all">
+                                    <img src="../<?= e($p['file_path']) ?>" class="w-full h-full object-cover cursor-pointer"
+                                        onclick="openLightbox(this.src)">
+                                    <div
+                                        class="absolute inset-x-0 bottom-0 bg-black/60 py-1 px-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <p class="text-[10px] text-white/80 lowercase truncate text-center">
+                                            <?= e(ucwords(str_replace('_', ' ', (string) $p['view_name']))) ?>
+                                        </p>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
-                    <p class="text-mb-subtle text-xs"><?= e($return['created_at']) ?></p>
+
+                    <p class="text-mb-subtle text-xs">
+                        <?= e($return['created_at']) ?>
+                    </p>
                 </div>
             <?php else: ?>
                 <p class="py-8 text-center text-mb-subtle text-sm italic">Not returned yet.</p>
@@ -636,6 +537,7 @@ function fuelBar(int $pct): string
         document.body.appendChild(t);
         setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 2500);
     }
+
     function openLightbox(src) {
         const lb = document.createElement('div');
         lb.className = 'fixed inset-0 z-[9999] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out';
@@ -646,8 +548,19 @@ function fuelBar(int $pct): string
 </script>
 <style>
     @keyframes scale-in {
-        from { opacity: 0; transform: scale(0.95); }
-        to   { opacity: 1; transform: scale(1); }
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
     }
-    .animate-scale-in { animation: scale-in 0.2s ease-out forwards; }
+
+    .animate-scale-in {
+        animation: scale-in 0.2s ease-out forwards;
+    }
 </style>
+

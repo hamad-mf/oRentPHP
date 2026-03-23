@@ -1,0 +1,14 @@
+# ── Sensitive config — server keeps its own credentials ──────────────────
+config/db.php
+
+# ── Logs — per-environment, never committed ─────────────────────────────
+logs/
+
+# ── Dev / temp files ──────────────────────────────────────────────────────
+test.php
+test.txt
+*.rar
+
+# ── OS / Editor ───────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
