@@ -82,6 +82,7 @@ try {
             SET deposit_returned          = ?,
                 deposit_held              = 0,
                 deposit_hold_reason       = NULL,
+                deposit_held_at           = NULL,
                 deposit_held_action       = 'released',
                 deposit_held_resolved_at  = ?
             WHERE id = ?")
@@ -104,6 +105,7 @@ try {
             SET deposit_deducted          = ?,
                 deposit_held              = 0,
                 deposit_hold_reason       = NULL,
+                deposit_held_at           = NULL,
                 deposit_held_action       = 'converted',
                 deposit_held_resolved_at  = ?
             WHERE id = ?")

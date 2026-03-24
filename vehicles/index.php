@@ -53,6 +53,11 @@ if ($overdueOnly) {
     $where[] = "ar.end_date < NOW()";
 }
 
+// Exclude sold from default view (when no specific status filter is applied)
+if ($status === '' && !$overdueOnly) {
+    $where[] = "v.status != 'sold'";
+}
+
 $baseFrom = 'FROM vehicles v
         LEFT JOIN (
             SELECT r1.vehicle_id, r1.client_id, r1.start_date, r1.end_date
@@ -100,10 +105,11 @@ $countSql2 = 'SELECT COUNT(*) ' . $baseFrom;
 $pgResult  = paginate_query($pdo, $sql, $countSql2, $params, $page, $perPage);
 $vehicles  = $pgResult['rows'];
 
-$totalCount = $pdo->query('SELECT COUNT(*) FROM vehicles')->fetchColumn();
+$totalCount = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status != 'sold'")->fetchColumn();
 $available = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='available'")->fetchColumn();
 $rented = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='rented'")->fetchColumn();
 $maintenance = $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='maintenance'")->fetchColumn();
+$soldCount = (int) $pdo->query("SELECT COUNT(*) FROM vehicles WHERE status='sold'")->fetchColumn();
 $overdueCount = (int) $pdo->query("SELECT COUNT(*)
     FROM reservations r1
     INNER JOIN (
@@ -182,7 +188,7 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         </div>
     <?php else: ?>
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <?php
             $statusCards = [
                 ['label' => 'Total Fleet', 'count' => $totalCount, 'color' => 'text-white', 'filter' => '', 'overdue' => 0, 'active' => ($status === '' && !$overdueOnly)],
@@ -190,8 +196,9 @@ require_once __DIR__ . '/../includes/header.php';
                 ['label' => 'Rented', 'count' => $rented, 'color' => 'text-mb-accent', 'filter' => 'rented', 'overdue' => 0, 'active' => ($status === 'rented' && !$overdueOnly)],
                 ['label' => 'Workshop', 'count' => $maintenance, 'color' => 'text-red-400', 'filter' => 'maintenance', 'overdue' => 0, 'active' => ($status === 'maintenance' && !$overdueOnly)],
                 ['label' => 'Overdue', 'count' => $overdueCount, 'color' => $overdueCount > 0 ? 'text-red-400' : 'text-white', 'filter' => '', 'overdue' => 1, 'active' => $overdueOnly],
+                ['label' => 'Sold', 'count' => $soldCount, 'color' => 'text-amber-400', 'filter' => 'sold', 'overdue' => 0, 'active' => ($status === 'sold' && !$overdueOnly)],
             ];
-            $borderActive = ['' => 'border-white/30', 'available' => 'border-green-500/50', 'rented' => 'border-mb-accent/50', 'maintenance' => 'border-red-500/50', 'overdue' => 'border-red-500/50'];
+            $borderActive = ['' => 'border-white/30', 'available' => 'border-green-500/50', 'rented' => 'border-mb-accent/50', 'maintenance' => 'border-red-500/50', 'overdue' => 'border-red-500/50', 'sold' => 'border-amber-500/50'];
             foreach ($statusCards as $card):
                 $isOverdueCard = !empty($card['overdue']);
                 $href = '?' . http_build_query(array_filter([
@@ -360,11 +367,13 @@ require_once __DIR__ . '/../includes/header.php';
                     'available' => 'bg-green-500/20 text-green-400 border-green-500/30',
                     'rented' => 'bg-mb-accent/20 text-mb-accent border-mb-accent/30',
                     'maintenance' => 'bg-red-500/20 text-red-400 border-red-500/30',
+                    'sold' => 'bg-amber-500/20 text-amber-400 border-amber-500/30',
                 ];
                 $dot = [
                     'available' => 'bg-green-500 animate-pulse',
                     'rented' => 'bg-mb-accent',
                     'maintenance' => 'bg-red-500',
+                    'sold' => 'bg-amber-500',
                 ];
                 $statusLabel = ucfirst($v['status']);
                 $badgeCls = $badge[$v['status']] ?? 'bg-gray-500/20 text-gray-400';
@@ -392,15 +401,28 @@ require_once __DIR__ . '/../includes/header.php';
                             $insuranceExpired = $insuranceExpiryDate < date('Y-m-d');
                         }
                     }
-                    $isThirdClassInsurance = ($insuranceType === 'third class');
-                    $insuranceAlert = $insuranceExpired || $isThirdClassInsurance;
-                    if ($insuranceExpired && $isThirdClassInsurance) {
-                        $insuranceAlertLabel = 'Insurance expired • Third class';
-                    } elseif ($insuranceExpired) {
-                        $insuranceAlertLabel = 'Insurance expired';
-                    } elseif ($isThirdClassInsurance) {
-                        $insuranceAlertLabel = 'Third class insurance';
+                    $pollutionExpiryDate = trim((string) ($v['pollution_expiry_date'] ?? ''));
+                    $pollutionExpired = false;
+                    if ($pollutionExpiryDate !== '') {
+                        $pollExpDateObj = DateTime::createFromFormat('Y-m-d', $pollutionExpiryDate);
+                        if ($pollExpDateObj && $pollExpDateObj->format('Y-m-d') === $pollutionExpiryDate) {
+                            $pollutionExpired = $pollutionExpiryDate < date('Y-m-d');
+                        }
                     }
+                    $isThirdClassInsurance = ($insuranceType === 'third class');
+                    $insuranceAlert = $insuranceExpired || $isThirdClassInsurance || $pollutionExpired;
+                    $alertParts = [];
+                    if ($insuranceExpired && $isThirdClassInsurance) {
+                        $alertParts[] = 'Insurance expired • Third class';
+                    } elseif ($insuranceExpired) {
+                        $alertParts[] = 'Insurance expired';
+                    } elseif ($isThirdClassInsurance) {
+                        $alertParts[] = 'Third class insurance';
+                    }
+                    if ($pollutionExpired) {
+                        $alertParts[] = 'Pollution expired';
+                    }
+                    $insuranceAlertLabel = implode(' · ', $alertParts);
                 }
                 $cardShellClasses = 'relative bg-mb-surface rounded-xl border overflow-hidden group transition-all duration-300 flex flex-col';
                 if ($canViewVehicleDetails) {

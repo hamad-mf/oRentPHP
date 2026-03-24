@@ -48,6 +48,7 @@ function fetchAvailableVehiclesForRange(PDO $pdo, string $startDate, string $end
                    v.rate_1day, v.rate_7day, v.rate_15day, v.rate_30day
             FROM vehicles v
             WHERE v.status <> 'maintenance'
+              AND v.status <> 'sold'
               AND NOT EXISTS (
                   SELECT 1
                   FROM reservations r

@@ -823,3 +823,45 @@ function ledger_get_totals(PDO $pdo, string $dateFrom = '', string $dateTo = '')
     $stmt->execute($params);
     return $stmt->fetch();
 }
+
+/**
+ * Post an expense ledger entry when a reservation extension is paid from security deposit.
+ * This records the deposit being "spent" on an extension (non-KPI, deposit tracking).
+ *
+ * @param int    $extensionId   The reservation_extensions.id
+ * @param float  $depositAmount Amount paid from deposit
+ * @param int    $bankAccountId The security deposit bank account
+ * @return int|null Ledger entry ID or null if skipped
+ */
+function ledger_post_extension_from_deposit(
+    PDO $pdo,
+    int $reservationId,
+    int $extensionId,
+    float $depositAmount,
+    int $bankAccountId,
+    int $userId
+): ?int {
+    if ($depositAmount <= 0 || $bankAccountId <= 0) {
+        return null;
+    }
+
+    ledger_ensure_schema($pdo);
+
+    $description = "Reservation #$reservationId - Extension #$extensionId paid from security deposit";
+    $idKey = "reservation:extension_from_deposit:$extensionId";
+
+    return ledger_post(
+        $pdo,
+        'expense',
+        'Security Deposit',
+        $depositAmount,
+        'account',
+        $bankAccountId,
+        'reservation',
+        $reservationId,
+        'extension_from_deposit',
+        $description,
+        $userId,
+        $idKey
+    );
+}

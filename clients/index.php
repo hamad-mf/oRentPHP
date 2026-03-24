@@ -33,6 +33,9 @@ switch ($filter) {
     case 'unrated':
         $where[] = 'rating IS NULL';
         break;
+    case 'completed':
+        $where[] = 'EXISTS (SELECT 1 FROM reservations r WHERE r.client_id = c.id AND r.status = \'completed\')';
+        break;
 }
 
 $baseFrom = 'FROM clients c WHERE ' . implode(' AND ', $where);
@@ -105,7 +108,7 @@ require_once __DIR__ . '/../includes/header.php';
                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
             </div>
-            <?php foreach (['' => 'All', 'blacklisted' => 'Blacklisted', 'rated' => 'Rated', 'unrated' => 'Unrated'] as $val => $lbl): ?>
+            <?php foreach (['' => 'All', 'blacklisted' => 'Blacklisted', 'rated' => 'Rated', 'unrated' => 'Unrated', 'completed' => 'Completed Rental'] as $val => $lbl): ?>
                 <a href="?<?= http_build_query(array_filter(['filter' => $val, 'search' => $search])) ?>"
                     class="text-xs px-3 py-1 rounded-full border transition-colors <?= $filter === $val ? 'border-mb-accent text-mb-accent' : 'border-mb-subtle/20 text-mb-subtle hover:text-white' ?>">
                     <?= $lbl ?>
@@ -115,15 +118,104 @@ require_once __DIR__ . '/../includes/header.php';
                     class="text-mb-subtle hover:text-white text-sm transition-colors">Clear</a>
             <?php endif; ?>
         </form>
-        <?php if (auth_has_perm('manage_clients')): ?>
-            <a href="create.php"
-                class="bg-mb-accent text-white px-6 py-2 rounded-full hover:bg-mb-accent/80 transition-colors flex items-center gap-2 text-sm font-medium flex-shrink-0">
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <!-- Export button -->
+            <button type="button" onclick="document.getElementById('exportModal').classList.remove('hidden')"
+                class="border border-mb-subtle/30 text-mb-silver hover:text-white hover:border-mb-subtle/60 px-4 py-2 rounded-full transition-colors flex items-center gap-2 text-sm">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Add Client
-            </a>
-        <?php endif; ?>
+                Export
+            </button>
+            <?php if (auth_has_perm('manage_clients')): ?>
+                <a href="create.php"
+                    class="bg-mb-accent text-white px-6 py-2 rounded-full hover:bg-mb-accent/80 transition-colors flex items-center gap-2 text-sm font-medium">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Client
+                </a>
+            <?php endif; ?>
+        </div>
+
+        <!-- Export Modal -->
+        <div id="exportModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl w-full max-w-sm mx-4 p-6 space-y-5">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-white font-medium">Export Clients</h2>
+                    <button type="button" onclick="document.getElementById('exportModal').classList.add('hidden')"
+                        class="text-mb-subtle hover:text-white transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <form method="POST" action="export.php">
+                    <!-- Pass current filter state -->
+                    <input type="hidden" name="search" value="<?= e($search) ?>">
+                    <input type="hidden" name="filter" value="<?= e($filter) ?>">
+
+                    <p class="text-mb-subtle text-xs mb-3">
+                        Exports <?= $filter ? '<strong class="text-mb-silver">' . e(ucfirst($filter)) . '</strong> filter' : 'all clients' ?><?= $search ? ' matching <strong class="text-mb-silver">"' . e($search) . '"</strong>' : '' ?>.
+                    </p>
+
+                    <div class="space-y-3">
+                        <p class="text-mb-silver text-xs uppercase tracking-wide">Fields to include</p>
+
+                        <!-- Mandatory -->
+                        <label class="flex items-center gap-3 opacity-50 cursor-not-allowed select-none">
+                            <input type="checkbox" checked disabled class="rounded border-mb-subtle/30 bg-mb-black text-mb-accent">
+                            <span class="text-mb-silver text-sm">Name <span class="text-mb-subtle text-xs">(required)</span></span>
+                        </label>
+                        <label class="flex items-center gap-3 opacity-50 cursor-not-allowed select-none">
+                            <input type="checkbox" checked disabled class="rounded border-mb-subtle/30 bg-mb-black text-mb-accent">
+                            <span class="text-mb-silver text-sm">Phone <span class="text-mb-subtle text-xs">(required)</span></span>
+                        </label>
+
+                        <!-- Optional -->
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" name="fields[]" value="email" checked
+                                class="rounded border-mb-subtle/30 bg-mb-black text-mb-accent focus:ring-mb-accent">
+                            <span class="text-mb-silver text-sm">Email</span>
+                        </label>
+                        <?php if ($supportsAlternativeNumber): ?>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" name="fields[]" value="alternative_number"
+                                class="rounded border-mb-subtle/30 bg-mb-black text-mb-accent focus:ring-mb-accent">
+                            <span class="text-mb-silver text-sm">Alternative Phone</span>
+                        </label>
+                        <?php endif; ?>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" name="fields[]" value="rating"
+                                class="rounded border-mb-subtle/30 bg-mb-black text-mb-accent focus:ring-mb-accent">
+                            <span class="text-mb-silver text-sm">Rating</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" name="fields[]" value="rentals_count"
+                                class="rounded border-mb-subtle/30 bg-mb-black text-mb-accent focus:ring-mb-accent">
+                            <span class="text-mb-silver text-sm">Number of Rentals</span>
+                        </label>
+                    </div>
+
+                    <div class="flex gap-3 mt-6">
+                        <button type="button" onclick="document.getElementById('exportModal').classList.add('hidden')"
+                            class="flex-1 border border-mb-subtle/20 text-mb-subtle hover:text-white py-2 rounded-full text-sm transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                            class="flex-1 bg-mb-accent text-white py-2 rounded-full text-sm hover:bg-mb-accent/80 transition-colors flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Download .xlsx
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <!-- Table -->

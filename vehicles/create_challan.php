@@ -24,6 +24,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$title)         $errors['title']      = 'Title is required.';
     if ($amount <= 0)    $errors['amount']     = 'Amount must be greater than 0.';
 
+    // Block challan creation for sold vehicles
+    if ($vehicleId > 0 && empty($errors['vehicle_id'])) {
+        $vSoldCheck = $pdo->prepare('SELECT status FROM vehicles WHERE id = ?');
+        $vSoldCheck->execute([$vehicleId]);
+        $vSoldStatus = $vSoldCheck->fetchColumn();
+        if ($vSoldStatus === 'sold') {
+            $errors['vehicle_id'] = 'Cannot create a challan for a sold vehicle.';
+        }
+    }
+
     if (empty($errors)) {
         $dueDateValue = $dueDate !== '' ? $dueDate : null;
 
@@ -37,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$vehicles = $pdo->query("SELECT id, brand, model, license_plate FROM vehicles ORDER BY brand, model")->fetchAll();
+$vehicles = $pdo->query("SELECT id, brand, model, license_plate FROM vehicles WHERE status != 'sold' ORDER BY brand, model")->fetchAll();
 $clients  = $pdo->query("SELECT id, name, phone FROM clients WHERE is_blacklisted = 0 ORDER BY name")->fetchAll();
 
 $pageTitle = 'Add Challan';

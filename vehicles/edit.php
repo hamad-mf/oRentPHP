@@ -18,7 +18,11 @@ if (!$v) {
     redirect('index.php');
 }
 
-$errors = [];
+// Block editing sold vehicles
+if (($v['status'] ?? '') === 'sold') {
+    flash('error', 'Cannot edit a sold vehicle.');
+    redirect('show.php?id=' . $id);
+}
 
 // Load existing vehicle challans
 try {
@@ -38,6 +42,8 @@ try {
 $challanStmt = $pdo->prepare('SELECT * FROM vehicle_challans WHERE vehicle_id = ? ORDER BY due_date ASC, created_at DESC');
 $challanStmt->execute([$id]);
 $vehicleChallans = $challanStmt->fetchAll();
+
+$errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     app_log('ACTION', "Vehicle edit submit attempt (ID: $id)");

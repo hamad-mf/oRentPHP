@@ -58,7 +58,17 @@ $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
 $extensionPaid = max(0, (float) ($r['extension_paid_amount'] ?? 0));
 $basePriceForDelivery = max(0, (float) $r['total_price'] - $extensionPaid);
-$baseCollectNow = max(0, $basePriceForDelivery - $voucherApplied - $advancePaid);
+// Booking discount
+$bookingDiscType  = $r['booking_discount_type'] ?? null;
+$bookingDiscValue = (float) ($r['booking_discount_value'] ?? 0);
+$bookingDiscAmt   = 0;
+if ($bookingDiscType === 'percent') {
+    $bookingDiscAmt = round($basePriceForDelivery * min($bookingDiscValue, 100) / 100, 2);
+} elseif ($bookingDiscType === 'amount') {
+    $bookingDiscAmt = min($bookingDiscValue, $basePriceForDelivery);
+}
+$basePriceAfterBookingDiscount = max(0, $basePriceForDelivery - $bookingDiscAmt);
+$baseCollectNow = max(0, $basePriceAfterBookingDiscount - $voucherApplied - $advancePaid);
 $existingDeliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryCharge = max(0, (float) ($_POST['delivery_charge'] ?? ($existingDeliveryCharge > 0 ? $existingDeliveryCharge : $deliveryChargeDefault)));
 $existingDeliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
@@ -198,11 +208,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['extra_km_price'] = 'Extra price per KM is required when KM limit is set.';
 
     // All photos are required
-    $requiredPhotos = ['front','back','left','right','interior','odometer','with_customer'];
+    $requiredPhotos = ['front','back','left','right','odometer','with_customer'];
     foreach ($requiredPhotos as $photoKey) {
         if (empty($_FILES['photos']['name'][$photoKey]) || $_FILES['photos']['error'][$photoKey] !== UPLOAD_ERR_OK) {
             $errors['photo_' . $photoKey] = ucfirst(str_replace('_', ' ', $photoKey)) . ' photo is required.';
         }
+    }
+    // Interior: require at least 1, max 15
+    $interiorOk = 0;
+    for ($n = 1; $n <= 15; $n++) {
+        $key = "interior_$n";
+        if (!empty($_FILES['photos']['name'][$key]) && $_FILES['photos']['error'][$key] === UPLOAD_ERR_OK) {
+            $interiorOk++;
+        }
+    }
+    if ($interiorOk === 0) {
+        $errors['photo_interior'] = 'At least one interior photo is required.';
     }
 
     if (empty($errors)) {
@@ -411,6 +432,12 @@ require_once __DIR__ . '/../includes/header.php';
                     <span>Base Rental Value</span>
                     <span>$<?= number_format((float) $r['total_price'], 2) ?></span>
                 </div>
+                <?php if ($bookingDiscAmt > 0): ?>
+                    <div class="flex justify-between text-green-400">
+                        <span>Booking Discount<?= $bookingDiscType === 'percent' ? " ({$bookingDiscValue}%)" : '' ?></span>
+                        <span>-$<?= number_format($bookingDiscAmt, 2) ?></span>
+                    </div>
+                <?php endif; ?>
                 <?php if ($voucherApplied > 0): ?>
                     <div class="flex justify-between text-green-400">
                         <span>Voucher Applied</span>
@@ -653,10 +680,10 @@ require_once __DIR__ . '/../includes/header.php';
 
                 <!-- Deposit Section -->
                 <div class="pt-4 border-t border-mb-subtle/10 space-y-4">
-                    <h3 class="text-white font-light border-l-2 border-mb-accent pl-3">Delivery Deposit</h3>
+                    <h3 class="text-white font-light border-l-2 border-mb-accent pl-3">Security Deposit</h3>
                     <p class="text-xs text-mb-subtle">Enter the security deposit amount collected from the client.</p>
                     <div>
-                        <label class="block text-sm text-mb-silver mb-2">Delivery Deposit Collected ($)</label>
+                        <label class="block text-sm text-mb-silver mb-2">Security Deposit Collected ($)</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
                             <input type="number" name="deposit_amount" id="depositAmount" step="0.01" min="0" required
@@ -711,7 +738,6 @@ require_once __DIR__ . '/../includes/header.php';
                     'back' => 'Back',
                     'left' => 'Left',
                     'right' => 'Right',
-                    'interior' => 'Interior',
                     'odometer' => 'Photo of Odometer',
                     'with_customer' => 'Photo with Customer',
                 ];
@@ -728,6 +754,30 @@ require_once __DIR__ . '/../includes/header.php';
                                    hover:file:bg-mb-surface/80 cursor-pointer">
                     </div>
                 <?php endforeach; ?>
+
+                <!-- Dynamic Interior Photos -->
+                <div class="bg-mb-black/30 p-4 rounded-lg border border-mb-subtle/10">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="block text-sm font-medium text-mb-silver">Interior Photos <span class="text-mb-subtle text-xs">(1–15)</span></label>
+                        <?php if (isset($errors['photo_interior'])): ?>
+                            <p class="text-red-400 text-xs"><?= e($errors['photo_interior']) ?></p>
+                        <?php endif; ?>
+                    </div>
+                    <div id="interior-slots-container" class="space-y-2">
+                        <div class="interior-slot flex items-center gap-2" data-slot="1">
+                            <input type="file" name="photos[interior_1]" accept="image/*" class="block flex-1 text-sm text-mb-silver
+                                       file:mr-4 file:py-2 file:px-4
+                                       file:rounded-full file:border-0
+                                       file:text-xs file:font-semibold
+                                       file:bg-mb-surface file:text-mb-accent
+                                       hover:file:bg-mb-surface/80 cursor-pointer">
+                        </div>
+                    </div>
+                    <button type="button" id="add-interior-btn"
+                        class="mt-3 text-xs text-mb-accent hover:text-white border border-mb-accent/30 hover:border-mb-accent/60 px-3 py-1.5 rounded-full transition-colors">
+                        + Add another interior photo
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -930,6 +980,62 @@ function validateMultiTotal() {
         validationEl.textContent = 'Over by: $' + Math.abs(diff).toFixed(2) + ' (Max: $' + required.toFixed(2) + ')';
     }
 }
+</script>
+// Interior photo slots
+(function() {
+    const container = document.getElementById('interior-slots-container');
+    const addBtn = document.getElementById('add-interior-btn');
+    const MAX = 15;
+
+    function updateAddBtn() {
+        const count = container.querySelectorAll('.interior-slot').length;
+        addBtn.disabled = count >= MAX;
+        addBtn.classList.toggle('opacity-40', count >= MAX);
+        addBtn.classList.toggle('cursor-not-allowed', count >= MAX);
+    }
+
+    function makeRemoveBtn(slot) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = '✕';
+        btn.className = 'text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded transition-colors flex-shrink-0';
+        btn.onclick = function() {
+            slot.remove();
+            reindex();
+            updateAddBtn();
+        };
+        return btn;
+    }
+
+    function reindex() {
+        container.querySelectorAll('.interior-slot').forEach(function(slot, i) {
+            const n = i + 1;
+            slot.dataset.slot = n;
+            const input = slot.querySelector('input[type=file]');
+            if (input) input.name = 'photos[interior_' + n + ']';
+        });
+    }
+
+    addBtn.addEventListener('click', function() {
+        const count = container.querySelectorAll('.interior-slot').length;
+        if (count >= MAX) return;
+        const n = count + 1;
+        const slot = document.createElement('div');
+        slot.className = 'interior-slot flex items-center gap-2';
+        slot.dataset.slot = n;
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.name = 'photos[interior_' + n + ']';
+        input.accept = 'image/*';
+        input.className = 'block flex-1 text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-mb-accent hover:file:bg-mb-surface/80 cursor-pointer';
+        slot.appendChild(input);
+        slot.appendChild(makeRemoveBtn(slot));
+        container.appendChild(slot);
+        updateAddBtn();
+    });
+
+    updateAddBtn();
+})();
 </script>
 JS;
 require_once __DIR__ . '/../includes/footer.php';

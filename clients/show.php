@@ -65,6 +65,17 @@ $resStmt = $pdo->prepare('SELECT r.*, v.brand, v.model, v.license_plate FROM res
 $resStmt->execute([$id]);
 $reservations = $resStmt->fetchAll();
 
+// Held deposits: find all reservations for this client with unresolved held deposits
+$heldDeposits = [];
+try {
+    $heldColExists = (int) $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='reservations' AND COLUMN_NAME='deposit_held'")->fetchColumn();
+    if ($heldColExists) {
+        $heldStmt = $pdo->prepare("SELECT r.id, r.deposit_held, r.deposit_hold_reason, r.deposit_held_at, r.deposit_held_action, v.brand, v.model, v.license_plate FROM reservations r JOIN vehicles v ON r.vehicle_id = v.id WHERE r.client_id = ? AND r.deposit_held > 0 AND (r.deposit_held_action IS NULL OR r.deposit_held_action = '') ORDER BY r.deposit_held_at ASC");
+        $heldStmt->execute([$id]);
+        $heldDeposits = $heldStmt->fetchAll();
+    }
+} catch (Throwable $e) { $heldDeposits = []; }
+
 try {
     $reviewsStmt = $pdo->prepare('SELECT cr.*, cr.reservation_id AS res_id, u.name AS reviewer_name FROM client_reviews cr LEFT JOIN users u ON cr.created_by = u.id WHERE cr.client_id = ? ORDER BY cr.created_at DESC');
     $reviewsStmt->execute([$id]);
@@ -94,6 +105,51 @@ require_once __DIR__ . '/../includes/header.php';
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
         <span class="text-white"><?= e($c['name']) ?></span>
     </div>
+
+    <?php if (!empty($heldDeposits)): ?>
+        <div class="bg-yellow-500/5 border border-yellow-500/30 rounded-xl p-5 space-y-3">
+            <div class="flex items-center gap-2 text-yellow-400 font-medium">
+                <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+                Held Security Deposit<?= count($heldDeposits) > 1 ? 's' : '' ?> Pending Resolution
+            </div>
+            <p class="text-mb-subtle text-xs ml-7">The following reservation<?= count($heldDeposits) > 1 ? 's have' : ' has a' ?> security deposit on hold that has not been released or converted.</p>
+            <div class="space-y-2 ml-7">
+                <?php foreach ($heldDeposits as $hd):
+                    $heldAt = $hd['deposit_held_at'] ? new DateTime($hd['deposit_held_at']) : null;
+                    $daysHeld = $heldAt ? (int) $heldAt->diff(new DateTime())->days : 0;
+                    $isOverdue = $daysHeld >= 7;
+                ?>
+                    <div class="flex items-center justify-between gap-4 bg-mb-black/40 border border-yellow-500/20 rounded-lg px-4 py-3 text-sm <?= $isOverdue ? 'border-red-500/40' : '' ?>">
+                        <div>
+                            <a href="../reservations/show.php?id=<?= $hd['id'] ?>" class="text-mb-accent hover:underline font-medium">
+                                Reservation #<?= $hd['id'] ?>
+                            </a>
+                            <span class="text-mb-subtle ml-2"><?= e($hd['brand'] . ' ' . $hd['model']) ?> · <?= e($hd['license_plate']) ?></span>
+                            <?php if ($hd['deposit_hold_reason']): ?>
+                                <p class="text-mb-subtle text-xs mt-0.5">Reason: <?= e($hd['deposit_hold_reason']) ?></p>
+                            <?php endif; ?>
+                            <?php if ($heldAt): ?>
+                                <p class="text-xs mt-0.5 <?= $isOverdue ? 'text-red-400' : 'text-mb-subtle' ?>">
+                                    Held <?= $daysHeld ?> day<?= $daysHeld !== 1 ? 's' : '' ?> ago
+                                    <?= $isOverdue ? '⚠ Overdue' : '' ?>
+                                </p>
+                            <?php endif; ?>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <span class="text-yellow-400 font-bold">$<?= number_format((float)$hd['deposit_held'], 2) ?></span>
+                            <div class="mt-1">
+                                <a href="../reservations/show.php?id=<?= $hd['id'] ?>"
+                                    class="text-xs text-mb-accent hover:underline">Resolve →</a>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <!-- Profile Card -->
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 <?= $c['is_blacklisted'] ? 'border-red-500/30' : '' ?>">

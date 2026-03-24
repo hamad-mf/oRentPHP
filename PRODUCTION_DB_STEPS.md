@@ -11,10 +11,16 @@ This file tracks all database changes that need to be applied to **production** 
 
 ## Pending
 
+| Date | Release ID | SQL File | Notes |
+|------|------------|----------|-------|
 | 2026-03-21 | attendance_admin_controls | `migrations/releases/2026-03-21_attendance_admin_controls.sql` | Adds `admin_note` (VARCHAR 500) and `is_manual_punch` (TINYINT) columns to `staff_attendance`. Run before deploying admin attendance control features. |
 | 2026-03-22 | vehicle_challans | `migrations/releases/2026-03-22_vehicle_challans.sql` | Creates `vehicle_challans` table for tracking challans (traffic fines) per vehicle with title, amount, due_date, and status fields. |
 | 2026-03-22 | client_photo | `migrations/releases/2026-03-22_client_photo.sql` | Adds `photo` column to clients table for storing client profile picture. |
 | 2026-03-23 | deposit_tracking | `migrations/releases/2026-03-23_deposit_tracking.sql` | Adds `deposit_deducted`, `deposit_held`, `deposit_hold_reason` columns to reservations for deposit deductions and holds. |
+| 2026-03-24 | held_deposit_tracking | `migrations/releases/2026-03-24_held_deposit_tracking.sql` | Adds `deposit_held_at` timestamp to reservations and system settings for held deposit alerts (`held_deposit_alert_days`, `held_deposit_test_mode`). |
+| 2026-03-25 | deposit_extension_usage | `migrations/releases/2026-03-25_deposit_extension_usage.sql` | Adds `deposit_used_for_extension` DECIMAL(10,2) to `reservations` (cumulative deposit used across extensions). Adds `paid_from_deposit`, `paid_cash` DECIMAL(10,2) and `payment_source_type` ENUM to `reservation_extensions` for per-extension deposit tracking. Run before deploying extension-payment-from-deposit feature. |
+| 2026-03-25 | vehicle_sold_status | `migrations/releases/2026-03-25_vehicle_sold_status.sql` | Extends `vehicles.status` ENUM to include `'sold'`. Adds `sold_at DATETIME NULL` column to `vehicles`. Run before deploying vehicle-sold-status feature. |
+| 2026-03-25 | booking_discount | `migrations/releases/2026-03-25_booking_discount.sql` | Adds `booking_discount_type VARCHAR(10)` and `booking_discount_value DECIMAL(10,2)` to `reservations`. Run before deploying booking discount feature. |
 
 ---
 

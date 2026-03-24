@@ -226,11 +226,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['mileage'] = 'Mileage must be 0 or more.';
 
     // All photos are required
-    $requiredPhotos = ['front','back','left','right','interior','odometer'];
+    $requiredPhotos = ['front','back','left','right','odometer'];
     foreach ($requiredPhotos as $photoKey) {
         if (empty($_FILES['photos']['name'][$photoKey]) || $_FILES['photos']['error'][$photoKey] !== UPLOAD_ERR_OK) {
             $errors['photo_' . $photoKey] = ucfirst(str_replace('_', ' ', $photoKey)) . ' photo is required.';
         }
+    }
+    // Interior: require at least 1, max 15
+    $interiorOk = 0;
+    for ($n = 1; $n <= 15; $n++) {
+        $key = "interior_$n";
+        if (!empty($_FILES['photos']['name'][$key]) && $_FILES['photos']['error'][$key] === UPLOAD_ERR_OK) {
+            $interiorOk++;
+        }
+    }
+    if ($interiorOk === 0) {
+        $errors['photo_interior'] = 'At least one interior photo is required.';
     }
     if ($additionalChgInput < 0)
         $errors['additional_charge'] = 'Return pickup charge cannot be negative.';
@@ -240,7 +251,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $alreadyDeducted = (float) ($r['deposit_deducted'] ?? 0);
     $alreadyHeld = (float) ($r['deposit_held'] ?? 0);
     $alreadyReturned = (float) ($r['deposit_returned'] ?? 0);
-    $remainingDeposit = $maxDepositCollected - $alreadyReturned - $alreadyDeducted - $alreadyHeld;
+    // Include deposit used for extensions (graceful degradation)
+    $depositUsedForExtension = 0.0;
+    if (column_exists($pdo, 'reservations', 'deposit_used_for_extension')) {
+        $depositUsedForExtension = max(0, (float) ($r['deposit_used_for_extension'] ?? 0));
+    }
+    $remainingDeposit = $maxDepositCollected - $alreadyReturned - $alreadyDeducted - $alreadyHeld - $depositUsedForExtension;
     $maxReturnable = $remainingDeposit - $depositDeducted - $depositHeld;
     
     if ($depositReturned > $maxReturnable) {
@@ -342,10 +358,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $returnPaymentMethodSave = ($cashDueAtReturn > 0 && $returnPaymentSourceType === 'single') ? $returnPaymentMethod : null;
+            $depositHeldAt = $depositHeld > 0 ? $actualEndSave : null;
             $pdo->prepare("UPDATE reservations SET status='completed', actual_end_date=?, overdue_amount=?,
                 km_driven=?, km_overage_charge=?, damage_charge=?, additional_charge=?, chellan_amount=?, discount_type=?, discount_value=?,
                 return_voucher_applied=?, return_payment_method=?, return_paid_amount=?, early_return_credit=?, voucher_credit_issued=?, 
-                deposit_returned=?, deposit_deducted=?, deposit_held=?, deposit_hold_reason=? WHERE id=?")
+                deposit_returned=?, deposit_deducted=?, deposit_held=?, deposit_hold_reason=?, deposit_held_at=? WHERE id=?")
                 ->execute([
                     $actualEndSave,
                     $overdueAmt + $lateChg,
@@ -365,6 +382,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $depositDeducted,
                     $depositHeld,
                     $depositHoldReason ?: null,
+                    $depositHeldAt,
                     $id,
                 ]);
             // Only free up the vehicle if no other active reservation exists for it
@@ -881,7 +899,12 @@ require_once __DIR__ . '/../includes/header.php';
                         $alreadyReturned  = (float) ($r['deposit_returned'] ?? 0);
                         $alreadyDeducted  = (float) ($r['deposit_deducted'] ?? 0);
                         $alreadyHeld      = (float) ($r['deposit_held'] ?? 0);
-                        $remainingDeposit = $depositAmount - $alreadyReturned - $alreadyDeducted - $alreadyHeld;
+                        // Graceful degradation: include extension usage if column exists
+                        $depositUsedForExt = 0.0;
+                        if (column_exists($pdo, 'reservations', 'deposit_used_for_extension')) {
+                            $depositUsedForExt = max(0, (float) ($r['deposit_used_for_extension'] ?? 0));
+                        }
+                        $remainingDeposit = $depositAmount - $alreadyReturned - $alreadyDeducted - $alreadyHeld - $depositUsedForExt;
 
                         $_addChg  = isset($_POST['additional_charge'])
                             ? max(0, (float) $_POST['additional_charge'])
@@ -911,9 +934,12 @@ require_once __DIR__ . '/../includes/header.php';
                                 <span class="text-mb-subtle text-sm">Collected: <span class="text-white font-medium">$<?= number_format($depositAmount, 2) ?></span></span>
                             </div>
                             
-                            <?php if ($alreadyReturned > 0 || $alreadyDeducted > 0 || $alreadyHeld > 0): ?>
+                            <?php if ($alreadyReturned > 0 || $alreadyDeducted > 0 || $alreadyHeld > 0 || $depositUsedForExt > 0): ?>
                                 <div class="bg-mb-surface rounded-lg p-3 text-xs space-y-1 border border-mb-subtle/20">
                                     <p class="text-mb-silver font-medium mb-2">Already processed:</p>
+                                    <?php if ($depositUsedForExt > 0): ?>
+                                        <p class="text-sky-400">Used for extensions: $<?= number_format($depositUsedForExt, 2) ?></p>
+                                    <?php endif; ?>
                                     <?php if ($alreadyReturned > 0): ?>
                                         <p class="text-green-400">Returned: $<?= number_format($alreadyReturned, 2) ?></p>
                                     <?php endif; ?>
@@ -1108,7 +1134,6 @@ require_once __DIR__ . '/../includes/header.php';
                     'back' => 'Back',
                     'left' => 'Left',
                     'right' => 'Right',
-                    'interior' => 'Interior',
                     'odometer' => 'Photo of Odometer',
                 ];
                 foreach ($photoViews as $areaKey => $areaLabel):
@@ -1124,6 +1149,30 @@ require_once __DIR__ . '/../includes/header.php';
                                    hover:file:bg-mb-surface/80 cursor-pointer">
                     </div>
                 <?php endforeach; ?>
+
+                <!-- Dynamic Interior Photos -->
+                <div class="bg-mb-black/30 p-4 rounded-lg border border-mb-subtle/10">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="block text-sm font-medium text-mb-silver">Interior Photos <span class="text-mb-subtle text-xs">(1–15)</span></label>
+                        <?php if (isset($errors['photo_interior'])): ?>
+                            <p class="text-red-400 text-xs"><?= e($errors['photo_interior']) ?></p>
+                        <?php endif; ?>
+                    </div>
+                    <div id="interior-slots-container" class="space-y-2">
+                        <div class="interior-slot flex items-center gap-2" data-slot="1">
+                            <input type="file" name="photos[interior_1]" accept="image/*" class="block flex-1 text-sm text-mb-silver
+                                       file:mr-4 file:py-2 file:px-4
+                                       file:rounded-full file:border-0
+                                       file:text-xs file:font-semibold
+                                       file:bg-mb-surface file:text-green-500
+                                       hover:file:bg-mb-surface/80 cursor-pointer">
+                        </div>
+                    </div>
+                    <button type="button" id="add-interior-btn"
+                        class="mt-3 text-xs text-green-500 hover:text-white border border-green-500/30 hover:border-green-500/60 px-3 py-1.5 rounded-full transition-colors">
+                        + Add another interior photo
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -1184,7 +1233,7 @@ const LATE_RATE=' . $lateRatePerHour . ';
 const LATE_TO_DAILY_THRESHOLD_MIN = 360;
 const BASE_PRICE=' . $baseRentalValue . ';
 const CLIENT_VOUCHER_BALANCE=' . $clientVoucherBalance . ';
-const DEPOSIT_REMAINING=' . max(0, (float)($r['deposit_amount'] ?? 0) - (float)($r['deposit_returned'] ?? 0) - (float)($r['deposit_deducted'] ?? 0) - (float)($r['deposit_held'] ?? 0)) . ';
+const DEPOSIT_REMAINING=' . max(0, (float)($r['deposit_amount'] ?? 0) - (float)($r['deposit_returned'] ?? 0) - (float)($r['deposit_deducted'] ?? 0) - (float)($r['deposit_held'] ?? 0) - (column_exists($pdo, 'reservations', 'deposit_used_for_extension') ? max(0, (float)($r['deposit_used_for_extension'] ?? 0)) : 0)) . ';
 const START_DATE = new Date("' . $r['start_date'] . '".replace(" ","T"));
 const SCHEDULED_END = new Date("' . $r['end_date'] . '".replace(" ","T"));
 
@@ -1701,6 +1750,62 @@ if(confirmRatingBtn){
 
 updateSummary();
 updateDepositSummary();
+
+// Interior photo slots
+(function() {
+    const container = document.getElementById("interior-slots-container");
+    const addBtn = document.getElementById("add-interior-btn");
+    const MAX = 15;
+
+    function updateAddBtn() {
+        const count = container.querySelectorAll(".interior-slot").length;
+        addBtn.disabled = count >= MAX;
+        addBtn.classList.toggle("opacity-40", count >= MAX);
+        addBtn.classList.toggle("cursor-not-allowed", count >= MAX);
+    }
+
+    function makeRemoveBtn(slot) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = "✕";
+        btn.className = "text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded transition-colors flex-shrink-0";
+        btn.onclick = function() {
+            slot.remove();
+            reindex();
+            updateAddBtn();
+        };
+        return btn;
+    }
+
+    function reindex() {
+        container.querySelectorAll(".interior-slot").forEach(function(slot, i) {
+            const n = i + 1;
+            slot.dataset.slot = n;
+            const input = slot.querySelector("input[type=file]");
+            if (input) input.name = "photos[interior_" + n + "]";
+        });
+    }
+
+    addBtn.addEventListener("click", function() {
+        const count = container.querySelectorAll(".interior-slot").length;
+        if (count >= MAX) return;
+        const n = count + 1;
+        const slot = document.createElement("div");
+        slot.className = "interior-slot flex items-center gap-2";
+        slot.dataset.slot = n;
+        const input = document.createElement("input");
+        input.type = "file";
+        input.name = "photos[interior_" + n + "]";
+        input.accept = "image/*";
+        input.className = "block flex-1 text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-green-500 hover:file:bg-mb-surface/80 cursor-pointer";
+        slot.appendChild(input);
+        slot.appendChild(makeRemoveBtn(slot));
+        container.appendChild(slot);
+        updateAddBtn();
+    });
+
+    updateAddBtn();
+})();
 </script>';
 require_once __DIR__ . '/../includes/footer.php';
 ?>

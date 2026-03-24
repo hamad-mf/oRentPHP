@@ -7,7 +7,9 @@ $pdo = db();
 try {
     $pdo->exec("ALTER TABLE reservations
         ADD COLUMN IF NOT EXISTS deposit_held_resolved_at DATETIME    DEFAULT NULL,
-        ADD COLUMN IF NOT EXISTS deposit_held_action      VARCHAR(20) DEFAULT NULL");
+        ADD COLUMN IF NOT EXISTS deposit_held_action      VARCHAR(20) DEFAULT NULL,
+        ADD COLUMN IF NOT EXISTS booking_discount_type    VARCHAR(10) NULL,
+        ADD COLUMN IF NOT EXISTS booking_discount_value   DECIMAL(10,2) NOT NULL DEFAULT 0.00");
 } catch (Throwable $e) { /* already exist */ }
 
 $rStmt = $pdo->prepare('SELECT r.*, c.name AS client_name, c.phone AS client_phone, c.email AS client_email, c.address AS client_address, v.brand, v.model, v.license_plate, v.color, v.year, v.daily_rate, v.monthly_rate FROM reservations r JOIN clients c ON r.client_id=c.id JOIN vehicles v ON r.vehicle_id=v.id WHERE r.id=?');
@@ -32,10 +34,20 @@ foreach ($inspections as $ins) {
 // Calculate duration & totals
 $start = strtotime($r['start_date']);
 $end = strtotime($r['end_date']);
-$days = max(1, (int) ceil(($end - $start) / 86400) + 1); // inclusive: count both start & end day
+$days = max(1, (int) ceil(($end - $start) / 86400)); // ceil handles partial last day
 $basePrice = (float) $r['total_price'];
 $extensionPaid = max(0, (float) ($r['extension_paid_amount'] ?? 0));
 $basePriceForDelivery = max(0, $basePrice - $extensionPaid);
+// Booking discount
+$bookingDiscType  = $r['booking_discount_type'] ?? null;
+$bookingDiscValue = (float) ($r['booking_discount_value'] ?? 0);
+$bookingDiscAmt   = 0;
+if ($bookingDiscType === 'percent') {
+    $bookingDiscAmt = round($basePriceForDelivery * min($bookingDiscValue, 100) / 100, 2);
+} elseif ($bookingDiscType === 'amount') {
+    $bookingDiscAmt = min($bookingDiscValue, $basePriceForDelivery);
+}
+$basePriceAfterBookingDiscount = max(0, $basePriceForDelivery - $bookingDiscAmt);
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
@@ -44,7 +56,7 @@ $deliveryPrepaid = max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
 // Delivery discount
 $delivDiscType = $r['delivery_discount_type'] ?? null;
 $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
-$delivBase = max(0, $basePriceForDelivery - $voucherApplied - $advancePaid) + $deliveryCharge + $deliveryManualAmount;
+$delivBase = max(0, $basePriceAfterBookingDiscount - $voucherApplied - $advancePaid) + $deliveryCharge + $deliveryManualAmount;
 $delivDiscountAmt = 0;
 if ($delivDiscType === 'percent') {
     $delivDiscountAmt = round($delivBase * min($delivDiscVal, 100) / 100, 2);
@@ -260,7 +272,6 @@ function fdt(?string $dt): string
                         🔖 Plate: <?= e($r['license_plate']) ?><br>
                         <?php if ($r['year']): ?>📅 Year: <?= e($r['year']) ?><br><?php endif; ?>
                         <?php if ($r['color']): ?>🎨 Color: <?= e($r['color']) ?><br><?php endif; ?>
-                        💰 Daily Rate: $<?= number_format($r['daily_rate'], 2) ?>/day
                     </div>
                 </div>
             </div>
@@ -311,9 +322,15 @@ function fdt(?string $dt): string
                 </thead>
                 <tbody>
                     <tr>
-                        <td>Base Rental: <?= e($r['brand']) ?> <?= e($r['model']) ?> × <?= $days ?> day<?= $days > 1 ? 's' : '' ?> @ $<?= number_format($r['daily_rate'], 2) ?>/day</td>
+                        <td>Base Rental: <?= e($r['brand']) ?> <?= e($r['model']) ?> × <?= $days ?> day<?= $days > 1 ? 's' : '' ?></td>
                         <td class="val">$<?= number_format($basePrice, 2) ?></td>
                     </tr>
+                    <?php if ($bookingDiscAmt > 0): ?>
+                        <tr style="color:#16a34a">
+                            <td>🎫 Booking Discount<?= $bookingDiscType === 'percent' ? ' (' . $bookingDiscValue . '%)' : '' ?></td>
+                            <td class="val">-$<?= number_format($bookingDiscAmt, 2) ?></td>
+                        </tr>
+                    <?php endif; ?>
                     <?php if ($voucherApplied > 0): ?>
                         <tr style="color:#16a34a"><td>Voucher Used on Booking</td><td class="val">-$<?= number_format($voucherApplied, 2) ?></td></tr>
                     <?php endif; ?>

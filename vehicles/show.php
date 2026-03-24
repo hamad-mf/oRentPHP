@@ -15,6 +15,46 @@ if (!$canViewVehicleDetails) {
     redirect('index.php');
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') === 'mark_sold') {
+    if ($id <= 0) { flash('error', 'Invalid vehicle.'); redirect('index.php'); }
+    if (($_SESSION['user']['role'] ?? '') !== 'admin') {
+        flash('error', 'Only admins can mark a vehicle as sold.');
+        redirect("show.php?id=$id");
+    }
+    $vCheck = $pdo->prepare('SELECT status FROM vehicles WHERE id = ?');
+    $vCheck->execute([$id]);
+    $vRow = $vCheck->fetch();
+    if (!$vRow) { flash('error', 'Vehicle not found.'); redirect('index.php'); }
+    if ($vRow['status'] === 'rented') {
+        flash('error', 'Vehicle is currently rented and cannot be sold. Return the vehicle first.');
+        redirect("show.php?id=$id");
+    }
+    if ($vRow['status'] === 'maintenance') {
+        flash('error', 'Vehicle is currently in maintenance and cannot be sold. Remove it from maintenance first.');
+        redirect("show.php?id=$id");
+    }
+    if ($vRow['status'] === 'sold') {
+        flash('error', 'Vehicle is already marked as sold.');
+        redirect("show.php?id=$id");
+    }
+    $futureStmt = $pdo->prepare("SELECT COUNT(*) FROM reservations WHERE vehicle_id = ? AND status IN ('pending','confirmed','active')");
+    $futureStmt->execute([$id]);
+    $futureCount = (int) $futureStmt->fetchColumn();
+    if ($futureCount > 0) {
+        flash('error', "Vehicle has $futureCount open reservation(s) (pending/confirmed/active). Cancel or complete them first before marking as sold.");
+        redirect("show.php?id=$id");
+    }
+    try {
+        $pdo->prepare('UPDATE vehicles SET status = \'sold\', sold_at = NOW() WHERE id = ?')->execute([$id]);
+        app_log('ACTION', "Vehicle marked as sold (ID: $id)");
+        flash('success', 'Vehicle has been marked as sold and removed from the active fleet.');
+    } catch (Throwable $e) {
+        app_log('ERROR', 'Mark vehicle sold failed - ' . $e->getMessage(), ['vehicle_id' => $id]);
+        flash('error', 'Unable to mark vehicle as sold. Please apply the vehicle_sold_status migration and try again.');
+    }
+    redirect("show.php?id=$id");
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') === 'save_condition') {
     if ($id <= 0) { flash('error', 'Invalid vehicle request.'); redirect('index.php'); }
     if (!auth_has_perm('add_vehicles')) { flash('error', 'You do not have permission to update vehicle condition notes.'); redirect("show.php?id=$id"); }
@@ -136,7 +176,8 @@ $pageTitle = e($v['brand']) . ' ' . e($v['model']);
 require_once __DIR__ . '/../includes/header.php';
 
 $isAdmin = ($_SESSION['user']['role'] ?? '') === 'admin';
-$badge = ['available' => 'bg-green-500/10 text-green-400 border-green-500/30', 'rented' => 'bg-sky-500/10 text-sky-400 border-sky-500/30', 'maintenance' => 'bg-red-500/10 text-red-400 border-red-500/30'];
+$isSold = ($v['status'] ?? '') === 'sold';
+$badge = ['available' => 'bg-green-500/10 text-green-400 border-green-500/30', 'rented' => 'bg-sky-500/10 text-sky-400 border-sky-500/30', 'maintenance' => 'bg-red-500/10 text-red-400 border-red-500/30', 'sold' => 'bg-amber-500/10 text-amber-400 border-amber-500/30'];
 $badgeCls = $badge[$v['status']] ?? 'bg-gray-500/10 text-gray-400';
 $canEditCondition = auth_has_perm('add_vehicles');
 $conditionNotes = (string) ($v['condition_notes'] ?? '');
@@ -287,18 +328,37 @@ if (($v['status'] ?? '') === 'maintenance') {
                     <div class="bg-mb-black/40 rounded-xl p-4"><p class="text-mb-subtle text-xs uppercase">Total Revenue</p><p class="text-green-400 text-2xl font-light mt-1">$<?= number_format($totalRevenue, 0) ?></p></div>
                     <div class="bg-mb-black/40 rounded-xl p-4"><p class="text-mb-subtle text-xs uppercase">Total Expenses</p><p class="text-red-400 text-2xl font-light mt-1">$<?= number_format($totalExpenses, 0) ?></p></div>
                 </div>
+                <!-- Sold Banner -->
+                <?php if ($isSold): ?>
+                    <div class="rounded-xl bg-amber-500/10 border border-amber-500/30 p-4 flex items-center gap-3">
+                        <svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <div>
+                            <p class="text-amber-400 text-sm font-medium">This vehicle has been sold</p>
+                            <p class="text-amber-300/70 text-xs mt-0.5">No further actions can be performed. Historical data is preserved for reference.</p>
+                        </div>
+                    </div>
+                <?php endif; ?>
                 <!-- Actions -->
                 <div class="flex items-center gap-3 flex-wrap">
-                    <?php if ($isAdmin): ?>
+                    <?php if (!$isSold && $isAdmin): ?>
                         <a href="edit.php?id=<?= $v['id'] ?>" class="bg-mb-accent text-white px-5 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-sm font-medium">Edit Vehicle</a>
                     <?php endif; ?>
-                    <a href="quotation.php?id=<?= $v['id'] ?>" target="_blank" class="border border-amber-500/30 text-amber-400 px-5 py-2 rounded-full hover:bg-amber-500/10 transition-colors text-sm font-medium">Generate Quotation</a>
+                    <?php if (!$isSold): ?>
+                        <a href="quotation.php?id=<?= $v['id'] ?>" target="_blank" class="border border-amber-500/30 text-amber-400 px-5 py-2 rounded-full hover:bg-amber-500/10 transition-colors text-sm font-medium">Generate Quotation</a>
+                    <?php endif; ?>
                     <button type="button" onclick="document.getElementById('vehicleShareModal').classList.remove('hidden')" class="border border-mb-subtle/30 text-mb-silver px-5 py-2 rounded-full hover:border-white/30 hover:text-white transition-all text-sm font-medium">Share Vehicle Catalog</button>
-                    <?php if ($isAdmin): ?>
+                    <?php if (!$isSold && $isAdmin): ?>
                         <button type="button" onclick="document.getElementById('addExpenseModal').classList.remove('hidden')" class="border border-amber-500/30 text-amber-400 px-5 py-2 rounded-full hover:bg-amber-500/10 transition-colors text-sm font-medium">Add Expense</button>
                         <?php if ($v['status'] !== 'rented'): ?>
                             <a href="delete.php?id=<?= $v['id'] ?>" onclick="return confirm('Remove this vehicle from the fleet?')" class="border border-red-500/30 text-red-400 px-5 py-2 rounded-full hover:bg-red-500/10 transition-colors text-sm">Delete</a>
                         <?php endif; ?>
+                    <?php endif; ?>
+                    <?php if (!$isSold && $isAdmin): ?>
+                        <form method="POST" onsubmit="return confirm('Mark this vehicle as sold? This cannot be undone. The vehicle will be removed from all active operations.')">
+                            <input type="hidden" name="action" value="mark_sold">
+                            <input type="hidden" name="id" value="<?= (int) $id ?>">
+                            <button type="submit" class="border border-amber-600/40 text-amber-500 px-5 py-2 rounded-full hover:bg-amber-500/10 transition-colors text-sm font-medium">Mark as Sold</button>
+                        </form>
                     <?php endif; ?>
                 </div>
             </div>
@@ -803,16 +863,25 @@ document.addEventListener('DOMContentLoaded', function () {
                         <th class="px-6 py-3 text-left">Date</th>
                         <th class="px-6 py-3 text-left">Category</th>
                         <th class="px-6 py-3 text-left">Description</th>
+                        <th class="px-6 py-3 text-left">KM</th>
                         <th class="px-6 py-3 text-left">Payment</th>
                         <th class="px-6 py-3 text-right">Amount</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-mb-subtle/10">
-                    <?php foreach ($vehicleExpenses as $exp): ?>
+                    <?php foreach ($vehicleExpenses as $exp):
+                        $expDesc = $exp['description'] ?? '-';
+                        $expKm = null;
+                        if (preg_match('/\[KM:\s*(\d+)\]/', $expDesc, $kmMatch)) {
+                            $expKm = (int) $kmMatch[1];
+                            $expDesc = trim(preg_replace('/\s*\[KM:\s*\d+\]/', '', $expDesc));
+                        }
+                    ?>
                         <tr class="hover:bg-mb-black/30 transition-colors">
                             <td class="px-6 py-3 text-mb-silver text-xs"><?= date('d M Y', strtotime($exp['posted_at'])) ?></td>
                             <td class="px-6 py-3 text-white"><?= e($exp['source_event'] ?? '') ?></td>
-                            <td class="px-6 py-3 text-mb-subtle text-xs"><?= e($exp['description'] ?? '-') ?></td>
+                            <td class="px-6 py-3 text-mb-subtle text-xs"><?= e($expDesc) ?></td>
+                            <td class="px-6 py-3 text-xs"><?= $expKm !== null ? '<span class="text-mb-accent font-medium">' . number_format($expKm) . ' km</span>' : '<span class="text-mb-subtle/40">—</span>' ?></td>
                             <td class="px-6 py-3"><span class="text-xs px-2 py-0.5 rounded-full <?= ($exp['payment_mode'] === 'cash') ? 'bg-green-500/10 text-green-400' : (($exp['payment_mode'] === 'credit') ? 'bg-amber-500/10 text-amber-400' : 'bg-mb-accent/10 text-mb-accent') ?>"><?= ucfirst($exp['payment_mode'] ?? 'N/A') ?></span></td>
                             <td class="px-6 py-3 text-right text-red-400 font-medium">$ <?= number_format($exp['amount'], 2) ?></td>
                         </tr>
@@ -840,7 +909,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <input type="hidden" name="vehicle_id" value="<?= $v['id'] ?>">
             <div>
                 <label class="block text-sm text-mb-subtle mb-1.5">Category <span class="text-red-400">*</span></label>
-                <select name="category" required class="w-full bg-mb-black border border-mb-subtle/30 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-mb-accent">
+                <select name="category" id="expCategory" required onchange="onExpCategoryChange(this.value)" class="w-full bg-mb-black border border-mb-subtle/30 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-mb-accent">
                     <option value="">Select category...</option>
                     <option value="Fuel">Fuel</option>
                     <option value="Service">Service / Repair</option>
@@ -852,6 +921,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     <option value="RTO/Tax">RTO / Tax</option>
                     <option value="Other">Other</option>
                 </select>
+            </div>
+            <div id="expKmWrap" style="display:none">
+                <label class="block text-sm text-mb-subtle mb-1.5">KM Reading at Service <span class="text-red-400">*</span></label>
+                <input type="number" name="km_reading" id="expKmReading" min="0" step="1" placeholder="e.g. 45000" class="w-full bg-mb-black border border-mb-subtle/30 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-mb-accent">
+                <p class="text-xs text-mb-subtle mt-1">Current odometer reading when this service was done.</p>
             </div>
             <div>
                 <label class="block text-sm text-mb-subtle mb-1.5">Amount <span class="text-red-400">*</span></label>
@@ -889,3 +963,18 @@ document.addEventListener('DOMContentLoaded', function () {
 <?php endif; ?>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
+<script>
+function onExpCategoryChange(val) {
+    const kmCategories = ['Service', 'Tyre', 'Spare Parts'];
+    const wrap = document.getElementById('expKmWrap');
+    const input = document.getElementById('expKmReading');
+    if (kmCategories.includes(val)) {
+        wrap.style.display = 'block';
+        input.required = true;
+    } else {
+        wrap.style.display = 'none';
+        input.required = false;
+        input.value = '';
+    }
+}
+</script>

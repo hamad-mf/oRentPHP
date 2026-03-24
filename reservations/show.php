@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
+require_once __DIR__ . '/../includes/ledger_helpers.php';
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
 
@@ -9,6 +11,56 @@ try {
         ADD COLUMN IF NOT EXISTS deposit_held_resolved_at DATETIME    DEFAULT NULL,
         ADD COLUMN IF NOT EXISTS deposit_held_action      VARCHAR(20) DEFAULT NULL");
 } catch (Throwable $e) { /* already exist */ }
+
+// ── Runtime schema guard for booking discount ─────────────────────────────────
+try {
+    $pdo->exec("ALTER TABLE reservations
+        ADD COLUMN IF NOT EXISTS booking_discount_type  VARCHAR(10)   NULL,
+        ADD COLUMN IF NOT EXISTS booking_discount_value DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+} catch (Throwable $e) { /* already exist */ }
+
+// ── POST: save booking discount ───────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_booking_discount') {
+    $discountReservationId = (int) ($_POST['reservation_id'] ?? 0);
+    if ($discountReservationId !== $id) {
+        flash('error', 'Invalid request.');
+        redirect("show.php?id=$id");
+    }
+    // Fetch current reservation to validate status
+    $chkStmt = $pdo->prepare('SELECT status, total_price, advance_paid, voucher_applied FROM reservations WHERE id=?');
+    $chkStmt->execute([$id]);
+    $chkR = $chkStmt->fetch();
+    if (!$chkR || !in_array($chkR['status'], ['pending', 'confirmed'])) {
+        flash('error', 'Booking discount can only be set on pending or confirmed reservations.');
+        redirect("show.php?id=$id");
+    }
+    $bdType  = in_array($_POST['booking_discount_type'] ?? '', ['percent', 'amount']) ? $_POST['booking_discount_type'] : null;
+    $bdValue = max(0, (float) ($_POST['booking_discount_value'] ?? 0));
+    $totalPrice = (float) $chkR['total_price'];
+    // Compute discount amount for validation
+    $bdAmt = 0;
+    if ($bdType === 'percent') {
+        $bdAmt = round($totalPrice * min($bdValue, 100) / 100, 2);
+    } elseif ($bdType === 'amount') {
+        $bdAmt = min($bdValue, $totalPrice);
+        $bdValue = $bdAmt; // cap stored value too
+    }
+    // Warn if advance already paid exceeds discounted total
+    $discountedBase = max(0, $totalPrice - $bdAmt);
+    $advancePaidChk = (float) ($chkR['advance_paid'] ?? 0);
+    $voucherAppliedChk = (float) ($chkR['voucher_applied'] ?? 0);
+    if ($advancePaidChk + $voucherAppliedChk > $discountedBase) {
+        flash('error', 'Discount cannot be applied: advance + voucher already collected ($' . number_format($advancePaidChk + $voucherAppliedChk, 2) . ') exceeds the discounted total ($' . number_format($discountedBase, 2) . ').');
+        redirect("show.php?id=$id");
+    }
+    if ($bdType === null) {
+        $bdValue = 0;
+    }
+    $pdo->prepare('UPDATE reservations SET booking_discount_type=?, booking_discount_value=? WHERE id=?')
+        ->execute([$bdType, $bdValue, $id]);
+    flash('success', $bdType ? 'Booking discount saved.' : 'Booking discount removed.');
+    redirect("show.php?id=$id");
+}
 
 $rStmt = $pdo->prepare('SELECT r.*, c.name AS client_name, c.id AS cid, v.brand, v.model, v.license_plate, v.daily_rate, v.image_url FROM reservations r JOIN clients c ON r.client_id=c.id JOIN vehicles v ON r.vehicle_id=v.id WHERE r.id=?');
 $rStmt->execute([$id]);
@@ -44,6 +96,16 @@ $basePrice = (float) $r['total_price'];
 $extensionPaid = max(0, (float) ($r['extension_paid_amount'] ?? 0));
 $basePriceForDelivery = max(0, $basePrice - $extensionPaid);
 $advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
+// Booking discount (applied to base price before voucher/advance)
+$bookingDiscType  = $r['booking_discount_type'] ?? null;
+$bookingDiscValue = (float) ($r['booking_discount_value'] ?? 0);
+$bookingDiscAmt   = 0;
+if ($bookingDiscType === 'percent') {
+    $bookingDiscAmt = round($basePriceForDelivery * min($bookingDiscValue, 100) / 100, 2);
+} elseif ($bookingDiscType === 'amount') {
+    $bookingDiscAmt = min($bookingDiscValue, $basePriceForDelivery);
+}
+$basePriceAfterBookingDiscount = max(0, $basePriceForDelivery - $bookingDiscAmt);
 $deliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
@@ -51,7 +113,7 @@ $deliveryPrepaid = max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
 // Delivery discount
 $delivDiscType = $r['delivery_discount_type'] ?? null;
 $delivDiscVal = (float) ($r['delivery_discount_value'] ?? 0);
-$delivBaseWithCharge = max(0, $basePriceForDelivery - $voucherApplied - $advancePaid) + $deliveryCharge + $deliveryManualAmount;
+$delivBaseWithCharge = max(0, $basePriceAfterBookingDiscount - $voucherApplied - $advancePaid) + $deliveryCharge + $deliveryManualAmount;
 $delivDiscountAmt = 0;
 if ($delivDiscType === 'percent') {
     $delivDiscountAmt = round($delivBaseWithCharge * min($delivDiscVal, 100) / 100, 2);
@@ -233,6 +295,12 @@ function fuelBar(int $pct): string
 
             <!-- Pricing Summary -->
             <div class="border-t border-mb-subtle/10 pt-4 space-y-2">
+                <?php if ($bookingDiscAmt > 0): ?>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-green-400">🎫 Booking Discount<?= $bookingDiscType === 'percent' ? " ({$bookingDiscValue}%)" : '' ?></span>
+                        <span class="text-green-400">-$<?= number_format($bookingDiscAmt, 2) ?></span>
+                    </div>
+                <?php endif; ?>
                 <?php if ($voucherApplied > 0): ?>
                     <div class="flex justify-between text-sm">
                         <span class="text-green-500/80">Voucher Used on Booking</span>
@@ -267,6 +335,42 @@ function fuelBar(int $pct): string
                         <span class="text-sky-400/80">Extension Collected (Grace)</span>
                         <span class="text-sky-400/80">+$<?= number_format($extensionPaid, 2) ?></span>
                     </div>
+                    <?php
+                    // Show per-extension payment source breakdown
+                    $extStmt = $pdo->prepare("SELECT * FROM reservation_extensions WHERE reservation_id = ? ORDER BY created_at ASC");
+                    $extStmt->execute([$id]);
+                    $extensions = $extStmt->fetchAll();
+                    $hasPaidFromDeposit = column_exists($pdo, 'reservation_extensions', 'paid_from_deposit');
+                    $hasSourceType = column_exists($pdo, 'reservation_extensions', 'payment_source_type');
+                    $totalDepositUsedForExt = 0.0;
+                    foreach ($extensions as $ext):
+                        $srcType = $hasSourceType ? ($ext['payment_source_type'] ?? null) : null;
+                        $paidDep = $hasPaidFromDeposit ? (float) ($ext['paid_from_deposit'] ?? 0) : 0.0;
+                        $totalDepositUsedForExt += $paidDep;
+                    ?>
+                        <div class="flex justify-between text-xs text-mb-subtle pl-3 border-l border-mb-subtle/20">
+                            <span>
+                                Ext #<?= (int) $ext['id'] ?>
+                                (<?= e($ext['rental_type'] ?? 'daily') ?>, <?= (int) ($ext['days'] ?? 0) ?> day<?= (int) ($ext['days'] ?? 0) !== 1 ? 's' : '' ?>)
+                                —
+                                <?php if ($srcType === 'deposit'): ?>
+                                    <span class="text-mb-accent">Deposit</span>
+                                <?php elseif ($srcType === 'split'): ?>
+                                    <span class="text-mb-accent">Split</span>
+                                    ($<?= number_format($paidDep, 2) ?> deposit + $<?= number_format((float) ($ext['paid_cash'] ?? 0), 2) ?> <?= e(ucfirst($ext['payment_method'] ?? 'cash')) ?>)
+                                <?php else: ?>
+                                    <?= e(ucfirst($srcType ?? $ext['payment_method'] ?? 'cash')) ?>
+                                <?php endif; ?>
+                            </span>
+                            <span>$<?= number_format((float) $ext['amount'], 2) ?></span>
+                        </div>
+                    <?php endforeach; ?>
+                    <?php if ($totalDepositUsedForExt > 0): ?>
+                        <div class="flex justify-between text-xs text-mb-accent/70 pl-3 border-l border-mb-accent/20">
+                            <span>Total deposit used for extensions</span>
+                            <span>$<?= number_format($totalDepositUsedForExt, 2) ?></span>
+                        </div>
+                    <?php endif; ?>
                 <?php endif; ?>
                 <?php if ($delivDiscountAmt > 0): ?>
                     <div class="flex justify-between text-sm">
@@ -399,6 +503,39 @@ function fuelBar(int $pct): string
                     <span class="text-white font-semibold text-sm">💰 <?= $r['status'] === 'cancelled' ? 'Net Retained After Refund' : 'Total Collected for This Rental' ?></span>
                     <span class="text-mb-accent font-bold text-lg">$<?= number_format($r['status'] === 'cancelled' ? $netCollected : $totalCollected, 2) ?></span>
                 </div>
+
+                <?php if (in_array($r['status'], ['pending', 'confirmed']) && ($_SESSION['user']['role'] ?? '') === 'admin'): ?>
+                <!-- Booking Discount Widget -->
+                <div class="mt-4 border-t border-mb-subtle/10 pt-4">
+                    <p class="text-mb-subtle text-xs uppercase tracking-wider mb-3">Booking Discount</p>
+                    <form method="POST" class="space-y-3">
+                        <input type="hidden" name="action" value="save_booking_discount">
+                        <input type="hidden" name="reservation_id" value="<?= $id ?>">
+                        <div class="flex gap-2">
+                            <select name="booking_discount_type" id="bdType"
+                                class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent w-28 flex-shrink-0"
+                                onchange="document.getElementById('bdValueWrap').classList.toggle('hidden', this.value === '')">
+                                <option value="">None</option>
+                                <option value="percent" <?= ($r['booking_discount_type'] ?? '') === 'percent' ? 'selected' : '' ?>>Percent %</option>
+                                <option value="amount"  <?= ($r['booking_discount_type'] ?? '') === 'amount'  ? 'selected' : '' ?>>Fixed $</option>
+                            </select>
+                            <div id="bdValueWrap" class="flex-1 <?= empty($r['booking_discount_type']) ? 'hidden' : '' ?>">
+                                <input type="number" name="booking_discount_value" step="0.01" min="0"
+                                    value="<?= number_format((float)($r['booking_discount_value'] ?? 0), 2, '.', '') ?>"
+                                    placeholder="0.00"
+                                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent">
+                            </div>
+                        </div>
+                        <?php if ($bookingDiscAmt > 0): ?>
+                            <p class="text-green-400 text-xs">Currently applied: -$<?= number_format($bookingDiscAmt, 2) ?></p>
+                        <?php endif; ?>
+                        <button type="submit"
+                            class="bg-mb-accent/20 border border-mb-accent/40 text-mb-accent px-4 py-2 rounded-lg text-sm hover:bg-mb-accent/30 transition-colors">
+                            Save Discount
+                        </button>
+                    </form>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
 

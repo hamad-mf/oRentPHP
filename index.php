@@ -279,6 +279,63 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
         </div>
     </section>
 
+    <?php
+    // Held Deposits Alert (graceful degradation if column doesn't exist)
+    try {
+        $overdueHeldDeposits = reservation_get_overdue_held_deposits($pdo);
+        $heldDepositCount = count($overdueHeldDeposits);
+    } catch (Throwable $e) {
+        // Column doesn't exist yet - skip this section
+        $heldDepositCount = 0;
+        $overdueHeldDeposits = [];
+    }
+    
+    if ($heldDepositCount > 0):
+    ?>
+    <section>
+        <h3 class="text-white text-lg font-light mb-4 uppercase tracking-wider border-l-2 border-red-500 pl-2">
+            ⚠ Held Deposits Alert
+        </h3>
+        <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-6">
+            <div class="flex items-start justify-between mb-4">
+                <div>
+                    <p class="text-red-400 text-sm uppercase mb-1">Overdue Held Deposits</p>
+                    <span class="text-4xl font-light text-red-400 animate-pulse"><?= $heldDepositCount ?></span>
+                    <p class="text-xs text-red-400/70 mt-2">These deposits have exceeded the alert threshold and need resolution</p>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="space-y-2 max-h-60 overflow-y-auto">
+                <?php foreach ($overdueHeldDeposits as $res): 
+                    $heldStatus = $res['held_status'];
+                    $timeUnit = $heldStatus['test_mode'] ? 'hours' : 'days';
+                ?>
+                    <a href="reservations/show.php?id=<?= $res['id'] ?>" 
+                       class="block bg-mb-surface/50 border border-red-500/20 rounded p-3 hover:border-red-500/40 transition-colors">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <p class="text-white font-medium">Res #<?= $res['id'] ?> - <?= e($res['client_name']) ?></p>
+                                <p class="text-mb-subtle text-sm"><?= e($res['brand']) ?> <?= e($res['model']) ?> (<?= e($res['license_plate']) ?>)</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-red-400 font-medium">$<?= number_format((float) $res['deposit_held'], 2) ?></p>
+                                <p class="text-red-400/70 text-xs">Held for <?= $heldStatus['days_held'] ?> <?= $timeUnit ?></p>
+                            </div>
+                        </div>
+                        <?php if (!empty($res['deposit_hold_reason'])): ?>
+                            <p class="text-mb-subtle text-xs mt-2 italic">Reason: <?= e($res['deposit_hold_reason']) ?></p>
+                        <?php endif; ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </section>
+    <?php endif; ?>
+
     <section>
         <h3 class="text-white text-lg font-light mb-4 uppercase tracking-wider border-l-2 border-mb-accent pl-2">Daily Operations</h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -77,6 +77,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $autoCloseAfter = min(4, max(0, (int) ($_POST['auto_close_lost_after_followups'] ?? 0)));
     settings_set($pdo, 'auto_close_lost_after_followups', (string) $autoCloseAfter);
     $deliveryIncentivePer = max(0, (float) ($_POST['delivery_incentive_per_delivery'] ?? 0));     settings_set($pdo, 'delivery_incentive_per_delivery', (string)$deliveryIncentivePer);
+    
+    // Held deposit settings
+    $heldDepositAlertDays = max(1, (int) ($_POST['held_deposit_alert_days'] ?? 7));
+    settings_set($pdo, 'held_deposit_alert_days', (string) $heldDepositAlertDays);
+    $heldDepositTestMode = ((int) ($_POST['held_deposit_test_mode'] ?? 0)) === 1 ? '1' : '0';
+    settings_set($pdo, 'held_deposit_test_mode', $heldDepositTestMode);
+    
     $securityDepositBankAccountId = (int) ($_POST['security_deposit_bank_account_id'] ?? 0);
     if ($securityDepositBankAccountId > 0) {
         $resolvedDepositBankId = ledger_get_active_bank_account_id($pdo, $securityDepositBankAccountId);
@@ -103,6 +110,8 @@ $perPageSetting = (int) settings_get($pdo, 'per_page', '25');
 $pipelinePaginationEnabledSetting = settings_get($pdo, 'pipeline_pagination_enabled', '1') !== '0';
 $autoCloseAfterSetting = (int) settings_get($pdo, 'auto_close_lost_after_followups', '0');
 $deliveryIncentiveSetting = (float) settings_get($pdo, 'delivery_incentive_per_delivery', '0');
+$heldDepositAlertDaysSetting = (int) settings_get($pdo, 'held_deposit_alert_days', '7');
+$heldDepositTestModeSetting = settings_get($pdo, 'held_deposit_test_mode', '0') === '1';
 $securityDepositBankAccountIdSetting = (int) settings_get($pdo, 'security_deposit_bank_account_id', '0');
 $mobileBottomNavSelectedKeys = mobile_bottom_nav_get_keys($pdo, 5);
 
@@ -177,7 +186,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <p class="text-xs text-mb-subtle mt-1">Prefilled in return screen as Return Pickup Charge, still editable per reservation.</p>
             </div>
             <div class="pt-2 border-t border-mb-subtle/10">
-                <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Delivery Deposit</h3>
+                <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Security Deposit</h3>
                 <p class="text-xs text-mb-subtle mt-2 ml-5">Suggested deposit percentage based on the amount collected at delivery.</p>
             </div>
             <div>
@@ -187,6 +196,26 @@ require_once __DIR__ . '/../includes/header.php';
                     <input type="number" name="deposit_percentage" value="<?= $depositPct ?>" min="0" max="100" step="1" required
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm" placeholder="0">
                 </div>
+            </div>
+            <div class="pt-2 border-t border-mb-subtle/10">
+                <h3 class="text-white font-light text-lg border-l-2 border-yellow-500 pl-3">Held Deposit Alerts</h3>
+                <p class="text-xs text-mb-subtle mt-2 ml-5">Configure automatic alerts for deposits that remain held beyond a threshold period.</p>
+            </div>
+            <div>
+                <label class="block text-sm text-mb-silver mb-2">Alert Threshold (Days)</label>
+                <input type="number" name="held_deposit_alert_days" value="<?= $heldDepositAlertDaysSetting ?>" min="1" step="1" required
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm" placeholder="7">
+                <p class="text-xs text-mb-subtle mt-1">Alert will trigger when a deposit has been held for this many days.</p>
+            </div>
+            <div>
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" name="held_deposit_test_mode" value="1" <?= $heldDepositTestModeSetting ? 'checked' : '' ?>
+                        class="w-4 h-4 rounded border-mb-subtle/20 bg-mb-black text-mb-accent focus:ring-mb-accent focus:ring-offset-0">
+                    <div>
+                        <span class="text-sm text-mb-silver">Test Mode (Hours as Days)</span>
+                        <p class="text-xs text-mb-subtle mt-0.5">For testing: treats hours as days so you don't have to wait. Disable in production.</p>
+                    </div>
+                </label>
             </div>
             <div class="pt-2 border-t border-mb-subtle/10">
                 <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Security Deposit Ledger</h3>
