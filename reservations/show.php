@@ -88,6 +88,28 @@ foreach ($inspections as &$ins) {
 }
 unset($ins);
 
+// Fetch scratch photos
+$scratchPhotos = [];
+$deliveryScratch = [];
+$returnScratch = [];
+try {
+    $hasSpTable = (bool) $pdo->query("SHOW TABLES LIKE 'reservation_scratch_photos'")->fetchColumn();
+    if ($hasSpTable) {
+        $spStmt = $pdo->prepare(
+            'SELECT * FROM reservation_scratch_photos WHERE reservation_id = ? ORDER BY event_type, slot_index'
+        );
+        $spStmt->execute([$id]);
+        $scratchPhotos = $spStmt->fetchAll(PDO::FETCH_ASSOC);
+        $deliveryScratch = array_values(array_filter($scratchPhotos, fn($p) => $p['event_type'] === 'delivery'));
+        $returnScratch   = array_values(array_filter($scratchPhotos, fn($p) => $p['event_type'] === 'return'));
+    }
+} catch (Throwable $e) {
+    // Graceful degradation — table may not exist yet
+    $scratchPhotos = [];
+    $deliveryScratch = [];
+    $returnScratch = [];
+}
+
 $days = durationDays($r['start_date'], $r['end_date']);
 $overdue = isOverdue($r['end_date'], $r['status']);
 
@@ -731,6 +753,40 @@ function fuelBar(int $pct): string
                 <p class="py-8 text-center text-mb-subtle text-sm italic">Not returned yet.</p>
             <?php endif; ?>
         </div>
+    </div>
+
+    <!-- Delivery Scratch Photos -->
+    <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6">
+        <h3 class="text-white font-light border-l-2 border-orange-500 pl-3 mb-4">Delivery Scratch Photos</h3>
+        <?php if (empty($deliveryScratch)): ?>
+            <p class="text-mb-subtle text-sm">No scratch photos recorded at delivery.</p>
+        <?php else: ?>
+            <div class="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                <?php foreach ($deliveryScratch as $sp): ?>
+                    <a href="../<?= e($sp['file_path']) ?>" target="_blank" class="block">
+                        <img src="../<?= e($sp['file_path']) ?>" alt="Delivery scratch photo"
+                             class="rounded-lg object-cover w-full aspect-square hover:opacity-80 transition-opacity">
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <!-- Return Scratch Photos -->
+    <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6">
+        <h3 class="text-white font-light border-l-2 border-orange-500 pl-3 mb-4">Return Scratch Photos</h3>
+        <?php if (empty($returnScratch)): ?>
+            <p class="text-mb-subtle text-sm">No scratch photos recorded at return.</p>
+        <?php else: ?>
+            <div class="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                <?php foreach ($returnScratch as $sp): ?>
+                    <a href="../<?= e($sp['file_path']) ?>" target="_blank" class="block">
+                        <img src="../<?= e($sp['file_path']) ?>" alt="Return scratch photo"
+                             class="rounded-lg object-cover w-full aspect-square hover:opacity-80 transition-opacity">
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
     </div>
 
     <?php if ($r['status'] === 'cancelled'): ?>

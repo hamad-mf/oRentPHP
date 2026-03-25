@@ -795,11 +795,15 @@ $_notifs = notif_all($pdo);
                                     <?php
                                     $bg = $n['is_read'] ? '' : 'bg-mb-black/30';
                                     $dot = match ($n['type']) {
-                                        'overdue' => 'bg-red-500',
+                                        'overdue'   => 'bg-red-500',
                                         'due_today' => 'bg-orange-500',
-                                        'due_soon' => 'bg-yellow-500',
-                                        default => 'bg-blue-500'
+                                        'due_soon'  => 'bg-yellow-500',
+                                        'emi_due'   => 'bg-purple-500',
+                                        default     => 'bg-blue-500'
                                     };
+                                    if ($n['type'] === 'emi_due' && !$n['is_read']) {
+                                        $bg = 'bg-purple-500/10';
+                                    }
                                     $notifTarget = !empty($n['reservation_id'])
                                         ? '../reservations/show.php?id=' . (int) $n['reservation_id']
                                         : '';
@@ -816,6 +820,9 @@ $_notifs = notif_all($pdo);
                                                 <div class="flex-1 min-w-0">
                                                     <p
                                                         class="text-sm <?= $n['is_read'] ? 'text-mb-subtle' : 'text-white' ?> leading-snug hover:text-mb-accent transition-colors">
+                                                        <?php if ($n['type'] === 'emi_due'): ?>
+                                                            <span class="inline-flex items-center gap-1 text-purple-400 font-medium text-xs bg-purple-500/15 border border-purple-500/30 px-1.5 py-0.5 rounded-full mr-1.5">💳 EMI</span>
+                                                        <?php endif; ?>
                                                         <?= htmlspecialchars($n['message']) ?>
                                                     </p>
                                                     <p class="text-xs text-mb-subtle mt-0.5">
@@ -829,6 +836,9 @@ $_notifs = notif_all($pdo);
                                             <div class="flex-1 min-w-0">
                                                 <p
                                                     class="text-sm <?= $n['is_read'] ? 'text-mb-subtle' : 'text-white' ?> leading-snug">
+                                                    <?php if ($n['type'] === 'emi_due'): ?>
+                                                        <span class="inline-flex items-center gap-1 text-purple-400 font-medium text-xs bg-purple-500/15 border border-purple-500/30 px-1.5 py-0.5 rounded-full mr-1.5">💳 EMI</span>
+                                                    <?php endif; ?>
                                                     <?= htmlspecialchars($n['message']) ?>
                                                 </p>
                                                 <p class="text-xs text-mb-subtle mt-0.5">

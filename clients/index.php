@@ -10,6 +10,8 @@ $perPage = get_per_page($pdo);
 $page    = max(1, (int) ($_GET['page'] ?? 1));
 $search = trim($_GET['search'] ?? '');
 $filter = $_GET['filter'] ?? '';
+$filterMonth = (int) ($_GET['fm'] ?? 0);
+$filterYear  = (int) ($_GET['fy'] ?? 0);
 
 $where = ['1=1'];
 $params = [];
@@ -36,6 +38,17 @@ switch ($filter) {
     case 'completed':
         $where[] = 'EXISTS (SELECT 1 FROM reservations r WHERE r.client_id = c.id AND r.status = \'completed\')';
         break;
+}
+if ($filterYear > 0 && $filterMonth > 0) {
+    $where[] = 'YEAR(c.created_at) = ? AND MONTH(c.created_at) = ?';
+    $params[] = $filterYear;
+    $params[] = $filterMonth;
+} elseif ($filterYear > 0) {
+    $where[] = 'YEAR(c.created_at) = ?';
+    $params[] = $filterYear;
+} elseif ($filterMonth > 0) {
+    $where[] = 'MONTH(c.created_at) = ?';
+    $params[] = $filterMonth;
 }
 
 $baseFrom = 'FROM clients c WHERE ' . implode(' AND ', $where);
@@ -109,12 +122,31 @@ require_once __DIR__ . '/../includes/header.php';
                 </svg>
             </div>
             <?php foreach (['' => 'All', 'blacklisted' => 'Blacklisted', 'rated' => 'Rated', 'unrated' => 'Unrated', 'completed' => 'Completed Rental'] as $val => $lbl): ?>
-                <a href="?<?= http_build_query(array_filter(['filter' => $val, 'search' => $search])) ?>"
+                <a href="?<?= http_build_query(array_filter(['filter' => $val, 'search' => $search, 'fm' => $filterMonth ?: null, 'fy' => $filterYear ?: null])) ?>"
                     class="text-xs px-3 py-1 rounded-full border transition-colors <?= $filter === $val ? 'border-mb-accent text-mb-accent' : 'border-mb-subtle/20 text-mb-subtle hover:text-white' ?>">
                     <?= $lbl ?>
                 </a>
             <?php endforeach; ?>
-            <?php if ($search || $filter): ?><a href="index.php"
+            <?php
+            $months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            $currentYear = (int) date('Y');
+            ?>
+            <select name="fm" onchange="this.form.submit()"
+                class="bg-mb-surface border border-mb-subtle/20 rounded-full px-3 py-1.5 text-xs text-white focus:outline-none focus:border-mb-accent">
+                <option value="">Month</option>
+                <?php for ($m = 1; $m <= 12; $m++): ?>
+                    <option value="<?= $m ?>" <?= $filterMonth === $m ? 'selected' : '' ?>><?= $months[$m] ?></option>
+                <?php endfor; ?>
+            </select>
+            <select name="fy" onchange="this.form.submit()"
+                class="bg-mb-surface border border-mb-subtle/20 rounded-full px-3 py-1.5 text-xs text-white focus:outline-none focus:border-mb-accent">
+                <option value="">Year</option>
+                <?php for ($y = $currentYear; $y >= $currentYear - 5; $y--): ?>
+                    <option value="<?= $y ?>" <?= $filterYear === $y ? 'selected' : '' ?>><?= $y ?></option>
+                <?php endfor; ?>
+            </select>
+            <input type="hidden" name="filter" value="<?= e($filter) ?>">
+            <?php if ($search || $filter || $filterMonth || $filterYear): ?><a href="index.php"
                     class="text-mb-subtle hover:text-white text-sm transition-colors">Clear</a>
             <?php endif; ?>
         </form>

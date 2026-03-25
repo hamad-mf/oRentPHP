@@ -21,6 +21,7 @@ This file tracks all database changes that need to be applied to **production** 
 | 2026-03-25 | deposit_extension_usage | `migrations/releases/2026-03-25_deposit_extension_usage.sql` | Adds `deposit_used_for_extension` DECIMAL(10,2) to `reservations` (cumulative deposit used across extensions). Adds `paid_from_deposit`, `paid_cash` DECIMAL(10,2) and `payment_source_type` ENUM to `reservation_extensions` for per-extension deposit tracking. Run before deploying extension-payment-from-deposit feature. |
 | 2026-03-25 | vehicle_sold_status | `migrations/releases/2026-03-25_vehicle_sold_status.sql` | Extends `vehicles.status` ENUM to include `'sold'`. Adds `sold_at DATETIME NULL` column to `vehicles`. Run before deploying vehicle-sold-status feature. |
 | 2026-03-25 | booking_discount | `migrations/releases/2026-03-25_booking_discount.sql` | Adds `booking_discount_type VARCHAR(10)` and `booking_discount_value DECIMAL(10,2)` to `reservations`. Run before deploying booking discount feature. |
+| 2026-03-25 | reservation_scratch_photos | `migrations/releases/2026-03-25_reservation_scratch_photos.sql` | Creates `reservation_scratch_photos` table for storing delivery and return scratch/damage photos (up to 15 per event) per reservation. Run before deploying reservation-scratch-photos feature. |
 
 ---
 

@@ -293,42 +293,90 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
     if ($heldDepositCount > 0):
     ?>
     <section>
-        <h3 class="text-white text-lg font-light mb-4 uppercase tracking-wider border-l-2 border-red-500 pl-2">
-            ⚠ Held Deposits Alert
-        </h3>
-        <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-6">
-            <div class="flex items-start justify-between mb-4">
-                <div>
-                    <p class="text-red-400 text-sm uppercase mb-1">Overdue Held Deposits</p>
-                    <span class="text-4xl font-light text-red-400 animate-pulse"><?= $heldDepositCount ?></span>
-                    <p class="text-xs text-red-400/70 mt-2">These deposits have exceeded the alert threshold and need resolution</p>
-                </div>
-                <div class="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                    </svg>
-                </div>
+        <div class="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3">
+            <div class="flex items-center gap-3 mb-2">
+                <span class="text-red-400 text-xs font-semibold uppercase tracking-wider">⚠ Held Deposits Alert</span>
+                <span class="bg-red-500/20 text-red-400 text-xs font-bold px-2 py-0.5 rounded-full"><?= $heldDepositCount ?></span>
+                <span class="text-red-400/60 text-xs">exceeded alert threshold</span>
             </div>
-            <div class="space-y-2 max-h-60 overflow-y-auto">
-                <?php foreach ($overdueHeldDeposits as $res): 
+            <div class="space-y-1.5 max-h-40 overflow-y-auto">
+                <?php foreach ($overdueHeldDeposits as $res):
                     $heldStatus = $res['held_status'];
-                    $timeUnit = $heldStatus['test_mode'] ? 'hours' : 'days';
+                    $timeUnit = $heldStatus['test_mode'] ? 'hrs' : 'days';
                 ?>
-                    <a href="reservations/show.php?id=<?= $res['id'] ?>" 
-                       class="block bg-mb-surface/50 border border-red-500/20 rounded p-3 hover:border-red-500/40 transition-colors">
-                        <div class="flex items-center justify-between">
-                            <div class="flex-1">
-                                <p class="text-white font-medium">Res #<?= $res['id'] ?> - <?= e($res['client_name']) ?></p>
-                                <p class="text-mb-subtle text-sm"><?= e($res['brand']) ?> <?= e($res['model']) ?> (<?= e($res['license_plate']) ?>)</p>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-red-400 font-medium">$<?= number_format((float) $res['deposit_held'], 2) ?></p>
-                                <p class="text-red-400/70 text-xs">Held for <?= $heldStatus['days_held'] ?> <?= $timeUnit ?></p>
-                            </div>
+                    <a href="reservations/show.php?id=<?= $res['id'] ?>"
+                       class="flex items-center justify-between bg-mb-surface/40 border border-red-500/15 rounded px-3 py-1.5 hover:border-red-500/35 transition-colors">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-white text-xs font-medium whitespace-nowrap">Res #<?= $res['id'] ?></span>
+                            <span class="text-mb-subtle text-xs truncate"><?= e($res['client_name']) ?> &bull; <?= e($res['brand']) ?> <?= e($res['model']) ?></span>
+                            <?php if (!empty($res['deposit_hold_reason'])): ?>
+                                <span class="text-mb-subtle/60 text-xs italic truncate hidden sm:inline">— <?= e($res['deposit_hold_reason']) ?></span>
+                            <?php endif; ?>
                         </div>
-                        <?php if (!empty($res['deposit_hold_reason'])): ?>
-                            <p class="text-mb-subtle text-xs mt-2 italic">Reason: <?= e($res['deposit_hold_reason']) ?></p>
-                        <?php endif; ?>
+                        <div class="flex items-center gap-3 flex-shrink-0 ml-3">
+                            <span class="text-red-400 text-xs font-medium">$<?= number_format((float) $res['deposit_held'], 2) ?></span>
+                            <span class="text-red-400/60 text-xs"><?= $heldStatus['days_held'] ?> <?= $timeUnit ?></span>
+                        </div>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </section>
+    <?php endif; ?>
+
+    <?php
+    // EMI Due Alert
+    $emiDueAlerts = [];
+    try {
+        $hasEmiTable = (bool) $pdo->query("SHOW TABLES LIKE 'emi_schedules'")->fetchColumn();
+        if ($hasEmiTable) {
+            $emiAlertStmt = $pdo->prepare("
+                SELECT s.id, s.due_date, s.amount, s.installment_no,
+                       i.title AS investment_title, i.lender
+                FROM emi_schedules s
+                JOIN emi_investments i ON i.id = s.investment_id
+                WHERE s.status = 'pending'
+                  AND s.due_date <= DATE_ADD(CURDATE(), INTERVAL 2 DAY)
+                  AND s.due_date >= CURDATE()
+                ORDER BY s.due_date ASC
+            ");
+            $emiAlertStmt->execute();
+            $emiDueAlerts = $emiAlertStmt->fetchAll();
+        }
+    } catch (Throwable $e) {
+        $emiDueAlerts = [];
+    }
+    if (!empty($emiDueAlerts)):
+    ?>
+    <section>
+        <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg px-4 py-3">
+            <div class="flex items-center gap-3 mb-2">
+                <span class="text-purple-400 text-xs font-semibold uppercase tracking-wider">💳 EMI Due Alert</span>
+                <span class="bg-purple-500/20 text-purple-400 text-xs font-bold px-2 py-0.5 rounded-full"><?= count($emiDueAlerts) ?></span>
+                <span class="text-purple-400/60 text-xs">due today or within 2 days</span>
+            </div>
+            <div class="space-y-1.5 max-h-40 overflow-y-auto">
+                <?php foreach ($emiDueAlerts as $emi):
+                    $daysLeft = (int) floor((strtotime($emi['due_date']) - strtotime($istToday)) / 86400);
+                    $isDueToday = $daysLeft === 0;
+                ?>
+                    <a href="investments/index.php"
+                       class="flex items-center justify-between bg-mb-surface/40 border <?= $isDueToday ? 'border-purple-500/40' : 'border-purple-500/15' ?> rounded px-3 py-1.5 hover:border-purple-500/40 transition-colors">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-white text-xs font-medium truncate"><?= e($emi['investment_title']) ?></span>
+                            <?php if ($emi['lender']): ?>
+                                <span class="text-mb-subtle text-xs truncate hidden sm:inline">(<?= e($emi['lender']) ?>)</span>
+                            <?php endif; ?>
+                            <span class="text-mb-subtle text-xs whitespace-nowrap">EMI #<?= (int) $emi['installment_no'] ?> &bull; <?= date('d M', strtotime($emi['due_date'])) ?></span>
+                        </div>
+                        <div class="flex items-center gap-3 flex-shrink-0 ml-3">
+                            <span class="text-purple-400 text-xs font-medium">$<?= number_format((float) $emi['amount'], 2) ?></span>
+                            <?php if ($isDueToday): ?>
+                                <span class="text-purple-300 text-xs font-semibold animate-pulse">Today!</span>
+                            <?php else: ?>
+                                <span class="text-purple-400/60 text-xs"><?= $daysLeft ?>d</span>
+                            <?php endif; ?>
+                        </div>
                     </a>
                 <?php endforeach; ?>
             </div>

@@ -397,6 +397,34 @@ if ($hasExtTable) {
     }
 }
 
+// Load actual income per day from ledger
+$actualMap = [];
+$hasLedgerTable = false;
+try {
+    $hasLedgerTable = (bool) $pdo->query("SHOW TABLES LIKE 'ledger_entries'")->fetchColumn();
+} catch (Throwable $e) {
+    $hasLedgerTable = false;
+}
+if ($hasLedgerTable) {
+    try {
+        $kpiClause = ledger_kpi_exclusion_clause();
+        $actualStmt = $pdo->prepare(
+            "SELECT DATE(posted_at) AS day, COALESCE(SUM(amount), 0) AS total
+             FROM ledger_entries
+             WHERE txn_type = 'income'
+               AND $kpiClause
+               AND DATE(posted_at) BETWEEN ? AND ?
+             GROUP BY DATE(posted_at)"
+        );
+        $actualStmt->execute([$rangeStart, $rangeEnd]);
+        foreach ($actualStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $actualMap[$row['day']] = (float) $row['total'];
+        }
+    } catch (Throwable $e) {
+        $actualMap = [];
+    }
+}
+
 $days = [];
 $cursor = $startDate;
 while ($cursor <= $endDate) {
@@ -411,6 +439,7 @@ while ($cursor <= $endDate) {
         'prediction_sum' => $predSumByDate[$ds] ?? 0.0,
         'predictions' => $predictionsByDate[$ds] ?? [],
         'is_today' => $ds === $today,
+        'actual' => $actualMap[$ds] ?? 0.0,
     ];
     $cursor = $cursor->modify('+1 day');
 }
@@ -567,11 +596,12 @@ require_once __DIR__ . '/../includes/header.php';
             <?php if ($view === 'list'): ?>
                 <div class="grid grid-cols-1 gap-2">
                     <div class="grid grid-cols-12 text-xs text-mb-subtle px-3">
-                        <div class="col-span-3">Date</div>
-                        <div class="col-span-3">Target</div>
-                        <div class="col-span-2">Expected Income</div>
+                        <div class="col-span-2">Date</div>
+                        <div class="col-span-2">Target</div>
+                        <div class="col-span-2">Expected</div>
+                        <div class="col-span-2">Actual</div>
                         <div class="col-span-2">Predictions</div>
-                        <div class="col-span-2 text-right">Gap</div>
+                        <div class="col-span-2 text-right">Variance</div>
                     </div>
                     <?php foreach ($days as $row):
                         $gap = $row['expected'] - $row['target'];
@@ -579,7 +609,7 @@ require_once __DIR__ . '/../includes/header.php';
                         $rowClass = $row['is_today'] ? 'border-mb-accent/60 bg-mb-accent/10' : 'border-mb-subtle/10 bg-mb-black/30';
                     ?>
                         <div class="grid grid-cols-12 items-center border <?= $rowClass ?> rounded-lg px-3 py-2 text-sm hope-row cursor-pointer" data-pred-toggle="<?= e($row['date']) ?>">
-                            <div class="col-span-3">
+                            <div class="col-span-2">
                                 <p class="text-white"><?= e($row['label']) ?></p>
                                 <?php if ($row['override']): ?>
                                     <span class="text-xs text-mb-accent">Custom</span>
@@ -589,11 +619,11 @@ require_once __DIR__ . '/../includes/header.php';
                                     <span class="text-xs text-mb-subtle">Default</span>
                                 <?php endif; ?>
                             </div>
-                            <div class="col-span-3">
+                            <div class="col-span-2">
                                 <?php if ($isAdmin): ?>
                                     <input type="number" step="0.01" min="0" name="target[<?= e($row['date']) ?>]"
                                         value="<?= number_format($row['target'], 2, '.', '') ?>"
-                                        class="w-32 bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                        class="w-28 bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:border-mb-accent">
                                 <?php else: ?>
                                     <span class="text-white">$<?= number_format($row['target'], 2) ?></span>
                                 <?php endif; ?>
@@ -602,15 +632,37 @@ require_once __DIR__ . '/../includes/header.php';
                                 <span class="text-green-400">$<?= number_format($row['expected'], 2) ?></span>
                             </div>
                             <div class="col-span-2">
+                                <?php if ($row['date'] <= $today): ?>
+                                    <span class="text-blue-400">$<?= number_format($row['actual'], 2) ?></span>
+                                <?php else: ?>
+                                    <span class="text-mb-subtle/40">—</span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="col-span-2">
                                 <span class="text-white font-medium"><?= (int) $row['prediction_count'] ?></span>
                                 <?php if ($row['prediction_sum'] > 0): ?>
                                     <span class="text-xs text-mb-subtle ml-1">($<?= number_format($row['prediction_sum'], 2) ?>)</span>
                                 <?php endif; ?>
                             </div>
                             <div class="col-span-2 text-right">
-                                <span class="<?= $gapClass ?>">
-                                    <?= $gap >= 0 ? '+' : '-' ?>$<?= number_format(abs($gap), 2) ?>
-                                </span>
+                                <?php if ($row['date'] <= $today): ?>
+                                    <?php
+                                        $variance = $row['actual'] - $row['expected'];
+                                        $varianceClass = $variance >= 0 ? 'text-green-400' : 'text-red-400';
+                                        $varianceSign  = $variance >= 0 ? '+' : '-';
+                                    ?>
+                                    <span class="<?= $varianceClass ?>">
+                                        <?= $varianceSign ?>$<?= number_format(abs($variance), 2) ?>
+                                    </span>
+                                <?php else: ?>
+                                    <?php
+                                        $gap = $row['expected'] - $row['target'];
+                                        $gapClass = $gap >= 0 ? 'text-green-400' : 'text-red-400';
+                                    ?>
+                                    <span class="<?= $gapClass ?>">
+                                        <?= $gap >= 0 ? '+' : '-' ?>$<?= number_format(abs($gap), 2) ?>
+                                    </span>
+                                <?php endif; ?>
                             </div>
                         </div>
                         <div id="pred-<?= e($row['date']) ?>" class="hidden border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-4 py-3 text-sm">
@@ -677,7 +729,7 @@ require_once __DIR__ . '/../includes/header.php';
                     $gap = $selectedDay['expected'] - $selectedDay['target'];
                     $gapClass = $gap >= 0 ? 'text-green-400' : 'text-red-400';
                 ?>
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                     <div class="bg-mb-black/40 rounded-lg p-4">
                         <p class="text-xs text-mb-subtle uppercase">Target</p>
                         <?php if ($isAdmin): ?>
@@ -692,6 +744,25 @@ require_once __DIR__ . '/../includes/header.php';
                         <p class="text-xs text-mb-subtle uppercase">Expected Income</p>
                         <p class="text-green-400 text-lg mt-2">$<?= number_format($selectedDay['expected'], 2) ?></p>
                     </div>
+                    <?php if ($selectedDay['date'] <= $today): ?>
+                    <div class="bg-mb-black/40 border border-mb-subtle/10 rounded-xl p-4">
+                        <p class="text-xs text-mb-subtle uppercase tracking-wider">Actual Income</p>
+                        <p class="text-blue-400 text-xl mt-2">$<?= number_format($selectedDay['actual'], 2) ?></p>
+                        <p class="text-mb-subtle text-xs mt-1">Collected on this day.</p>
+                    </div>
+                    <?php endif; ?>
+                    <?php if ($selectedDay['date'] <= $today): ?>
+                        <?php
+                            $dayVariance = $selectedDay['actual'] - $selectedDay['expected'];
+                            $dayVarianceClass = $dayVariance >= 0 ? 'text-green-400' : 'text-red-400';
+                            $dayVarianceSign  = $dayVariance >= 0 ? '+' : '-';
+                        ?>
+                        <div class="bg-mb-black/40 border border-mb-subtle/10 rounded-xl p-4">
+                            <p class="text-xs text-mb-subtle uppercase tracking-wider">Variance</p>
+                            <p class="<?= $dayVarianceClass ?> text-xl mt-2"><?= $dayVarianceSign ?>$<?= number_format(abs($dayVariance), 2) ?></p>
+                            <p class="text-mb-subtle text-xs mt-1">Actual vs expected income.</p>
+                        </div>
+                    <?php endif; ?>
                     <div class="bg-mb-black/40 rounded-lg p-4">
                         <p class="text-xs text-mb-subtle uppercase">Predictions</p>
                         <p class="text-white text-lg mt-2"><?= (int) $selectedDay['prediction_count'] ?></p>

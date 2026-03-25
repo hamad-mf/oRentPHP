@@ -243,6 +243,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($interiorOk === 0) {
         $errors['photo_interior'] = 'At least one interior photo is required.';
     }
+    // Scratch photo validation (max 15, optional)
+    $scratchAttempted = 0;
+    for ($n = 1; $n <= 15; $n++) {
+        if (!empty($_FILES['scratch_photos']['name'][$n] ?? '')
+            && ($_FILES['scratch_photos']['name'][$n] ?? '') !== '') {
+            $scratchAttempted++;
+        }
+    }
+    if ($scratchAttempted > 15) {
+        $errors['scratch_photos'] = 'A maximum of 15 scratch photos is allowed.';
+    }
     if ($additionalChgInput < 0)
         $errors['additional_charge'] = 'Return pickup charge cannot be negative.';
     
@@ -331,6 +342,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $pStmt = $pdo->prepare('INSERT INTO inspection_photos (inspection_id, view_name, file_path) VALUES (?,?,?)');
                             $pStmt->execute([$inspectionId, $area, 'uploads/inspections/' . $filename]);
                         }
+                    }
+                }
+            }
+
+            // Save scratch photos
+            $scratchDir = __DIR__ . '/../uploads/scratch_photos/';
+            if (!is_dir($scratchDir)) {
+                mkdir($scratchDir, 0777, true);
+            }
+            if (!empty($_FILES['scratch_photos']['name'])) {
+                for ($n = 1; $n <= 15; $n++) {
+                    if (empty($_FILES['scratch_photos']['name'][$n] ?? '')
+                        || ($_FILES['scratch_photos']['error'][$n] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                        continue;
+                    }
+                    $spName = $_FILES['scratch_photos']['name'][$n];
+                    $spExt  = strtolower(pathinfo($spName, PATHINFO_EXTENSION));
+                    $spFilename = 'scratch_' . $id . '_return_' . $n . '_' . time() . '.' . $spExt;
+                    if (move_uploaded_file($_FILES['scratch_photos']['tmp_name'][$n], $scratchDir . $spFilename)) {
+                        $pdo->prepare(
+                            'INSERT INTO reservation_scratch_photos (reservation_id, event_type, slot_index, file_path) VALUES (?, ?, ?, ?)'
+                        )->execute([$id, 'return', $n, 'uploads/scratch_photos/' . $spFilename]);
                     }
                 }
             }
@@ -1176,6 +1209,26 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         </div>
 
+        <!-- Scratch / Damage Photos -->
+        <div class="bg-mb-surface border border-mb-subtle/20 rounded-lg p-6">
+            <h3 class="text-white font-light border-l-2 border-orange-500 pl-3 mb-4">
+                Scratch / Damage Photos <span class="text-mb-subtle text-xs font-normal">(optional, max 15)</span>
+            </h3>
+            <?php if (!empty($errors['scratch_photos'])): ?>
+                <p class="text-red-400 text-xs mb-3"><?= e($errors['scratch_photos']) ?></p>
+            <?php endif; ?>
+            <div id="scratch-slots-container" class="space-y-2">
+                <div class="scratch-slot flex items-center gap-2" data-slot="1">
+                    <input type="file" name="scratch_photos[1]" accept="image/*"
+                           class="block flex-1 text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-orange-400 hover:file:bg-mb-surface/80 cursor-pointer">
+                </div>
+            </div>
+            <button type="button" id="add-scratch-btn"
+                    class="mt-3 text-xs text-orange-400 hover:text-white border border-orange-500/30 hover:border-orange-500/60 px-3 py-1.5 rounded-full transition-colors">
+                + Add another scratch photo
+            </button>
+        </div>
+
         <div class="flex items-center justify-end gap-4 pt-8 border-t border-mb-subtle/10">
             <a href="show.php?id=<?= $id ?>" class="text-mb-silver hover:text-white transition-colors">Cancel</a>
             <button type="button" id="openRatingModalBtn"
@@ -1800,6 +1853,57 @@ updateDepositSummary();
         input.className = "block flex-1 text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-green-500 hover:file:bg-mb-surface/80 cursor-pointer";
         slot.appendChild(input);
         slot.appendChild(makeRemoveBtn(slot));
+        container.appendChild(slot);
+        updateAddBtn();
+    });
+
+    updateAddBtn();
+})();
+
+(function() {
+    var container = document.getElementById("scratch-slots-container");
+    var addBtn    = document.getElementById("add-scratch-btn");
+    if (!container || !addBtn) return;
+    var MAX = 15;
+
+    function updateAddBtn() {
+        var count = container.querySelectorAll(".scratch-slot").length;
+        addBtn.disabled = count >= MAX;
+        addBtn.style.opacity = count >= MAX ? "0.4" : "1";
+    }
+
+    function reindex() {
+        container.querySelectorAll(".scratch-slot").forEach(function(slot, i) {
+            var n = i + 1;
+            slot.dataset.slot = n;
+            var input = slot.querySelector("input[type=file]");
+            if (input) input.name = "scratch_photos[" + n + "]";
+        });
+    }
+
+    addBtn.addEventListener("click", function() {
+        var count = container.querySelectorAll(".scratch-slot").length;
+        if (count >= MAX) return;
+        var n = count + 1;
+        var slot = document.createElement("div");
+        slot.className = "scratch-slot flex items-center gap-2";
+        slot.dataset.slot = n;
+        var input = document.createElement("input");
+        input.type = "file";
+        input.name = "scratch_photos[" + n + "]";
+        input.accept = "image/*";
+        input.className = "block flex-1 text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-orange-400 hover:file:bg-mb-surface/80 cursor-pointer";
+        var removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.textContent = "Remove";
+        removeBtn.className = "text-xs text-red-400 hover:text-red-300 border border-red-500/30 px-2 py-1 rounded-full transition-colors";
+        removeBtn.addEventListener("click", function() {
+            slot.remove();
+            reindex();
+            updateAddBtn();
+        });
+        slot.appendChild(input);
+        slot.appendChild(removeBtn);
         container.appendChild(slot);
         updateAddBtn();
     });
