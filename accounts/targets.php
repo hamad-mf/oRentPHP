@@ -32,7 +32,8 @@ function period_from_my(int $m, int $y): array {
     $start = sprintf('%04d-%02d-15', $y, $m);
     $nM = $m === 12 ? 1 : $m + 1;
     $nY = $m === 12 ? $y + 1 : $y;
-    return ['start' => $start, 'end' => sprintf('%04d-%02d-15', $nY, $nM)];
+    // End is 14th of next month (day before next period starts on 15th)
+    return ['start' => $start, 'end' => sprintf('%04d-%02d-14', $nY, $nM)];
 }
 function period_for_today(): array {
     $d = (int)date('d'); $m = (int)date('m'); $y = (int)date('Y');
@@ -166,7 +167,7 @@ require_once __DIR__ . '/../includes/header.php';
                         $iN = $i === 12 ? 1 : $i + 1;
                     ?>
                     <option value="<?=$i?>" <?=$i===$selM?'selected':''?> class="bg-[#1f1f1f] text-white">
-                        15 <?= date('M', mktime(0,0,0,$i,1)) ?> – 15 <?= date('M', mktime(0,0,0,$iN,1)) ?>
+                        15 <?= date('M', mktime(0,0,0,$i,1)) ?> – 14 <?= date('M', mktime(0,0,0,$iN,1)) ?>
                     </option>
                     <?php endfor; ?>
                 </select>

@@ -135,6 +135,11 @@ if (!in_array($returnPaymentSourceType, ['single', 'multi'], true)) {
 }
 $activeBankAccounts = array_values(array_filter(ledger_get_accounts($pdo), fn($a) => (int) ($a['is_active'] ?? 0) === 1));
 
+// Initialise damage / km / late so they exist for the deposit block on GET
+$kmOverageChg = 0;
+$damageChg    = 0;
+$lateChg      = 0;
+
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fuel = (int) ($_POST['fuel_level'] ?? 100);
@@ -142,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $notes = trim($_POST['notes'] ?? '');
     $kmDriven = $_POST['km_driven'] !== '' ? (int) $_POST['km_driven'] : null;
     $damageChg = max(0, (float) ($_POST['damage_charge'] ?? 0));
-    $additionalChgInput = (float) ($_POST['additional_charge'] ?? 0);
+    $additionalChgInput = (float) ($_POST['additional_charge'] ?? $returnPickupChargeDefault);
     $additionalChg = max(0, $additionalChgInput);
     $chellanAmt = max(0, (float) ($_POST['chellan_amount'] ?? 0));
     $discType = in_array($_POST['discount_type'] ?? '', ['percent', 'amount']) ? $_POST['discount_type'] : null;
@@ -155,6 +160,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $clientRatingReview = trim($_POST['client_rating_review'] ?? '');
     $returnVoucherRequest = max(0, round((float) ($_POST['return_voucher_amount'] ?? 0), 2));
     $depositReturned = max(0, (float) ($_POST['deposit_returned'] ?? 0));
+    $depositDeducted = max(0, (float) ($_POST['deposit_deducted'] ?? 0));
+    $depositHeld = max(0, (float) ($_POST['deposit_held'] ?? 0));
+    $depositHoldReason = trim($_POST['deposit_hold_reason'] ?? '');
     $returnPaymentMethod = reservation_payment_method_normalize($_POST['return_payment_method'] ?? null);
     $returnBankAccountId = (int) ($_POST['return_bank_account_id'] ?? 0);
     $returnBankAccountId = $returnBankAccountId > 0 ? $returnBankAccountId : null;
@@ -209,7 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Auto-cap voucher to the maximum usable value instead of failing validation.
         $returnVoucherApplied = round(min($returnVoucherRequest, $clientVoucherBalance, $amountDueAtReturn), 2);
     }
-    $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied);
+    $cashDueAtReturn = max(0, $amountDueAtReturn - $returnVoucherApplied - $depositDeducted);
     $earlyVoucherCredit = $calculateEarlyReturnCredit($startDt, $scheduledEndDt, $actualDt, (float) $r['total_price']);
 
     if ($fuel < 0 || $fuel > 100)
@@ -218,17 +226,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['mileage'] = 'Mileage must be 0 or more.';
 
     // All photos are required
-    $requiredPhotos = ['front','back','left','right','interior','odometer'];
+    $requiredPhotos = ['front','back','left','right','odometer'];
     foreach ($requiredPhotos as $photoKey) {
         if (empty($_FILES['photos']['name'][$photoKey]) || $_FILES['photos']['error'][$photoKey] !== UPLOAD_ERR_OK) {
             $errors['photo_' . $photoKey] = ucfirst(str_replace('_', ' ', $photoKey)) . ' photo is required.';
         }
     }
+    // Interior: require at least 1, max 15
+    $interiorOk = 0;
+    for ($n = 1; $n <= 15; $n++) {
+        $key = "interior_$n";
+        if (!empty($_FILES['photos']['name'][$key]) && $_FILES['photos']['error'][$key] === UPLOAD_ERR_OK) {
+            $interiorOk++;
+        }
+    }
+    if ($interiorOk === 0) {
+        $errors['photo_interior'] = 'At least one interior photo is required.';
+    }
+    // Scratch photo validation (max 15, optional)
+    $scratchAttempted = 0;
+    for ($n = 1; $n <= 15; $n++) {
+        if (!empty($_FILES['scratch_photos']['name'][$n] ?? '')
+            && ($_FILES['scratch_photos']['name'][$n] ?? '') !== '') {
+            $scratchAttempted++;
+        }
+    }
+    if ($scratchAttempted > 15) {
+        $errors['scratch_photos'] = 'A maximum of 15 scratch photos is allowed.';
+    }
     if ($additionalChgInput < 0)
         $errors['additional_charge'] = 'Return pickup charge cannot be negative.';
+    
+    // Deposit validation
     $maxDepositCollected = max(0, (float) ($r['deposit_amount'] ?? 0));
-    if ($depositReturned > $maxDepositCollected) {
-        $errors['deposit_returned'] = 'Deposit returned cannot exceed collected deposit ($' . number_format($maxDepositCollected, 2) . ').';
+    $alreadyDeducted = (float) ($r['deposit_deducted'] ?? 0);
+    $alreadyHeld = (float) ($r['deposit_held'] ?? 0);
+    $alreadyReturned = (float) ($r['deposit_returned'] ?? 0);
+    // Include deposit used for extensions (graceful degradation)
+    $depositUsedForExtension = 0.0;
+    if (column_exists($pdo, 'reservations', 'deposit_used_for_extension')) {
+        $depositUsedForExtension = max(0, (float) ($r['deposit_used_for_extension'] ?? 0));
+    }
+    $remainingDeposit = $maxDepositCollected - $alreadyReturned - $alreadyDeducted - $alreadyHeld - $depositUsedForExtension;
+    $maxReturnable = $remainingDeposit - $depositDeducted - $depositHeld;
+    
+    if ($depositReturned > $maxReturnable) {
+        $errors['deposit_returned'] = 'Deposit returned cannot exceed $' . number_format($maxReturnable, 2) . ' (Remaining deposit minus deduct/hold).';
+    }
+    if ($depositReturned < 0) $depositReturned = 0;
+    if ($depositDeducted < 0) $depositDeducted = 0;
+    if ($depositHeld < 0) $depositHeld = 0;
+    if ($depositHeld > 0 && $depositHoldReason === '') {
+        $errors['deposit_hold_reason'] = 'Please provide a reason for holding the deposit.';
     }
     if ($cashDueAtReturn > 0 && $returnPaymentSourceType === 'single') {
         if ($returnPaymentMethod === null)
@@ -297,6 +346,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
+            // Save scratch photos
+            $scratchDir = __DIR__ . '/../uploads/scratch_photos/';
+            if (!is_dir($scratchDir)) {
+                mkdir($scratchDir, 0777, true);
+            }
+            if (!empty($_FILES['scratch_photos']['name'])) {
+                for ($n = 1; $n <= 15; $n++) {
+                    if (empty($_FILES['scratch_photos']['name'][$n] ?? '')
+                        || ($_FILES['scratch_photos']['error'][$n] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                        continue;
+                    }
+                    $spName = $_FILES['scratch_photos']['name'][$n];
+                    $spExt  = strtolower(pathinfo($spName, PATHINFO_EXTENSION));
+                    $spFilename = 'scratch_' . $id . '_return_' . $n . '_' . time() . '.' . $spExt;
+                    if (move_uploaded_file($_FILES['scratch_photos']['tmp_name'][$n], $scratchDir . $spFilename)) {
+                        $pdo->prepare(
+                            'INSERT INTO reservation_scratch_photos (reservation_id, event_type, slot_index, file_path) VALUES (?, ?, ?, ?)'
+                        )->execute([$id, 'return', $n, 'uploads/scratch_photos/' . $spFilename]);
+                    }
+                }
+            }
+
             if ($returnVoucherApplied > 0) {
                 $returnVoucherAppliedActual = voucher_apply_debit(
                     $pdo,
@@ -320,9 +391,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $returnPaymentMethodSave = ($cashDueAtReturn > 0 && $returnPaymentSourceType === 'single') ? $returnPaymentMethod : null;
+            $depositHeldAt = $depositHeld > 0 ? $actualEndSave : null;
             $pdo->prepare("UPDATE reservations SET status='completed', actual_end_date=?, overdue_amount=?,
                 km_driven=?, km_overage_charge=?, damage_charge=?, additional_charge=?, chellan_amount=?, discount_type=?, discount_value=?,
-                return_voucher_applied=?, return_payment_method=?, return_paid_amount=?, early_return_credit=?, voucher_credit_issued=?, deposit_returned=? WHERE id=?")
+                return_voucher_applied=?, return_payment_method=?, return_paid_amount=?, early_return_credit=?, voucher_credit_issued=?, 
+                deposit_returned=?, deposit_deducted=?, deposit_held=?, deposit_hold_reason=?, deposit_held_at=? WHERE id=?")
                 ->execute([
                     $actualEndSave,
                     $overdueAmt + $lateChg,
@@ -339,6 +412,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $earlyVoucherCredit,
                     $voucherCreditIssued,
                     $depositReturned,
+                    $depositDeducted,
+                    $depositHeld,
+                    $depositHoldReason ?: null,
+                    $depositHeldAt,
                     $id,
                 ]);
             // Only free up the vehicle if no other active reservation exists for it
@@ -381,7 +458,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msg .= ' | Advance collected: $' . number_format($advancePaid, 2);
             }
             if ($r['deposit_amount'] > 0) {
-                $msg .= ' | Deposit: $' . number_format((float) $r['deposit_amount'], 2) . ' (Returned: $' . number_format($depositReturned, 2) . ')';
+                $depositParts = [];
+                $depositParts[] = number_format((float) $r['deposit_amount'], 2);
+                if ($depositDeducted > 0) $depositParts[] = '-$' . number_format($depositDeducted, 2);
+                if ($depositHeld > 0) $depositParts[] = '-$' . number_format($depositHeld, 2);
+                if ($depositReturned > 0) $depositParts[] = '-$' . number_format($depositReturned, 2);
+                $msg .= ' | Deposit: $' . implode(' / ', $depositParts);
             }
             if ($voucherApplied > 0) {
                 $msg .= ' | Voucher used on booking: $' . number_format($voucherApplied, 2);
@@ -420,22 +502,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             ledger_post_reservation_event($pdo, $id, 'return', $cashDueAtReturn, $returnPaymentMethodSave, $ledgerUserId, $returnBankAccountId);
         }
+            
+            // ── Security Deposit Handling ──────────────────────────────────
+            $depositBankAccountId = ledger_get_security_deposit_account_id($pdo, $id) ?? $configuredSecurityDepositBankId;
+            
+            // 1. Post deducted amount as REAL INCOME (counts toward KPI)
+            if ($depositDeducted > 0 && $depositBankAccountId !== null) {
+                // Move out of deposit tracking
+                ledger_post($pdo, 'expense', 'Security Deposit', $depositDeducted, 'account', $depositBankAccountId,
+                    'reservation', $id, 'security_deposit_deducted',
+                    "Reservation #$id - Deposit deducted (damage/charges)",
+                    $ledgerUserId, "reservation:security_deposit_deducted:$id");
+                // Post as real income
+                ledger_post($pdo, 'income', 'Damage Charges', $depositDeducted, 'account', $depositBankAccountId,
+                    'reservation', $id, 'damage_from_deposit',
+                    "Reservation #$id - Damage charges from deposit",
+                    $ledgerUserId, "reservation:damage_from_deposit:$id");
+            }
+            
+            // 2. Post amount being HELD (stays excluded from KPI)
+            if ($depositHeld > 0 && $depositBankAccountId !== null) {
+                ledger_post($pdo, 'expense', 'Security Deposit', $depositHeld, 'account', $depositBankAccountId,
+                    'reservation', $id, 'security_deposit_held',
+                    "Reservation #$id - Deposit held: " . ($depositHoldReason ?: 'No reason provided'),
+                    $ledgerUserId, "reservation:security_deposit_held:$id");
+            }
+            
+            // 3. Post amount RETURNED to client
             if ($depositReturned > 0) {
-                $depositBankAccountId = ledger_get_security_deposit_account_id($pdo, $id) ?? $configuredSecurityDepositBankId;
                 if ($depositBankAccountId !== null) {
-                    ledger_post_security_deposit(
-                        $pdo,
-                        $id,
-                        'out',
-                        $depositReturned,
-                        $depositBankAccountId,
-                        $ledgerUserId
-                    );
+                    ledger_post_security_deposit($pdo, $id, 'out', $depositReturned, $depositBankAccountId, $ledgerUserId);
                 } else {
-                    $msg .= ' | Security deposit return ledger not posted (configure Security Deposit Bank Account in Settings > General)';
+                    $msg .= ' | Security deposit return ledger not posted (no bank account)';
                     app_log('ERROR', 'Security deposit return ledger skipped for reservation #' . $id . ': no bank account available.');
                 }
             }
+            
+            // Deposit summary for message
+            if ($maxDepositCollected > 0) {
+                $depositSummary = '';
+                if ($depositDeducted > 0) $depositSummary .= ' | Deducted: $' . number_format($depositDeducted, 2);
+                if ($depositHeld > 0) $depositSummary .= ' | Held: $' . number_format($depositHeld, 2);
+                if ($depositReturned > 0) $depositSummary .= ' | Returned: $' . number_format($depositReturned, 2);
+                if ($depositSummary) $msg .= $depositSummary;
+            }
+            
             flash('success', $msg);
             // Log staff activity
             require_once __DIR__ . '/../includes/activity_log.php';
@@ -816,29 +927,154 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php endif; ?>
                     </div>
 
-                    <?php if ((float) ($r['deposit_amount'] ?? 0) > 0): ?>
+                    <?php if ((float) ($r['deposit_amount'] ?? 0) > 0):
+                        $depositAmount    = (float) ($r['deposit_amount'] ?? 0);
+                        $alreadyReturned  = (float) ($r['deposit_returned'] ?? 0);
+                        $alreadyDeducted  = (float) ($r['deposit_deducted'] ?? 0);
+                        $alreadyHeld      = (float) ($r['deposit_held'] ?? 0);
+                        // Graceful degradation: include extension usage if column exists
+                        $depositUsedForExt = 0.0;
+                        if (column_exists($pdo, 'reservations', 'deposit_used_for_extension')) {
+                            $depositUsedForExt = max(0, (float) ($r['deposit_used_for_extension'] ?? 0));
+                        }
+                        $remainingDeposit = $depositAmount - $alreadyReturned - $alreadyDeducted - $alreadyHeld - $depositUsedForExt;
+
+                        $_addChg  = isset($_POST['additional_charge'])
+                            ? max(0, (float) $_POST['additional_charge'])
+                            : $additionalChg;
+                        $_dmgChg  = isset($_POST['damage_charge'])
+                            ? max(0, (float) $_POST['damage_charge'])
+                            : $damageChg;
+                        $_chellan = isset($_POST['chellan_amount'])
+                            ? max(0, (float) $_POST['chellan_amount'])
+                            : $chellanAmt;
+                        $_kmDriven = (isset($_POST['km_driven']) && $_POST['km_driven'] !== '')
+                            ? (int) $_POST['km_driven']
+                            : null;
+                        $_kmOverage = 0;
+                        if ($_kmDriven !== null && $r['km_limit'] && $r['extra_km_price'] && $_kmDriven > $r['km_limit']) {
+                            $_kmOverage = ($_kmDriven - $r['km_limit']) * (float) $r['extra_km_price'];
+                        }
+
+                        $totalCharges  = $overdueAmt + $_kmOverage + $_dmgChg + $_addChg + $_chellan + $lateChg;
+                        $maxDeductible = min($totalCharges, $remainingDeposit);
+                        $totalCharges  = max(0, $totalCharges);
+                        $maxDeductible = max(0, $maxDeductible);
+                    ?>
                         <div class="bg-mb-black/50 border border-mb-subtle/20 rounded-xl p-6 space-y-4">
                             <div class="flex items-center justify-between">
-                                <h3 class="text-white text-lg font-light border-l-2 border-mb-accent pl-3">Security Deposit
-                                </h3>
-                                <span class="text-mb-subtle text-sm">Amount Collected: <span
-                                        class="text-white">$<?= number_format((float) $r['deposit_amount'], 2) ?></span></span>
+                                <h3 class="text-white text-lg font-light border-l-2 border-mb-accent pl-3">Security Deposit</h3>
+                                <span class="text-mb-subtle text-sm">Collected: <span class="text-white font-medium">$<?= number_format($depositAmount, 2) ?></span></span>
                             </div>
-                            <div>
-                                <label class="block text-sm text-mb-silver mb-2">Deposit Returned to Client ($)</label>
-                                <div class="relative">
-                                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
-                                    <input type="number" name="deposit_returned" step="0.01" min="0"
-                                        max="<?= (float) $r['deposit_amount'] ?>" required
-                                        class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm"
-                                        placeholder="0.00"
-                                        value="<?= e($_POST['deposit_returned'] ?? $r['deposit_amount']) ?>">
+                            
+                            <?php if ($alreadyReturned > 0 || $alreadyDeducted > 0 || $alreadyHeld > 0 || $depositUsedForExt > 0): ?>
+                                <div class="bg-mb-surface rounded-lg p-3 text-xs space-y-1 border border-mb-subtle/20">
+                                    <p class="text-mb-silver font-medium mb-2">Already processed:</p>
+                                    <?php if ($depositUsedForExt > 0): ?>
+                                        <p class="text-sky-400">Used for extensions: $<?= number_format($depositUsedForExt, 2) ?></p>
+                                    <?php endif; ?>
+                                    <?php if ($alreadyReturned > 0): ?>
+                                        <p class="text-green-400">Returned: $<?= number_format($alreadyReturned, 2) ?></p>
+                                    <?php endif; ?>
+                                    <?php if ($alreadyDeducted > 0): ?>
+                                        <p class="text-red-400">Deducted: $<?= number_format($alreadyDeducted, 2) ?></p>
+                                    <?php endif; ?>
+                                    <?php if ($alreadyHeld > 0): ?>
+                                        <p class="text-yellow-400">Held: $<?= number_format($alreadyHeld, 2) ?></p>
+                                    <?php endif; ?>
                                 </div>
-                                <p class="text-xs text-mb-subtle mt-1">Amount given back to the client from their original
-                                    deposit.</p>
-                                <?php if (isset($errors['deposit_returned'])): ?>
-                                    <p class="text-red-400 text-xs mt-1"><?= e($errors['deposit_returned']) ?></p>
-                                <?php endif; ?>
+                            <?php endif; ?>
+                            
+                            <div class="bg-mb-surface rounded-xl p-4 space-y-4">
+                                <p class="text-mb-subtle text-xs">Remaining deposit: <span class="text-white font-medium">$<span id="remainingDepositDisplay"><?= number_format($remainingDeposit, 2) ?></span></span></p>
+                                
+                                <!-- Amount to Deduct — placed first so it drives the Return field -->
+                                <div>
+                                    <label class="block text-sm text-mb-silver mb-2">
+                                        Amount to Deduct from Deposit
+                                        <span class="text-mb-subtle text-xs ml-2">(Becomes real income)</span>
+                                    </label>
+                                    <div class="relative">
+                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
+                                        <input type="number" name="deposit_deducted" id="depositDeducted" step="0.01" min="0"
+                                            max="<?= $maxDeductible ?>"
+                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm"
+                                            placeholder="0.00"
+                                            value="<?= e($_POST['deposit_deducted'] ?? '0') ?>"
+                                            oninput="updateDepositSummary('deducted')">
+                                    </div>
+                                    <p id="depositDeductHint" class="text-mb-subtle text-xs mt-1">Total charges: $<?= number_format($totalCharges, 2) ?>. Max deductible: $<?= number_format($maxDeductible, 2) ?></p>
+                                </div>
+
+                                <!-- Amount to Hold -->
+                                <div>
+                                    <label class="block text-sm text-mb-silver mb-2">
+                                        Amount to Hold
+                                        <span class="text-mb-subtle text-xs ml-2">(Not returned yet)</span>
+                                    </label>
+                                    <div class="relative">
+                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
+                                        <input type="number" name="deposit_held" id="depositHeld" step="0.01" min="0"
+                                            max="<?= $remainingDeposit ?>"
+                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm"
+                                            placeholder="0.00"
+                                            value="<?= e($_POST['deposit_held'] ?? '0') ?>"
+                                            oninput="updateDepositSummary('held')">
+                                    </div>
+                                    <?php if (isset($errors['deposit_hold_reason'])): ?>
+                                        <p class="text-red-400 text-xs mt-1"><?= e($errors['deposit_hold_reason']) ?></p>
+                                    <?php endif; ?>
+                                </div>
+
+                                <!-- Amount to Return — auto-calculated, but editable -->
+                                <div>
+                                    <label class="block text-sm text-mb-silver mb-2">Amount to Return to Client
+                                        <span class="text-mb-subtle text-xs ml-2">(Auto-calculated)</span>
+                                    </label>
+                                    <div class="relative">
+                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
+                                        <input type="number" name="deposit_returned" id="depositReturned" step="0.01" min="0"
+                                            max="<?= $remainingDeposit ?>"
+                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm"
+                                            placeholder="0.00"
+                                            value="<?= e($_POST['deposit_returned'] ?? $remainingDeposit) ?>"
+                                            oninput="updateDepositSummary('returned')">
+                                    </div>
+                                    <?php if (isset($errors['deposit_returned'])): ?>
+                                        <p class="text-red-400 text-xs mt-1"><?= e($errors['deposit_returned']) ?></p>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <!-- Hold Reason -->
+                                <div id="holdReasonSection" class="<?= ((float)($_POST['deposit_held'] ?? 0) > 0 || isset($errors['deposit_hold_reason'])) ? '' : 'hidden' ?>">
+                                    <label class="block text-sm text-mb-silver mb-2">Reason for Holding Deposit</label>
+                                    <input type="text" name="deposit_hold_reason"
+                                        placeholder="e.g., Pending damage assessment, Investigation ongoing"
+                                        value="<?= e($_POST['deposit_hold_reason'] ?? '') ?>"
+                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white placeholder-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                                </div>
+                                
+                                <!-- Summary -->
+                                <div class="bg-mb-accent/10 border border-mb-accent/30 rounded-lg p-3">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-mb-silver">Total Deposit:</span>
+                                        <span class="text-white font-medium">$<?= number_format($depositAmount, 2) ?></span>
+                                    </div>
+                                    <div class="flex justify-between text-sm mt-1">
+                                        <span class="text-mb-silver">Converting to Income:</span>
+                                        <span class="text-red-400">-$<span id="summaryDeduct">0.00</span></span>
+                                    </div>
+                                    <div class="flex justify-between text-sm mt-1">
+                                        <span class="text-mb-silver">Holding:</span>
+                                        <span class="text-yellow-400">-$<span id="summaryHold">0.00</span></span>
+                                    </div>
+                                    <div class="flex justify-between text-sm mt-1">
+                                        <span class="text-mb-silver">Returning:</span>
+                                        <span class="text-green-400">-$<span id="summaryReturn">0.00</span></span>
+                                    </div>
+                                    <!-- ═══ NEW: live unallocated / over-allocation warning ═══ -->
+                                    <p id="depositSummaryWarning" class="hidden text-amber-400 text-xs mt-2 font-medium"></p>
+                                </div>
                             </div>
                         </div>
                     <?php endif; ?>
@@ -931,7 +1167,6 @@ require_once __DIR__ . '/../includes/header.php';
                     'back' => 'Back',
                     'left' => 'Left',
                     'right' => 'Right',
-                    'interior' => 'Interior',
                     'odometer' => 'Photo of Odometer',
                 ];
                 foreach ($photoViews as $areaKey => $areaLabel):
@@ -947,7 +1182,51 @@ require_once __DIR__ . '/../includes/header.php';
                                    hover:file:bg-mb-surface/80 cursor-pointer">
                     </div>
                 <?php endforeach; ?>
+
+                <!-- Dynamic Interior Photos -->
+                <div class="bg-mb-black/30 p-4 rounded-lg border border-mb-subtle/10">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="block text-sm font-medium text-mb-silver">Interior Photos <span class="text-mb-subtle text-xs">(1–15)</span></label>
+                        <?php if (isset($errors['photo_interior'])): ?>
+                            <p class="text-red-400 text-xs"><?= e($errors['photo_interior']) ?></p>
+                        <?php endif; ?>
+                    </div>
+                    <div id="interior-slots-container" class="space-y-2">
+                        <div class="interior-slot flex items-center gap-2" data-slot="1">
+                            <input type="file" name="photos[interior_1]" accept="image/*" class="block flex-1 text-sm text-mb-silver
+                                       file:mr-4 file:py-2 file:px-4
+                                       file:rounded-full file:border-0
+                                       file:text-xs file:font-semibold
+                                       file:bg-mb-surface file:text-green-500
+                                       hover:file:bg-mb-surface/80 cursor-pointer">
+                        </div>
+                    </div>
+                    <button type="button" id="add-interior-btn"
+                        class="mt-3 text-xs text-green-500 hover:text-white border border-green-500/30 hover:border-green-500/60 px-3 py-1.5 rounded-full transition-colors">
+                        + Add another interior photo
+                    </button>
+                </div>
             </div>
+        </div>
+
+        <!-- Scratch / Damage Photos -->
+        <div class="bg-mb-surface border border-mb-subtle/20 rounded-lg p-6">
+            <h3 class="text-white font-light border-l-2 border-orange-500 pl-3 mb-4">
+                Scratch / Damage Photos <span class="text-mb-subtle text-xs font-normal">(optional, max 15)</span>
+            </h3>
+            <?php if (!empty($errors['scratch_photos'])): ?>
+                <p class="text-red-400 text-xs mb-3"><?= e($errors['scratch_photos']) ?></p>
+            <?php endif; ?>
+            <div id="scratch-slots-container" class="space-y-2">
+                <div class="scratch-slot flex items-center gap-2" data-slot="1">
+                    <input type="file" name="scratch_photos[1]" accept="image/*"
+                           class="block flex-1 text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-orange-400 hover:file:bg-mb-surface/80 cursor-pointer">
+                </div>
+            </div>
+            <button type="button" id="add-scratch-btn"
+                    class="mt-3 text-xs text-orange-400 hover:text-white border border-orange-500/30 hover:border-orange-500/60 px-3 py-1.5 rounded-full transition-colors">
+                + Add another scratch photo
+            </button>
         </div>
 
         <div class="flex items-center justify-end gap-4 pt-8 border-t border-mb-subtle/10">
@@ -1007,6 +1286,7 @@ const LATE_RATE=' . $lateRatePerHour . ';
 const LATE_TO_DAILY_THRESHOLD_MIN = 360;
 const BASE_PRICE=' . $baseRentalValue . ';
 const CLIENT_VOUCHER_BALANCE=' . $clientVoucherBalance . ';
+const DEPOSIT_REMAINING=' . max(0, (float)($r['deposit_amount'] ?? 0) - (float)($r['deposit_returned'] ?? 0) - (float)($r['deposit_deducted'] ?? 0) - (float)($r['deposit_held'] ?? 0) - (column_exists($pdo, 'reservations', 'deposit_used_for_extension') ? max(0, (float)($r['deposit_used_for_extension'] ?? 0)) : 0)) . ';
 const START_DATE = new Date("' . $r['start_date'] . '".replace(" ","T"));
 const SCHEDULED_END = new Date("' . $r['end_date'] . '".replace(" ","T"));
 
@@ -1132,6 +1412,108 @@ function toggleReturnDiscountValueField() {
     valueWrapEl.classList.toggle("hidden", !hasDiscount);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// FIXED: updateDepositSummary — bidirectional sync with auto-calculation
+//
+// Rules:
+//   • Changing Deducted or Held  → Return is auto-set to (DEPOSIT_REMAINING - Deducted - Held)
+//   • Changing Return manually   → Return is silently clamped; warning shown if gap remains
+//   • Initial load (no arg)      → Return pre-filled to full remaining balance
+// ═══════════════════════════════════════════════════════════════════════════════
+function updateDepositSummary(changedField) {
+    var depositReturnedEl = document.getElementById(\'depositReturned\');
+    var depositDeductedEl = document.getElementById(\'depositDeducted\');
+    var depositHeldEl     = document.getElementById(\'depositHeld\');
+    var holdReasonSection = document.getElementById(\'holdReasonSection\');
+    var depositWarningEl  = document.getElementById(\'depositSummaryWarning\');
+
+    if (!depositReturnedEl || !depositDeductedEl || !depositHeldEl) return;
+
+    // Parse and clamp negatives
+    var deductAmt = Math.max(0, parseFloat(depositDeductedEl.value) || 0);
+    var holdAmt   = Math.max(0, parseFloat(depositHeldEl.value)     || 0);
+    var returnAmt = Math.max(0, parseFloat(depositReturnedEl.value) || 0);
+
+    // Prevent any single field exceeding the total remaining deposit
+    if (deductAmt > DEPOSIT_REMAINING) {
+        deductAmt = DEPOSIT_REMAINING;
+        depositDeductedEl.value = deductAmt.toFixed(2);
+    }
+    if (holdAmt > DEPOSIT_REMAINING) {
+        holdAmt = DEPOSIT_REMAINING;
+        depositHeldEl.value = holdAmt.toFixed(2);
+    }
+
+    if (changedField === \'deducted\' || changedField === \'held\') {
+        // Auto-recalculate: Return = Remaining - Deducted - Held
+        returnAmt = Math.max(0, DEPOSIT_REMAINING - deductAmt - holdAmt);
+        depositReturnedEl.value = returnAmt.toFixed(2);
+    } else if (changedField === \'returned\') {
+        // Manual edit on Return: clamp to maximum allowed value
+        var maxReturn = Math.max(0, DEPOSIT_REMAINING - deductAmt - holdAmt);
+        if (returnAmt > maxReturn) {
+            returnAmt = maxReturn;
+            depositReturnedEl.value = returnAmt.toFixed(2);
+        }
+    } else {
+        // Initial page load: pre-fill Return with full remaining balance
+        returnAmt = Math.max(0, DEPOSIT_REMAINING - deductAmt - holdAmt);
+        depositReturnedEl.value = returnAmt.toFixed(2);
+    }
+
+    // Calculate unallocated balance for warning display
+    var totalAllocated = Math.round((returnAmt + deductAmt + holdAmt) * 100) / 100;
+    var diff = Math.round((DEPOSIT_REMAINING - totalAllocated) * 100) / 100;
+
+    // Update live summary labels
+    var remainingDisplay = document.getElementById(\'remainingDepositDisplay\');
+    var summaryReturn    = document.getElementById(\'summaryReturn\');
+    var summaryDeduct    = document.getElementById(\'summaryDeduct\');
+    var summaryHold      = document.getElementById(\'summaryHold\');
+
+    if (remainingDisplay) remainingDisplay.textContent = DEPOSIT_REMAINING.toFixed(2);
+    if (summaryDeduct)    summaryDeduct.textContent    = deductAmt.toFixed(2);
+    if (summaryHold)      summaryHold.textContent      = holdAmt.toFixed(2);
+    if (summaryReturn)    summaryReturn.textContent    = returnAmt.toFixed(2);
+
+    // Show/hide unallocated balance warning
+    if (depositWarningEl) {
+        if (Math.abs(diff) > 0.01) {
+            depositWarningEl.textContent = diff > 0
+                ? \'⚠ $\' + diff.toFixed(2) + \' unallocated — will remain with deposit\'
+                : \'⚠ Over by $\' + Math.abs(diff).toFixed(2) + \' — reduce deduct, hold, or return amount\';
+            depositWarningEl.className = diff > 0
+                ? \'text-amber-400 text-xs mt-2 font-medium\'
+                : \'text-red-400 text-xs mt-2 font-medium\';
+        } else {
+            depositWarningEl.className = \'hidden\';
+            depositWarningEl.textContent = \'\';
+        }
+    }
+
+    // Show/hide hold reason field
+    if (holdReasonSection) {
+        holdReasonSection.classList.toggle(\'hidden\', holdAmt <= 0);
+    }
+    if (typeof updateSummary === \'function\') updateSummary();
+}
+
+function _updateDepositMaxDeductible(totalChargesLive) {
+    var depositDeductedEl = document.getElementById(\'depositDeducted\');
+    if (!depositDeductedEl) return;
+
+    var maxDeductible = Math.min(totalChargesLive, DEPOSIT_REMAINING);
+    if (maxDeductible < 0) maxDeductible = 0;
+
+    depositDeductedEl.max = maxDeductible.toFixed(2);
+
+    var hintEl = document.getElementById(\'depositDeductHint\');
+    if (hintEl) {
+        hintEl.textContent = \'Total charges: $\' + totalChargesLive.toFixed(2)
+            + \'. Max deductible: $\' + maxDeductible.toFixed(2);
+    }
+}
+
 function updateSummary(){
     var kmDrivenEl=document.getElementById("kmDriven");
     var dmgHiddenEl=document.getElementById("damageCharge");
@@ -1199,7 +1581,9 @@ function updateSummary(){
             voucherInfoEl.classList.add("hidden");
         }
     }
-    var total=Math.max(0,totalAfterDiscount-returnVoucherApplied);
+    var depositDeductedInput = document.getElementById(\'depositDeducted\');
+    var depositDeductedAmt = depositDeductedInput ? (parseFloat(depositDeductedInput.value) || 0) : 0;
+    var total=Math.max(0,totalAfterDiscount - returnVoucherApplied - depositDeductedAmt);
 
     // Overdue row
     var overdueRow=document.getElementById("previewOverdueRow");
@@ -1316,6 +1700,8 @@ function updateSummary(){
     if (sourceTypeEl && sourceTypeEl.value === "multi") {
         validateReturnMultiTotal();
     }
+    // Keep deposit max-deductible hint in sync with live charge totals
+    _updateDepositMaxDeductible(totalBeforeDiscount);
 }
 const slider=document.getElementById("fuelSlider");
 const valEl=document.getElementById("fuel-val");
@@ -1416,6 +1802,114 @@ if(confirmRatingBtn){
 }
 
 updateSummary();
+updateDepositSummary();
+
+// Interior photo slots
+(function() {
+    const container = document.getElementById("interior-slots-container");
+    const addBtn = document.getElementById("add-interior-btn");
+    const MAX = 15;
+
+    function updateAddBtn() {
+        const count = container.querySelectorAll(".interior-slot").length;
+        addBtn.disabled = count >= MAX;
+        addBtn.classList.toggle("opacity-40", count >= MAX);
+        addBtn.classList.toggle("cursor-not-allowed", count >= MAX);
+    }
+
+    function makeRemoveBtn(slot) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = "✕";
+        btn.className = "text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded transition-colors flex-shrink-0";
+        btn.onclick = function() {
+            slot.remove();
+            reindex();
+            updateAddBtn();
+        };
+        return btn;
+    }
+
+    function reindex() {
+        container.querySelectorAll(".interior-slot").forEach(function(slot, i) {
+            const n = i + 1;
+            slot.dataset.slot = n;
+            const input = slot.querySelector("input[type=file]");
+            if (input) input.name = "photos[interior_" + n + "]";
+        });
+    }
+
+    addBtn.addEventListener("click", function() {
+        const count = container.querySelectorAll(".interior-slot").length;
+        if (count >= MAX) return;
+        const n = count + 1;
+        const slot = document.createElement("div");
+        slot.className = "interior-slot flex items-center gap-2";
+        slot.dataset.slot = n;
+        const input = document.createElement("input");
+        input.type = "file";
+        input.name = "photos[interior_" + n + "]";
+        input.accept = "image/*";
+        input.className = "block flex-1 text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-green-500 hover:file:bg-mb-surface/80 cursor-pointer";
+        slot.appendChild(input);
+        slot.appendChild(makeRemoveBtn(slot));
+        container.appendChild(slot);
+        updateAddBtn();
+    });
+
+    updateAddBtn();
+})();
+
+(function() {
+    var container = document.getElementById("scratch-slots-container");
+    var addBtn    = document.getElementById("add-scratch-btn");
+    if (!container || !addBtn) return;
+    var MAX = 15;
+
+    function updateAddBtn() {
+        var count = container.querySelectorAll(".scratch-slot").length;
+        addBtn.disabled = count >= MAX;
+        addBtn.style.opacity = count >= MAX ? "0.4" : "1";
+    }
+
+    function reindex() {
+        container.querySelectorAll(".scratch-slot").forEach(function(slot, i) {
+            var n = i + 1;
+            slot.dataset.slot = n;
+            var input = slot.querySelector("input[type=file]");
+            if (input) input.name = "scratch_photos[" + n + "]";
+        });
+    }
+
+    addBtn.addEventListener("click", function() {
+        var count = container.querySelectorAll(".scratch-slot").length;
+        if (count >= MAX) return;
+        var n = count + 1;
+        var slot = document.createElement("div");
+        slot.className = "scratch-slot flex items-center gap-2";
+        slot.dataset.slot = n;
+        var input = document.createElement("input");
+        input.type = "file";
+        input.name = "scratch_photos[" + n + "]";
+        input.accept = "image/*";
+        input.className = "block flex-1 text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-orange-400 hover:file:bg-mb-surface/80 cursor-pointer";
+        var removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.textContent = "Remove";
+        removeBtn.className = "text-xs text-red-400 hover:text-red-300 border border-red-500/30 px-2 py-1 rounded-full transition-colors";
+        removeBtn.addEventListener("click", function() {
+            slot.remove();
+            reindex();
+            updateAddBtn();
+        });
+        slot.appendChild(input);
+        slot.appendChild(removeBtn);
+        container.appendChild(slot);
+        updateAddBtn();
+    });
+
+    updateAddBtn();
+})();
 </script>';
 require_once __DIR__ . '/../includes/footer.php';
 ?>

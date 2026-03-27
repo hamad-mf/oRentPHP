@@ -395,6 +395,29 @@ function lead_sources_parse_textarea(string $input): array
     return $map;
 }
 
+// ── Credit Prioritization Preference ───────────────────────────────────────
+
+/**
+ * Get the prioritize income preference for credit transactions.
+ * 
+ * @param PDO $pdo Database connection
+ * @return bool True if income should be prioritized, false otherwise
+ */
+function get_credit_prioritize_income(PDO $pdo): bool {
+    $value = settings_get($pdo, 'credit_prioritize_income', '1');
+    return $value === '1';
+}
+
+/**
+ * Save the prioritize income preference for credit transactions.
+ * 
+ * @param PDO $pdo Database connection
+ * @param bool $prioritize Whether to prioritize income
+ */
+function set_credit_prioritize_income(PDO $pdo, bool $prioritize): void {
+    settings_set($pdo, 'credit_prioritize_income', $prioritize ? '1' : '0');
+}
+
 // ── Pagination Helper ──────────────────────────────────────────────────────
 
 /**

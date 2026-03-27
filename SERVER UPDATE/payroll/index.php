@@ -80,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'prepare_payroll') {
     $payPeriodStart = sprintf('%04d-%02d-15', $prepareYear, $prepareMonth);
     $payPeriodNextM = $prepareMonth === 12 ? 1 : $prepareMonth + 1;
     $payPeriodNextY = $prepareMonth === 12 ? $prepareYear + 1 : $prepareYear;
-    $payPeriodEnd   = sprintf('%04d-%02d-15', $payPeriodNextY, $payPeriodNextM);
+    $payPeriodEnd   = sprintf('%04d-%02d-14', $payPeriodNextY, $payPeriodNextM);
 
     // Block duplicates
     $chk = $pdo->prepare("SELECT COUNT(*) FROM payroll WHERE month = ? AND year = ?");
@@ -548,7 +548,7 @@ $year = (int) ($_GET['year'] ?? date('Y'));
 $listPeriodStart = sprintf('%04d-%02d-15', $year, $month);
 $listPeriodNextM = $month === 12 ? 1 : $month + 1;
 $listPeriodNextY = $month === 12 ? $year + 1 : $year;
-$listPeriodEnd   = sprintf('%04d-%02d-15', $listPeriodNextY, $listPeriodNextM);
+$listPeriodEnd   = sprintf('%04d-%02d-14', $listPeriodNextY, $listPeriodNextM);
 
 $_pySql  = "SELECT p.*, u.name AS staff_name, s.role AS staff_role, ba.name AS paid_from_name FROM payroll p JOIN users u ON u.id=p.user_id JOIN staff s ON s.id=u.staff_id LEFT JOIN bank_accounts ba ON ba.id=p.paid_from_account_id WHERE p.month=? AND p.year=? ORDER BY u.name";
 $_pyCnt  = "SELECT COUNT(*) FROM payroll p JOIN users u ON u.id=p.user_id JOIN staff s ON s.id=u.staff_id WHERE p.month=? AND p.year=?";
@@ -803,7 +803,7 @@ require_once __DIR__ . '/../includes/header.php';
                             $mn = $m === 12 ? 1 : $m + 1;
                         ?>
                             <option value="<?= $m ?>" <?= $m === $month ? 'selected' : '' ?>>
-                                15 <?= date('M', mktime(0,0,0,$m,1)) ?> – 15 <?= date('M', mktime(0,0,0,$mn,1)) ?>
+                                15 <?= date('M', mktime(0,0,0,$m,1)) ?> – 14 <?= date('M', mktime(0,0,0,$mn,1)) ?>
                             </option>
                         <?php endfor; ?>
                     </select>
@@ -984,7 +984,7 @@ require_once __DIR__ . '/../includes/header.php';
                             $mn = $m === 12 ? 1 : $m + 1;
                         ?>
                             <option value="<?= $m ?>" <?= $m === (int) date('n') ? 'selected' : '' ?>>
-                                15 <?= date('M', mktime(0,0,0,$m,1)) ?> – 15 <?= date('M', mktime(0,0,0,$mn,1)) ?>
+                                15 <?= date('M', mktime(0,0,0,$m,1)) ?> – 14 <?= date('M', mktime(0,0,0,$mn,1)) ?>
                             </option>
                         <?php endfor; ?>
                     </select>

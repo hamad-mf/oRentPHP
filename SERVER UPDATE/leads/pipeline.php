@@ -77,6 +77,26 @@ $requestedStaffFilter = (int) ($_GET['staff_filter'] ?? 0);
 $filterStaff = $isStaffScopeLocked ? $currentUserId : $requestedStaffFilter;
 $filterDateFrom = trim($_GET['date_from'] ?? '');
 $filterDateTo = trim($_GET['date_to'] ?? '');
+// Time range switch: 'today' (default), 'yesterday', or 'all'
+$timeRange = trim($_GET['time_range'] ?? 'today');
+if (!in_array($timeRange, ['today', 'yesterday', 'all'], true)) {
+    $timeRange = 'today';
+}
+// If date_from/date_to are explicitly set, treat as 'all' (custom range)
+if ($filterDateFrom !== '' || $filterDateTo !== '') {
+    $timeRange = 'all';
+}
+// Apply today filter automatically when time_range=today and no custom dates set
+if ($timeRange === 'today' && $filterDateFrom === '' && $filterDateTo === '') {
+    $filterDateFrom = date('Y-m-d');
+    $filterDateTo   = date('Y-m-d');
+}
+// Apply yesterday filter
+if ($timeRange === 'yesterday' && $filterDateFrom === '' && $filterDateTo === '') {
+    $yesterday      = date('Y-m-d', strtotime('-1 day'));
+    $filterDateFrom = $yesterday;
+    $filterDateTo   = $yesterday;
+}
 $filterSource = trim($_GET['source_filter'] ?? '');
 $filterStatus = trim((string) ($_GET['status_filter'] ?? ''));
 if ($filterStatus !== '' && !in_array($filterStatus, $stages, true)) {
@@ -204,6 +224,7 @@ $viewStateParams = array_filter(
         'staff_filter' => (!$isStaffScopeLocked && $filterStaff > 0) ? $filterStaff : null,
         'date_from' => $filterDateFrom,
         'date_to' => $filterDateTo,
+        'time_range' => $timeRange !== 'today' ? $timeRange : null,
         'source_filter' => $filterSource,
         'status_filter' => $filterStatus,
         'inquiry_filter' => $filterInquiry,
@@ -268,6 +289,25 @@ require_once __DIR__ . '/../includes/header.php';
             </p>
         </div>
         <div class="flex items-center gap-3 flex-wrap justify-end">
+            <?php
+            $todayUrl     = 'pipeline.php?' . http_build_query(array_filter(array_merge($viewStateParams, ['view' => $viewMode, 'time_range' => 'today',     'date_from' => null, 'date_to' => null]), fn($v) => $v !== null && $v !== ''));
+            $yesterdayUrl = 'pipeline.php?' . http_build_query(array_filter(array_merge($viewStateParams, ['view' => $viewMode, 'time_range' => 'yesterday', 'date_from' => null, 'date_to' => null]), fn($v) => $v !== null && $v !== ''));
+            $allTimeUrl   = 'pipeline.php?' . http_build_query(array_filter(array_merge($viewStateParams, ['view' => $viewMode, 'time_range' => 'all',       'date_from' => null, 'date_to' => null]), fn($v) => $v !== null && $v !== ''));
+            ?>
+            <div class="flex items-center bg-mb-surface border border-mb-subtle/20 rounded-full p-1">
+                <a href="<?= e($todayUrl) ?>"
+                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors <?= $timeRange === 'today' ? 'bg-mb-accent text-white' : 'text-mb-silver hover:text-white' ?>">
+                    Today
+                </a>
+                <a href="<?= e($yesterdayUrl) ?>"
+                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors <?= $timeRange === 'yesterday' ? 'bg-mb-accent text-white' : 'text-mb-silver hover:text-white' ?>">
+                    Yesterday
+                </a>
+                <a href="<?= e($allTimeUrl) ?>"
+                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors <?= $timeRange === 'all' ? 'bg-mb-accent text-white' : 'text-mb-silver hover:text-white' ?>">
+                    All Time
+                </a>
+            </div>
             <div class="flex items-center bg-mb-surface border border-mb-subtle/20 rounded-full p-1">
                 <a href="<?= e($kanbanViewUrl) ?>"
                     class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors <?= $viewMode === 'kanban' ? 'bg-mb-accent text-white' : 'text-mb-silver hover:text-white' ?>">
@@ -284,6 +324,13 @@ require_once __DIR__ . '/../includes/header.php';
                     Import Leads
                 </button>
             <?php endif; ?>
+            <button type="button" onclick="document.getElementById('leadExportModal').classList.remove('hidden')"
+                class="border border-mb-subtle/30 text-mb-silver hover:text-white hover:border-mb-subtle/60 px-4 py-2 rounded-full transition-colors flex items-center gap-2 text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Export
+            </button>
             <?php if (auth_has_perm('add_leads')): ?>
                 <a href="create.php"
                     class="bg-mb-accent text-white px-5 py-2 rounded-full hover:bg-mb-accent/80 transition-colors text-sm font-medium">
@@ -369,8 +416,8 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     <?php endif;
     $activeFilters = (int) ((!$isStaffScopeLocked) && ($filterStaff > 0))
-        + (int) ($filterDateFrom !== '')
-        + (int) ($filterDateTo !== '')
+        + (int) ($filterDateFrom !== '' && $timeRange === 'all')
+        + (int) ($filterDateTo !== '' && $timeRange === 'all')
         + (int) ($filterSource !== '')
         + (int) ($filterStatus !== '')
         + (int) ($filterInquiry !== '')
@@ -381,6 +428,7 @@ require_once __DIR__ . '/../includes/header.php';
     <form method="GET" id="pipelineFilters"
         class="flex flex-wrap items-center gap-3 bg-mb-surface border border-mb-subtle/20 rounded-xl px-4 py-3">
         <input type="hidden" name="view" value="<?= e($viewMode) ?>">
+        <input type="hidden" name="time_range" value="<?= e($timeRange) ?>">
 
         <!-- Global Search -->
         <div class="flex items-center gap-2">
@@ -1269,5 +1317,71 @@ require_once __DIR__ . '/../includes/header.php';
         }
     });
 </script>
+
+<!-- Lead Export Modal -->
+<div id="leadExportModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl w-full max-w-sm mx-4 p-6 space-y-5">
+        <div class="flex items-center justify-between">
+            <h2 class="text-white font-medium">Export Leads</h2>
+            <button type="button" onclick="document.getElementById('leadExportModal').classList.add('hidden')"
+                class="text-mb-subtle hover:text-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <form method="POST" action="export.php">
+            <!-- Pass current filter state -->
+            <input type="hidden" name="q"              value="<?= e($filterSearch) ?>">
+            <input type="hidden" name="staff_filter"   value="<?= e($filterStaff) ?>">
+            <input type="hidden" name="date_from"      value="<?= e($filterDateFrom) ?>">
+            <input type="hidden" name="date_to"        value="<?= e($filterDateTo) ?>">
+            <input type="hidden" name="source_filter"  value="<?= e($filterSource) ?>">
+            <input type="hidden" name="status_filter"  value="<?= e($filterStatus) ?>">
+            <input type="hidden" name="inquiry_filter" value="<?= e($filterInquiry) ?>">
+
+            <p class="text-mb-subtle text-xs mb-3">
+                Exports leads matching current filters.
+                <?php $totalLeads = count($allLeads); ?>
+                <span class="text-mb-silver"><?= $totalLeads ?> lead<?= $totalLeads !== 1 ? 's' : '' ?> in current view.</span>
+            </p>
+
+            <div class="space-y-3">
+                <p class="text-mb-silver text-xs uppercase tracking-wide">Additional columns to include</p>
+                <p class="text-mb-subtle text-xs">Name and Phone are always included.</p>
+
+                <?php
+                $exportFields = [
+                    'alternative_number' => 'Alt. Phone',
+                    'email'              => 'Email',
+                    'status'             => 'Status',
+                    'source'             => 'Source',
+                    'inquiry_type'       => 'Inquiry Type',
+                    'vehicle_interest'   => 'Vehicle Interest',
+                    'assigned_to'        => 'Assigned To',
+                    'notes'              => 'Notes',
+                    'created_at'         => 'Created Date',
+                ];
+                foreach ($exportFields as $fKey => $fLabel):
+                ?>
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                        <input type="checkbox" name="fields[]" value="<?= $fKey ?>" checked
+                            class="w-4 h-4 rounded border-mb-subtle/30 text-mb-accent bg-mb-black focus:ring-mb-accent">
+                        <span class="text-mb-silver text-sm group-hover:text-white transition-colors"><?= $fLabel ?></span>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+
+            <button type="submit"
+                class="mt-5 w-full bg-mb-accent text-white py-2.5 rounded-full hover:bg-mb-accent/80 transition-colors text-sm font-medium flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Download .xlsx
+            </button>
+        </form>
+    </div>
+</div>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

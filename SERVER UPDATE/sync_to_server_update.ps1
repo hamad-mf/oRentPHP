@@ -39,7 +39,7 @@ $allFiles = Get-ChildItem -Path $src -File -Recurse | Where-Object {
     $topLevel = $rel.Split('\')[0]
 
     # Skip these top-level folders
-    if ($topLevel -in @('SERVER UPDATE', '.git', 'uploads', 'logs', '.gemini', '.agents')) { return $false }
+    if ($topLevel -in @('SERVER UPDATE', '.git', 'uploads', 'logs', '.gemini', '.agents', '.kiro')) { return $false }
 
     # Skip dev-only / sensitive files
     $skipFiles = @(

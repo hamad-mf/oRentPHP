@@ -35,7 +35,7 @@ function hope_period_from_my(int $m, int $y): array
     $start = sprintf('%04d-%02d-15', $y, $m);
     $nM = $m === 12 ? 1 : $m + 1;
     $nY = $m === 12 ? $y + 1 : $y;
-    return ['start' => $start, 'end' => sprintf('%04d-%02d-15', $nY, $nM)];
+    return ['start' => $start, 'end' => sprintf('%04d-%02d-14', $nY, $nM)];
 }
 
 function hope_period_for_today(): array
@@ -49,6 +49,322 @@ function hope_period_for_today(): array
     $pm = $m === 1 ? 12 : $m - 1;
     $py = $m === 1 ? $y - 1 : $y;
     return hope_period_from_my($pm, $py);
+}
+
+function hope_format_currency(float $amount): string
+{
+    return '$' . number_format($amount, 2);
+}
+
+function hope_fetch_breakdown_data(PDO $pdo, string $rangeStart, string $rangeEnd): array
+{
+    $data = ['reservations' => [], 'extensions' => [], 'predictions' => []];
+    
+    try {
+        $resStmt = $pdo->prepare(
+            "SELECT r.id, r.status, r.created_at, r.start_date, r.end_date,
+                    r.total_price, r.extension_paid_amount, r.voucher_applied, r.advance_paid,
+                    r.delivery_charge, r.delivery_manual_amount, r.delivery_charge_prepaid,
+                    r.delivery_discount_type, r.delivery_discount_value,
+                    r.return_voucher_applied, r.overdue_amount, r.km_overage_charge, 
+                    r.damage_charge, r.additional_charge, r.chellan_amount, 
+                    r.discount_type, r.discount_value,
+                    r.client_id,
+                    COALESCE(c.name, 'Unknown Client') AS client_name
+             FROM reservations r
+             LEFT JOIN clients c ON r.client_id = c.id
+             WHERE r.status <> 'cancelled'
+               AND (
+                   DATE(r.created_at) BETWEEN ? AND ?
+                   OR DATE(r.start_date) BETWEEN ? AND ?
+                   OR DATE(r.end_date) BETWEEN ? AND ?
+               )
+             ORDER BY r.created_at"
+        );
+        $resStmt->execute([$rangeStart, $rangeEnd, $rangeStart, $rangeEnd, $rangeStart, $rangeEnd]);
+        $data['reservations'] = $resStmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        $data['reservations'] = [];
+    }
+    
+    try {
+        $hasExtTable = (bool) $pdo->query("SHOW TABLES LIKE 'reservation_extensions'")->fetchColumn();
+        if ($hasExtTable) {
+            $extStmt = $pdo->prepare(
+                "SELECT e.id, e.reservation_id, e.amount, e.created_at,
+                        COALESCE(c.name, 'Unknown Client') AS client_name
+                 FROM reservation_extensions e
+                 INNER JOIN reservations r ON e.reservation_id = r.id
+                 LEFT JOIN clients c ON r.client_id = c.id
+                 WHERE r.status <> 'cancelled'
+                   AND DATE(e.created_at) BETWEEN ? AND ?
+                 ORDER BY e.created_at"
+            );
+            $extStmt->execute([$rangeStart, $rangeEnd]);
+            $data['extensions'] = $extStmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    } catch (Throwable $e) {
+        $data['extensions'] = [];
+    }
+    
+    try {
+        $hasPredTable = (bool) $pdo->query("SHOW TABLES LIKE 'hope_daily_predictions'")->fetchColumn();
+        if ($hasPredTable) {
+            $predStmt = $pdo->prepare(
+                "SELECT target_date, label, amount
+                 FROM hope_daily_predictions
+                 WHERE target_date BETWEEN ? AND ?
+                 ORDER BY target_date, id"
+            );
+            $predStmt->execute([$rangeStart, $rangeEnd]);
+            $data['predictions'] = $predStmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    } catch (Throwable $e) {
+        $data['predictions'] = [];
+    }
+    
+    return $data;
+}
+
+function hope_build_breakdown_map(array $data, string $rangeStart, string $rangeEnd): array
+{
+    $breakdownMap = [];
+    
+    foreach ($data['reservations'] as $r) {
+        $bookingDate = substr((string) $r['created_at'], 0, 10);
+        $bookingAmt = max(0, (float) ($r['advance_paid'] ?? 0)) + max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
+        if ($bookingAmt > 0 && $bookingDate >= $rangeStart && $bookingDate <= $rangeEnd) {
+            if (!isset($breakdownMap[$bookingDate])) {
+                $breakdownMap[$bookingDate] = ['booking' => [], 'delivery' => [], 'return' => [], 'extension' => [], 'prediction' => [], 'total' => 0.0];
+            }
+            $breakdownMap[$bookingDate]['booking'][] = [
+                'res_id' => (int) $r['id'],
+                'client_name' => (string) $r['client_name'],
+                'amount' => $bookingAmt,
+            ];
+            $breakdownMap[$bookingDate]['total'] += $bookingAmt;
+        }
+        
+        $deliveryDate = substr((string) $r['start_date'], 0, 10);
+        $deliveryAmt = hope_calc_delivery_due($r);
+        if ($deliveryAmt > 0 && $deliveryDate >= $rangeStart && $deliveryDate <= $rangeEnd) {
+            if (!isset($breakdownMap[$deliveryDate])) {
+                $breakdownMap[$deliveryDate] = ['booking' => [], 'delivery' => [], 'return' => [], 'extension' => [], 'prediction' => [], 'total' => 0.0];
+            }
+            $breakdownMap[$deliveryDate]['delivery'][] = [
+                'res_id' => (int) $r['id'],
+                'client_name' => (string) $r['client_name'],
+                'amount' => $deliveryAmt,
+            ];
+            $breakdownMap[$deliveryDate]['total'] += $deliveryAmt;
+        }
+        
+        $returnDate = substr((string) $r['end_date'], 0, 10);
+        $returnAmt = hope_calc_return_due($r);
+        if ($returnAmt > 0 && $returnDate >= $rangeStart && $returnDate <= $rangeEnd) {
+            if (!isset($breakdownMap[$returnDate])) {
+                $breakdownMap[$returnDate] = ['booking' => [], 'delivery' => [], 'return' => [], 'extension' => [], 'prediction' => [], 'total' => 0.0];
+            }
+            $breakdownMap[$returnDate]['return'][] = [
+                'res_id' => (int) $r['id'],
+                'client_name' => (string) $r['client_name'],
+                'amount' => $returnAmt,
+            ];
+            $breakdownMap[$returnDate]['total'] += $returnAmt;
+        }
+    }
+    
+    foreach ($data['extensions'] as $ext) {
+        $extDate = substr((string) $ext['created_at'], 0, 10);
+        $extAmt = max(0, (float) ($ext['amount'] ?? 0));
+        if ($extAmt > 0 && $extDate >= $rangeStart && $extDate <= $rangeEnd) {
+            if (!isset($breakdownMap[$extDate])) {
+                $breakdownMap[$extDate] = ['booking' => [], 'delivery' => [], 'return' => [], 'extension' => [], 'prediction' => [], 'total' => 0.0];
+            }
+            $breakdownMap[$extDate]['extension'][] = [
+                'ext_id' => (int) $ext['id'],
+                'res_id' => (int) $ext['reservation_id'],
+                'client_name' => (string) $ext['client_name'],
+                'amount' => $extAmt,
+            ];
+            $breakdownMap[$extDate]['total'] += $extAmt;
+        }
+    }
+    
+    foreach ($data['predictions'] as $pred) {
+        $predDate = (string) $pred['target_date'];
+        $predAmt = max(0, (float) ($pred['amount'] ?? 0));
+        if ($predAmt > 0 && $predDate >= $rangeStart && $predDate <= $rangeEnd) {
+            if (!isset($breakdownMap[$predDate])) {
+                $breakdownMap[$predDate] = ['booking' => [], 'delivery' => [], 'return' => [], 'extension' => [], 'prediction' => [], 'total' => 0.0];
+            }
+            $breakdownMap[$predDate]['prediction'][] = [
+                'label' => (string) $pred['label'],
+                'amount' => $predAmt,
+            ];
+            $breakdownMap[$predDate]['total'] += $predAmt;
+        }
+    }
+    
+    return $breakdownMap;
+}
+
+function hope_render_breakdown(array $breakdownMap, string $date): string
+{
+    if (!isset($breakdownMap[$date])) {
+        return '<p class="text-xs text-mb-subtle italic">No expected income sources for this date.</p>';
+    }
+    
+    $breakdown = $breakdownMap[$date];
+    $items = [];
+    
+    foreach ($breakdown['booking'] as $item) {
+        $items[] = [
+            'label' => 'Res #' . $item['res_id'] . ' - ' . e($item['client_name']) . ' - Booking',
+            'amount' => $item['amount'],
+            'link' => '../reservations/show.php?id=' . $item['res_id'],
+        ];
+    }
+    
+    foreach ($breakdown['delivery'] as $item) {
+        $items[] = [
+            'label' => 'Res #' . $item['res_id'] . ' - ' . e($item['client_name']) . ' - Delivery',
+            'amount' => $item['amount'],
+            'link' => '../reservations/show.php?id=' . $item['res_id'],
+        ];
+    }
+    
+    foreach ($breakdown['return'] as $item) {
+        $items[] = [
+            'label' => 'Res #' . $item['res_id'] . ' - ' . e($item['client_name']) . ' - Return',
+            'amount' => $item['amount'],
+            'link' => '../reservations/show.php?id=' . $item['res_id'],
+        ];
+    }
+    
+    foreach ($breakdown['extension'] as $item) {
+        $items[] = [
+            'label' => 'Extension #' . $item['ext_id'] . ' (Res #' . $item['res_id'] . ' - ' . e($item['client_name']) . ')',
+            'amount' => $item['amount'],
+            'link' => '../reservations/show.php?id=' . $item['res_id'],
+        ];
+    }
+    
+    foreach ($breakdown['prediction'] as $item) {
+        $items[] = [
+            'label' => 'Custom: ' . e($item['label']),
+            'amount' => $item['amount'],
+            'link' => null,
+        ];
+    }
+    
+    usort($items, fn($a, $b) => $b['amount'] <=> $a['amount']);
+    
+    $html = '<div class="space-y-1.5">';
+    foreach ($items as $item) {
+        $html .= '<div class="flex items-center justify-between text-sm group">';
+        if ($item['link']) {
+            $html .= '<a href="' . e($item['link']) . '" class="text-mb-silver hover:text-mb-accent transition-colors hover:underline">' . $item['label'] . '</a>';
+        } else {
+            $html .= '<span class="text-mb-silver">' . $item['label'] . '</span>';
+        }
+        $html .= '<span class="text-green-400 font-medium">' . hope_format_currency($item['amount']) . '</span>';
+        $html .= '</div>';
+    }
+    $html .= '<div class="flex items-center justify-between text-sm pt-2 mt-2 border-t border-mb-subtle/20">';
+    $html .= '<span class="text-white font-medium">Total Expected</span>';
+    $html .= '<span class="text-green-400 font-bold">' . hope_format_currency($breakdown['total']) . '</span>';
+    $html .= '</div>';
+    $html .= '</div>';
+    
+    return $html;
+}
+
+function hope_fetch_actual_breakdown(PDO $pdo, string $date): array
+{
+    $items = [];
+    
+    try {
+        $hasLedgerTable = (bool) $pdo->query("SHOW TABLES LIKE 'ledger_entries'")->fetchColumn();
+        if (!$hasLedgerTable) {
+            return $items;
+        }
+        
+        $kpiClause = ledger_kpi_exclusion_clause();
+        $stmt = $pdo->prepare(
+            "SELECT le.id, le.amount, le.description, le.source_type, le.source_id, le.source_event,
+                    COALESCE(c.name, 'Unknown Client') AS client_name
+             FROM ledger_entries le
+             LEFT JOIN reservations r ON le.source_type = 'reservation' AND le.source_id = r.id
+             LEFT JOIN clients c ON r.client_id = c.id
+             WHERE le.txn_type = 'income'
+               AND $kpiClause
+               AND DATE(le.posted_at) = ?
+             ORDER BY le.amount DESC"
+        );
+        $stmt->execute([$date]);
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        $items = [];
+    }
+    
+    return $items;
+}
+
+function hope_render_actual_breakdown(array $items): string
+{
+    if (empty($items)) {
+        return '<p class="text-xs text-mb-subtle italic">No actual income recorded for this date.</p>';
+    }
+    
+    $html = '<div class="space-y-1.5">';
+    $total = 0.0;
+    
+    foreach ($items as $item) {
+        $amount = (float) $item['amount'];
+        $total += $amount;
+        
+        $label = '';
+        $link = null;
+        
+        if ($item['source_type'] === 'reservation' && $item['source_id']) {
+            $resId = (int) $item['source_id'];
+            $clientName = $item['client_name'] ?? 'Unknown Client';
+            $event = $item['source_event'] ?? 'payment';
+            
+            $eventLabel = match($event) {
+                'advance', 'delivery_prepaid' => 'Booking',
+                'delivery' => 'Delivery',
+                'return' => 'Return',
+                'extension' => 'Extension',
+                'cancellation' => 'Cancellation',
+                default => ucfirst($event),
+            };
+            
+            $label = "Res #{$resId} - " . e($clientName) . " - {$eventLabel}";
+            $link = '../reservations/show.php?id=' . $resId;
+        } else {
+            $desc = $item['description'] ?? 'Manual Entry';
+            $label = e($desc);
+        }
+        
+        $html .= '<div class="flex items-center justify-between text-sm group">';
+        if ($link) {
+            $html .= '<a href="' . e($link) . '" class="text-mb-silver hover:text-mb-accent transition-colors hover:underline">' . $label . '</a>';
+        } else {
+            $html .= '<span class="text-mb-silver">' . $label . '</span>';
+        }
+        $html .= '<span class="text-blue-400 font-medium">' . hope_format_currency($amount) . '</span>';
+        $html .= '</div>';
+    }
+    
+    $html .= '<div class="flex items-center justify-between text-sm pt-2 mt-2 border-t border-mb-subtle/20">';
+    $html .= '<span class="text-white font-medium">Total Actual</span>';
+    $html .= '<span class="text-blue-400 font-bold">' . hope_format_currency($total) . '</span>';
+    $html .= '</div>';
+    $html .= '</div>';
+    
+    return $html;
 }
 
 $defP = hope_period_for_today();
@@ -425,6 +741,10 @@ if ($hasLedgerTable) {
     }
 }
 
+// Fetch breakdown data and build breakdown map
+$breakdownData = hope_fetch_breakdown_data($pdo, $rangeStart, $rangeEnd);
+$breakdownMap = hope_build_breakdown_map($breakdownData, $rangeStart, $rangeEnd);
+
 $days = [];
 $cursor = $startDate;
 while ($cursor <= $endDate) {
@@ -489,9 +809,9 @@ require_once __DIR__ . '/../includes/header.php';
             <?php endif; ?>
             <select name="m" class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
                 <?php
-                $months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-                foreach ($months as $idx => $mLabel):
-                    $mVal = $idx + 1;
+                foreach (range(1, 12) as $mVal):
+                    $mNext = $mVal === 12 ? 1 : $mVal + 1;
+                    $mLabel = '15 ' . date('M', mktime(0,0,0,$mVal,1)) . ' – 14 ' . date('M', mktime(0,0,0,$mNext,1));
                 ?>
                     <option value="<?= $mVal ?>" <?= $selM === $mVal ? 'selected' : '' ?>><?= $mLabel ?></option>
                 <?php endforeach; ?>
@@ -562,6 +882,18 @@ require_once __DIR__ . '/../includes/header.php';
             <p class="text-green-400 text-lg mt-2">$<?= number_format($totalExpected, 2) ?></p>
             <p class="text-mb-subtle text-xs mt-2">Sum of scheduled reservation collections + predictions for <?= e($monthLabel) ?>.</p>
         </div>
+        <a href="vehicle_targets.php?m=<?= $selM ?>&y=<?= $selY ?>" 
+           class="block bg-mb-surface border border-mb-subtle/20 rounded-xl p-5 hover:border-mb-accent/50 transition-colors">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-mb-subtle uppercase tracking-wider mb-2">Vehicle Breakdown</p>
+                    <p class="text-white text-sm">View targets by vehicle</p>
+                </div>
+                <svg class="w-5 h-5 text-mb-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </div>
+        </a>
     </div>
 
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
@@ -666,6 +998,21 @@ require_once __DIR__ . '/../includes/header.php';
                             </div>
                         </div>
                         <div id="pred-<?= e($row['date']) ?>" class="hidden border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-4 py-3 text-sm">
+                            <!-- Expected Income Breakdown -->
+                            <div class="mb-4 pb-4 border-b border-mb-subtle/10">
+                                <p class="text-white font-medium mb-3">Expected Income Breakdown</p>
+                                <?= hope_render_breakdown($breakdownMap, $row['date']) ?>
+                            </div>
+                            
+                            <?php if ($row['date'] <= $today): ?>
+                            <!-- Actual Income Breakdown -->
+                            <div class="mb-4 pb-4 border-b border-mb-subtle/10">
+                                <p class="text-white font-medium mb-3">Actual Income Breakdown</p>
+                                <?= hope_render_actual_breakdown(hope_fetch_actual_breakdown($pdo, $row['date'])) ?>
+                            </div>
+                            <?php endif; ?>
+                            
+                            <!-- Predictions Section -->
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-white font-medium">Predictions for <?= e($row['label']) ?></p>
@@ -777,6 +1124,21 @@ require_once __DIR__ . '/../includes/header.php';
                         </p>
                     </div>
                 </div>
+                
+                <!-- Expected Income Breakdown -->
+                <div class="mt-4 border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-4 py-3">
+                    <p class="text-white font-medium text-sm mb-3">Expected Income Breakdown</p>
+                    <?= hope_render_breakdown($breakdownMap, $selectedDay['date']) ?>
+                </div>
+                
+                <?php if ($selectedDay['date'] <= $today): ?>
+                <!-- Actual Income Breakdown -->
+                <div class="mt-4 border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-4 py-3">
+                    <p class="text-white font-medium text-sm mb-3">Actual Income Breakdown</p>
+                    <?= hope_render_actual_breakdown(hope_fetch_actual_breakdown($pdo, $selectedDay['date'])) ?>
+                </div>
+                <?php endif; ?>
+                
                 <div class="mt-4 border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-4 py-3 text-sm">
                     <div class="flex items-center justify-between">
                         <div>

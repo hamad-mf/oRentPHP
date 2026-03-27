@@ -14,6 +14,17 @@ $perPage = get_per_page($pdo);
 $page    = max(1, (int) ($_GET['page'] ?? 1));
 $userId  = (int) ($_currentUser['id'] ?? 0);
 $includeVoided = (string)($_GET['include_voided'] ?? '') === '1';
+
+// Handle prioritize_income URL parameter and preference
+if (isset($_GET['prioritize_income_submitted'])) {
+    // Form was submitted, check if checkbox was checked
+    $prioritizeIncome = isset($_GET['prioritize_income']) && $_GET['prioritize_income'] === '1';
+    set_credit_prioritize_income($pdo, $prioritizeIncome);
+} else {
+    // No form submission, load saved preference
+    $prioritizeIncome = get_credit_prioritize_income($pdo);
+}
+
 $accounts = ledger_get_accounts($pdo);
 $activeAccounts = array_values(array_filter($accounts, static function ($account) {
     return (int) ($account['is_active'] ?? 0) === 1;
@@ -133,7 +144,13 @@ $canAddPayment = $creditBalanceLimit > 0;
 
 $voidFilter = $includeVoided ? '' : ' AND le.voided_at IS NULL';
 $baseSql = " FROM ledger_entries le LEFT JOIN reservations r ON le.source_type='reservation' AND le.source_id = r.id LEFT JOIN clients c ON c.id = r.client_id LEFT JOIN users u ON u.id = le.created_by WHERE le.payment_mode = 'credit'{$voidFilter}";
-$selectSql = "SELECT le.*, r.id AS res_id, r.status AS res_status, c.name AS client_name, c.id AS client_id, c.phone AS client_phone, u.name AS posted_by_name" . $baseSql . " ORDER BY le.id DESC, le.posted_at DESC";
+
+// Conditional ORDER BY clause based on prioritization toggle
+$orderClause = $prioritizeIncome 
+    ? " ORDER BY CASE WHEN le.txn_type = 'income' THEN 0 ELSE 1 END, le.posted_at DESC, le.id DESC"
+    : " ORDER BY le.id DESC, le.posted_at DESC";
+
+$selectSql = "SELECT le.*, r.id AS res_id, r.status AS res_status, c.name AS client_name, c.id AS client_id, c.phone AS client_phone, u.name AS posted_by_name" . $baseSql . $orderClause;
 $countSql  = "SELECT COUNT(*)" . $baseSql;
 $pg = paginate_query($pdo, $selectSql, $countSql, [], $page, $perPage);
 $entries = $pg['rows'];
@@ -194,6 +211,18 @@ require_once __DIR__ . '/../includes/header.php';
                             class="accent-mb-accent w-4 h-4 rounded border border-mb-subtle/30 bg-mb-black">
                         Show voided
                     </label>
+                </form>
+                <form method="GET" class="inline-flex items-center gap-2">
+                    <input type="hidden" name="prioritize_income_submitted" value="1">
+                    <label class="inline-flex items-center gap-2 text-xs text-mb-subtle">
+                        <input type="checkbox" name="prioritize_income" value="1" <?= $prioritizeIncome ? 'checked' : '' ?>
+                            onchange="this.form.submit()"
+                            class="accent-mb-accent w-4 h-4 rounded border border-mb-subtle/30 bg-mb-black">
+                        Prioritize income
+                    </label>
+                    <?php if ($includeVoided): ?>
+                        <input type="hidden" name="include_voided" value="1">
+                    <?php endif; ?>
                 </form>
             </div>
         </div>
@@ -266,7 +295,14 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 <?php
-echo render_pagination($pg, $includeVoided ? ['include_voided' => '1'] : []);
+$paginationParams = [];
+if ($includeVoided) {
+    $paginationParams['include_voided'] = '1';
+}
+if ($prioritizeIncome) {
+    $paginationParams['prioritize_income'] = '1';
+}
+echo render_pagination($pg, $paginationParams);
 ?>
 
 <div id="creditPaymentModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">

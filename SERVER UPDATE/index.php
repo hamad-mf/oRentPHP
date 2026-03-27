@@ -243,6 +243,33 @@ if (!$isAdmin) {
             'user_id' => (int)($_cuMe['id'] ?? 0),
         ]);
     }
+    // Payroll incentive snapshot (current month + past count)
+    $staffIncentiveSchemaReady=false;
+    $staffIncentiveMonthCount=0; $staffIncentiveMonthTotal=0.0;
+    $staffIncentivePastCount=0; $staffIncentiveMonthLabel=$istNow->format('F Y');
+    try {
+        $staffIncentiveSchemaReady = (bool) $pdo->query("SHOW TABLES LIKE 'staff_incentives'")->fetchColumn();
+        if ($staffIncentiveSchemaReady) {
+            $incMonth = (int) $istNow->format('n');
+            $incYear = (int) $istNow->format('Y');
+
+            $incNowStmt = $pdo->prepare("SELECT COUNT(*) AS item_count, COALESCE(SUM(amount),0) AS total_amount FROM staff_incentives WHERE user_id = ? AND month = ? AND year = ?");
+            $incNowStmt->execute([$_cuMe['id'], $incMonth, $incYear]);
+            $incNow = $incNowStmt->fetch() ?: [];
+            $staffIncentiveMonthCount = (int) ($incNow['item_count'] ?? 0);
+            $staffIncentiveMonthTotal = (float) ($incNow['total_amount'] ?? 0);
+
+            $incPastStmt = $pdo->prepare("SELECT COUNT(*) FROM staff_incentives WHERE user_id = ? AND (year < ? OR (year = ? AND month < ?))");
+            $incPastStmt->execute([$_cuMe['id'], $incYear, $incYear, $incMonth]);
+            $staffIncentivePastCount = (int) $incPastStmt->fetchColumn();
+        }
+    } catch (Throwable $e) {
+        app_log('ERROR', 'Dashboard (staff): payroll incentive widget query failed - ' . $e->getMessage(), [
+            'file' => $e->getFile() . ':' . $e->getLine(),
+            'screen' => 'index.php',
+            'user_id' => (int)($_cuMe['id'] ?? 0),
+        ]);
+    }
 }
 
 $pageTitle='Dashboard';
@@ -278,6 +305,111 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
             <a href="vehicles/index.php?overdue=1" class="bg-mb-surface border <?= $overdueVehicles>0?'border-red-500/40 bg-red-500/5':'border-mb-subtle/20' ?> p-5 rounded-lg hover:border-red-500/50 transition-all group cursor-pointer"><p class="text-mb-silver text-sm uppercase mb-1">Overdue Vehicles</p><div class="flex items-end justify-between"><span class="text-4xl font-light <?= $overdueVehicles>0?'text-red-400':'text-white' ?>"><?= $overdueVehicles ?></span><div class="w-10 h-10 rounded-full <?= $overdueVehicles>0?'bg-red-500/10 text-red-400':'bg-mb-subtle/10 text-mb-silver' ?> flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4h.01M10.29 3.86l-8 14A1 1 0 003.14 19h16a1 1 0 00.85-1.5l-8-14a1 1 0 00-1.7 0z"/></svg></div></div><?php if($overdueVehicles>0):?><p class="text-xs text-red-400/70 mt-1 animate-pulse">Warning: delayed returns</p><?php else:?><p class="text-xs text-mb-subtle mt-1">No overdue rentals</p><?php endif;?></a>
         </div>
     </section>
+
+    <?php
+    // Held Deposits Alert (graceful degradation if column doesn't exist)
+    try {
+        $overdueHeldDeposits = reservation_get_overdue_held_deposits($pdo);
+        $heldDepositCount = count($overdueHeldDeposits);
+    } catch (Throwable $e) {
+        // Column doesn't exist yet - skip this section
+        $heldDepositCount = 0;
+        $overdueHeldDeposits = [];
+    }
+    
+    if ($heldDepositCount > 0):
+    ?>
+    <section>
+        <div class="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3">
+            <div class="flex items-center gap-3 mb-2">
+                <span class="text-red-400 text-xs font-semibold uppercase tracking-wider">⚠ Held Deposits Alert</span>
+                <span class="bg-red-500/20 text-red-400 text-xs font-bold px-2 py-0.5 rounded-full"><?= $heldDepositCount ?></span>
+                <span class="text-red-400/60 text-xs">exceeded alert threshold</span>
+            </div>
+            <div class="space-y-1.5 max-h-40 overflow-y-auto">
+                <?php foreach ($overdueHeldDeposits as $res):
+                    $heldStatus = $res['held_status'];
+                    $timeUnit = $heldStatus['test_mode'] ? 'hrs' : 'days';
+                ?>
+                    <a href="reservations/show.php?id=<?= $res['id'] ?>"
+                       class="flex items-center justify-between bg-mb-surface/40 border border-red-500/15 rounded px-3 py-1.5 hover:border-red-500/35 transition-colors">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-white text-xs font-medium whitespace-nowrap">Res #<?= $res['id'] ?></span>
+                            <span class="text-mb-subtle text-xs truncate"><?= e($res['client_name']) ?> &bull; <?= e($res['brand']) ?> <?= e($res['model']) ?></span>
+                            <?php if (!empty($res['deposit_hold_reason'])): ?>
+                                <span class="text-mb-subtle/60 text-xs italic truncate hidden sm:inline">— <?= e($res['deposit_hold_reason']) ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="flex items-center gap-3 flex-shrink-0 ml-3">
+                            <span class="text-red-400 text-xs font-medium">$<?= number_format((float) $res['deposit_held'], 2) ?></span>
+                            <span class="text-red-400/60 text-xs"><?= $heldStatus['days_held'] ?> <?= $timeUnit ?></span>
+                        </div>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </section>
+    <?php endif; ?>
+
+    <?php
+    // EMI Due Alert
+    $emiDueAlerts = [];
+    try {
+        $hasEmiTable = (bool) $pdo->query("SHOW TABLES LIKE 'emi_schedules'")->fetchColumn();
+        if ($hasEmiTable) {
+            $emiAlertStmt = $pdo->prepare("
+                SELECT s.id, s.due_date, s.amount, s.installment_no,
+                       i.title AS investment_title, i.lender
+                FROM emi_schedules s
+                JOIN emi_investments i ON i.id = s.investment_id
+                WHERE s.status = 'pending'
+                  AND s.due_date <= DATE_ADD(CURDATE(), INTERVAL 2 DAY)
+                  AND s.due_date >= CURDATE()
+                ORDER BY s.due_date ASC
+            ");
+            $emiAlertStmt->execute();
+            $emiDueAlerts = $emiAlertStmt->fetchAll();
+        }
+    } catch (Throwable $e) {
+        $emiDueAlerts = [];
+    }
+    if (!empty($emiDueAlerts)):
+    ?>
+    <section>
+        <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg px-4 py-3">
+            <div class="flex items-center gap-3 mb-2">
+                <span class="text-purple-400 text-xs font-semibold uppercase tracking-wider">💳 EMI Due Alert</span>
+                <span class="bg-purple-500/20 text-purple-400 text-xs font-bold px-2 py-0.5 rounded-full"><?= count($emiDueAlerts) ?></span>
+                <span class="text-purple-400/60 text-xs">due today or within 2 days</span>
+            </div>
+            <div class="space-y-1.5 max-h-40 overflow-y-auto">
+                <?php foreach ($emiDueAlerts as $emi):
+                    $daysLeft = (int) floor((strtotime($emi['due_date']) - strtotime($istToday)) / 86400);
+                    $isDueToday = $daysLeft === 0;
+                ?>
+                    <a href="investments/index.php"
+                       class="flex items-center justify-between bg-mb-surface/40 border <?= $isDueToday ? 'border-purple-500/40' : 'border-purple-500/15' ?> rounded px-3 py-1.5 hover:border-purple-500/40 transition-colors">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-white text-xs font-medium truncate"><?= e($emi['investment_title']) ?></span>
+                            <?php if ($emi['lender']): ?>
+                                <span class="text-mb-subtle text-xs truncate hidden sm:inline">(<?= e($emi['lender']) ?>)</span>
+                            <?php endif; ?>
+                            <span class="text-mb-subtle text-xs whitespace-nowrap">EMI #<?= (int) $emi['installment_no'] ?> &bull; <?= date('d M', strtotime($emi['due_date'])) ?></span>
+                        </div>
+                        <div class="flex items-center gap-3 flex-shrink-0 ml-3">
+                            <span class="text-purple-400 text-xs font-medium">$<?= number_format((float) $emi['amount'], 2) ?></span>
+                            <?php if ($isDueToday): ?>
+                                <span class="text-purple-300 text-xs font-semibold animate-pulse">Today!</span>
+                            <?php else: ?>
+                                <span class="text-purple-400/60 text-xs"><?= $daysLeft ?>d</span>
+                            <?php endif; ?>
+                        </div>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </section>
+    <?php endif; ?>
 
     <section>
         <h3 class="text-white text-lg font-light mb-4 uppercase tracking-wider border-l-2 border-mb-accent pl-2">Daily Operations</h3>
@@ -470,6 +602,36 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
         </div>
     </section>
 
+    <!-- Payroll Incentive -->
+    <section>
+        <h3 class="text-white text-base font-light mb-3 uppercase tracking-wider border-l-2 border-green-400 pl-2">My Payroll Incentive</h3>
+        <div class="bg-mb-surface border <?= $staffIncentiveMonthCount>0?'border-green-500/30':'border-mb-subtle/20' ?> rounded-xl p-5">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <p class="text-mb-subtle text-xs uppercase tracking-wider mb-2"><?= e($staffIncentiveMonthLabel) ?></p>
+                    <?php if(!$staffIncentiveSchemaReady):?>
+                        <p class="text-mb-subtle text-sm">Incentive tracking is not enabled yet.</p>
+                    <?php elseif($staffIncentiveMonthCount>0):?>
+                        <p class="text-green-400 text-2xl font-light">$<?= number_format($staffIncentiveMonthTotal,2) ?></p>
+                        <p class="text-mb-subtle text-xs mt-1"><?= $staffIncentiveMonthCount ?> incentive<?= $staffIncentiveMonthCount>1?'s':'' ?> this month</p>
+                    <?php else:?>
+                        <p class="text-white text-lg font-light">No incentive this month</p>
+                        <p class="text-mb-subtle text-xs mt-1">You can still check previous records.</p>
+                    <?php endif;?>
+                </div>
+                <?php if($staffIncentiveSchemaReady):?>
+                <a href="staff/incentive_history.php" class="inline-flex items-center gap-2 bg-mb-black border border-mb-subtle/30 text-mb-silver hover:text-white hover:border-green-400/40 transition-colors px-4 py-2 rounded-lg text-xs uppercase tracking-wider">
+                    View History
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5l7 7-7 7"/></svg>
+                </a>
+                <?php endif;?>
+            </div>
+            <?php if($staffIncentiveSchemaReady && $staffIncentivePastCount>0):?>
+                <p class="text-xs text-mb-subtle mt-4 pt-3 border-t border-mb-subtle/15">Past incentives available: <?= $staffIncentivePastCount ?></p>
+            <?php endif;?>
+        </div>
+    </section>
+
     <!-- Assigned Tasks -->
     <?php if (!empty($staffTasks)): ?>
     <section id="tasks-section">
@@ -545,6 +707,7 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
             if($showC)  $sl[]=["Clients","clients/index.php"];
             if($showL)  $sl[]=["Pipeline","leads/pipeline.php"];
             if($staffAdvanceSchemaReady) $sl[]=["Advance History","staff/advance_history.php"];
+            if($staffIncentiveSchemaReady) $sl[]=["Incentive History","staff/incentive_history.php"];
             $sl[]=["Settings","settings/general.php"];
             foreach($sl as [$n,$h]):?><a href="<?= $h ?>" class="bg-mb-surface border border-mb-subtle/20 p-4 rounded-lg hover:bg-mb-black hover:border-mb-accent/30 transition-all group duration-300 transform hover:-translate-y-1"><p class="text-mb-silver group-hover:text-white transition-colors text-sm uppercase tracking-wide"><?= $n ?></p></a><?php endforeach;?>
         </div>

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/db.php';
 auth_check();
 $_currentUser = current_user();
@@ -326,10 +326,10 @@ $_notifs = notif_all($pdo);
         class="w-64 max-w-[85vw] bg-mb-surface flex flex-col border-r border-mb-subtle/20 fixed inset-y-0 left-0 z-[70] transform -translate-x-full transition-transform duration-300 ease-in-out shadow-2xl md:static md:z-auto md:translate-x-0 md:shadow-none">
         <div class="h-20 flex items-center justify-center border-b border-mb-subtle/20">
             <div class="flex items-center gap-2">
-                <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <!-- <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
                     <path
                         d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" />
-                </svg>
+                </svg> -->
                 <span class="text-xl font-light tracking-widest text-white uppercase">Orentincars</span>
             </div>
         </div>
@@ -440,12 +440,15 @@ $_notifs = notif_all($pdo);
                     <svg class="w-4 h-4 opacity-50 sidebar-chevron ' . ($vActive ? 'expanded' : '') . '" id="chevron-vehicles" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                 </div>';
                 echo '<div id="submenu-vehicles" class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1 sidebar-submenu ' . ($vActive ? 'open' : '') . '">';
-                echo '<a href="' . $root . 'vehicles/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'vehicles' && $currentPage !== 'availability.php' && $currentPage !== 'requests.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle List</a>';
+                echo '<a href="' . $root . 'vehicles/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'vehicles' && !in_array($currentPage, ['availability.php', 'requests.php', 'challans.php', 'create_challan.php', 'edit_challan.php']) ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle List</a>';
                 if ($canVehiclesAvailability) {
                     echo '<a href="' . $root . 'vehicles/availability.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'availability.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Availability</a>';
                 }
                 if ($canVehiclesRequests) {
                     echo '<a href="' . $root . 'vehicles/requests.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'requests.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Requests</a>';
+                }
+                if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
+                    echo '<a href="' . $root . 'vehicles/challans.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'challans.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Challans</a>';
                 }
                 echo '</div>';
             }
@@ -792,11 +795,15 @@ $_notifs = notif_all($pdo);
                                     <?php
                                     $bg = $n['is_read'] ? '' : 'bg-mb-black/30';
                                     $dot = match ($n['type']) {
-                                        'overdue' => 'bg-red-500',
+                                        'overdue'   => 'bg-red-500',
                                         'due_today' => 'bg-orange-500',
-                                        'due_soon' => 'bg-yellow-500',
-                                        default => 'bg-blue-500'
+                                        'due_soon'  => 'bg-yellow-500',
+                                        'emi_due'   => 'bg-purple-500',
+                                        default     => 'bg-blue-500'
                                     };
+                                    if ($n['type'] === 'emi_due' && !$n['is_read']) {
+                                        $bg = 'bg-purple-500/10';
+                                    }
                                     $notifTarget = !empty($n['reservation_id'])
                                         ? '../reservations/show.php?id=' . (int) $n['reservation_id']
                                         : '';
@@ -813,6 +820,9 @@ $_notifs = notif_all($pdo);
                                                 <div class="flex-1 min-w-0">
                                                     <p
                                                         class="text-sm <?= $n['is_read'] ? 'text-mb-subtle' : 'text-white' ?> leading-snug hover:text-mb-accent transition-colors">
+                                                        <?php if ($n['type'] === 'emi_due'): ?>
+                                                            <span class="inline-flex items-center gap-1 text-purple-400 font-medium text-xs bg-purple-500/15 border border-purple-500/30 px-1.5 py-0.5 rounded-full mr-1.5">💳 EMI</span>
+                                                        <?php endif; ?>
                                                         <?= htmlspecialchars($n['message']) ?>
                                                     </p>
                                                     <p class="text-xs text-mb-subtle mt-0.5">
@@ -826,6 +836,9 @@ $_notifs = notif_all($pdo);
                                             <div class="flex-1 min-w-0">
                                                 <p
                                                     class="text-sm <?= $n['is_read'] ? 'text-mb-subtle' : 'text-white' ?> leading-snug">
+                                                    <?php if ($n['type'] === 'emi_due'): ?>
+                                                        <span class="inline-flex items-center gap-1 text-purple-400 font-medium text-xs bg-purple-500/15 border border-purple-500/30 px-1.5 py-0.5 rounded-full mr-1.5">💳 EMI</span>
+                                                    <?php endif; ?>
                                                     <?= htmlspecialchars($n['message']) ?>
                                                 </p>
                                                 <p class="text-xs text-mb-subtle mt-0.5">

@@ -12,12 +12,12 @@ require_once __DIR__ . '/../includes/settings_helpers.php';
 
 $isAdmin = ($_currentUser['role'] ?? '') === 'admin';
 
-// Period calculation functions (15th to 15th next month)
+// Period calculation functions (15th to 14th next month)
 function period_from_my(int $m, int $y): array {
     $start = sprintf('%04d-%02d-15', $y, $m);
     $nM = $m === 12 ? 1 : $m + 1;
     $nY = $m === 12 ? $y + 1 : $y;
-    return ['start' => $start, 'end' => sprintf('%04d-%02d-15', $nY, $nM)];
+    return ['start' => $start, 'end' => sprintf('%04d-%02d-14', $nY, $nM)];
 }
 function period_for_today(): array {
     $d = (int)date('d'); $m = (int)date('m'); $y = (int)date('Y');
@@ -36,7 +36,7 @@ $selY = isset($_GET['y']) ? (int)$_GET['y'] : (int)date('Y', strtotime($defP['st
 if ($selM < 1 || $selM > 12) $selM = (int)date('m', strtotime($defP['start']));
 if ($selY < 2020 || $selY > 2099) $selY = (int)date('Y', strtotime($defP['start']));
 
-// Calculate period (15th to 15th inclusive)
+// Calculate period (15th to 14th inclusive)
 $p = period_from_my($selM, $selY);
 $startDate = $p['start'];
 $endDate = $p['end'] . ' 23:59:59';
@@ -168,8 +168,11 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="relative">
             <select name="m" onchange="this.form.submit()"
                 class="appearance-none bg-mb-surface border border-mb-subtle/30 rounded-lg pl-3 pr-8 py-2 text-white text-sm focus:outline-none focus:border-mb-accent cursor-pointer">
-                <?php for ($i=1;$i<=12;$i++): ?>
-                <option value="<?=$i?>" <?=$i===$selM?'selected':''?> class="bg-[#1f1f1f] text-white"><?= $months[$i-1] ?></option>
+                <?php for ($i=1;$i<=12;$i++):
+                    $iN = $i === 12 ? 1 : $i + 1;
+                    $iLabel = '15 ' . date('M', mktime(0,0,0,$i,1)) . ' – 14 ' . date('M', mktime(0,0,0,$iN,1));
+                ?>
+                <option value="<?=$i?>" <?=$i===$selM?'selected':''?> class="bg-[#1f1f1f] text-white"><?= $iLabel ?></option>
                 <?php endfor; ?>
             </select>
             <svg class="w-4 h-4 text-mb-subtle absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>

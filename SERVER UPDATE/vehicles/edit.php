@@ -18,6 +18,31 @@ if (!$v) {
     redirect('index.php');
 }
 
+// Block editing sold vehicles
+if (($v['status'] ?? '') === 'sold') {
+    flash('error', 'Cannot edit a sold vehicle.');
+    redirect('show.php?id=' . $id);
+}
+
+// Load existing vehicle challans
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS vehicle_challans (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        vehicle_id INT NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        due_date DATE DEFAULT NULL,
+        status ENUM('pending','paid') NOT NULL DEFAULT 'pending',
+        notes TEXT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+} catch (Exception $e) {}
+$challanStmt = $pdo->prepare('SELECT * FROM vehicle_challans WHERE vehicle_id = ? ORDER BY due_date ASC, created_at DESC');
+$challanStmt->execute([$id]);
+$vehicleChallans = $challanStmt->fetchAll();
+
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -232,6 +257,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
+
+        // Handle vehicle challans - first delete existing, then add new
+        $pdo->prepare('DELETE FROM vehicle_challans WHERE vehicle_id = ?')->execute([$id]);
+        if (!empty($_POST['challan_titles']) && is_array($_POST['challan_titles'])) {
+            foreach ($_POST['challan_titles'] as $index => $title) {
+                $title = trim($title);
+                $amount = isset($_POST['challan_amounts'][$index]) ? (float) $_POST['challan_amounts'][$index] : 0;
+                $dueDate = isset($_POST['challan_due_dates'][$index]) ? trim($_POST['challan_due_dates'][$index]) : '';
+
+                if ($title !== '' && $amount > 0) {
+                    $dueDateValue = $dueDate !== '' ? $dueDate : null;
+                    $pdo->prepare('INSERT INTO vehicle_challans (vehicle_id, title, amount, due_date) VALUES (?,?,?,?)')
+                        ->execute([$id, $title, $amount, $dueDateValue]);
+                }
+            }
+        }
+
         app_log('ACTION', "Updated vehicle (ID: $id)");
         flash('success', 'Vehicle updated successfully.');
         redirect("show.php?id=$id");
@@ -567,6 +609,23 @@ require_once __DIR__ . '/../includes/header.php';
                 <div id="pollution-file-list" style="display:none" class="space-y-1"></div>
             </div>
 
+            <!-- Vehicle Challans -->
+            <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">
+                        Challans <span class="text-sm text-mb-subtle font-normal">— Traffic fines for this vehicle</span>
+                    </h3>
+                    <button type="button" onclick="addChallanRow()"
+                        class="text-xs text-mb-accent hover:text-white border border-mb-accent/30 hover:border-mb-accent px-3 py-1.5 rounded-full transition-colors">
+                        + Add Challan
+                    </button>
+                </div>
+                <div id="challan-list" class="space-y-3">
+                    <!-- Challan rows will be pre-populated by JavaScript -->
+                </div>
+                <p id="no-challans-msg" class="text-sm text-mb-subtle text-center py-4" style="<?= count($vehicleChallans) > 0 ? 'display:none' : '' ?>">No challans added yet. Click "+ Add Challan" to add one.</p>
+            </div>
+
             <div class="flex items-center justify-end gap-4">
                 <a href="show.php?id=<?= $id ?>"
                     class="text-mb-silver hover:text-white transition-colors text-sm">Cancel</a>
@@ -794,6 +853,69 @@ require_once __DIR__ . '/../includes/header.php';
         if (!wrap || !img) return;
         if (url && url.startsWith("http")) { img.src = url; wrap.style.display = "block"; }
         else { wrap.style.display = "none"; }
+    }
+
+    // ── Challans ──────────────────────────────────────────
+    let challanRowCount = 0;
+
+    function addChallanRow(title = '', amount = '', dueDate = '') {
+        const list = document.getElementById('challan-list');
+        const msg = document.getElementById('no-challans-msg');
+        if (msg) msg.style.display = 'none';
+
+        const row = document.createElement('div');
+        row.className = 'grid grid-cols-1 sm:grid-cols-12 gap-3 items-start bg-mb-black/30 rounded-lg p-4';
+        row.dataset.index = challanRowCount;
+        row.innerHTML = `
+            <div class="sm:col-span-5">
+                <input type="text" name="challan_titles[]" value="${escapeHtml(title)}"
+                    placeholder="Challan title (e.g., Speed violation)"
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white placeholder-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm">
+            </div>
+            <div class="sm:col-span-3">
+                <input type="number" name="challan_amounts[]" value="${amount}" step="0.01" min="0"
+                    placeholder="Amount"
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white placeholder-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm">
+            </div>
+            <div class="sm:col-span-3">
+                <input type="date" name="challan_due_dates[]" value="${dueDate}"
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
+            </div>
+            <div class="sm:col-span-1 flex justify-center">
+                <button type="button" onclick="removeChallanRow(this)"
+                    class="w-10 h-10 flex items-center justify-center rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </button>
+            </div>
+        `;
+        list.appendChild(row);
+        challanRowCount++;
+    }
+
+    function removeChallanRow(btn) {
+        const row = btn.closest('[data-index]');
+        row.remove();
+        const list = document.getElementById('challan-list');
+        const msg = document.getElementById('no-challans-msg');
+        if (list.children.length === 0 && msg) {
+            msg.style.display = 'block';
+        }
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Pre-populate existing challans in edit mode
+    const existingChallans = <?= json_encode($vehicleChallans) ?>;
+    if (existingChallans.length > 0) {
+        existingChallans.forEach(function(c) {
+            addChallanRow(c.title || '', c.amount || '', c.due_date || '');
+        });
     }
 </script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

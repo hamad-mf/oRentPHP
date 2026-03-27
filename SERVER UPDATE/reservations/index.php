@@ -302,9 +302,40 @@ require_once __DIR__ . '/../includes/header.php';
                                     ?>
                                 </td>
                                 <td class="px-6 py-4">
-                                    <span class="px-2.5 py-1 rounded-full text-xs border capitalize <?= $sc ?>">
-                                        <?= e($r['status']) ?>
-                                    </span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2.5 py-1 rounded-full text-xs border capitalize <?= $sc ?>">
+                                            <?= e($r['status']) ?>
+                                        </span>
+                                        <?php
+                                        // Held deposit indicator (graceful degradation if column doesn't exist)
+                                        $depositHeld = (float) ($r['deposit_held'] ?? 0);
+                                        if ($depositHeld > 0 && $r['status'] === 'completed'):
+                                            try {
+                                                require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
+                                                $depositHeldAt = isset($r['deposit_held_at']) ? $r['deposit_held_at'] : null;
+                                                $heldStatus = reservation_held_deposit_status($pdo, $depositHeldAt, $depositHeld);
+                                                $badgeClass = $heldStatus['is_overdue'] 
+                                                    ? 'bg-red-500/10 text-red-400 border-red-500/30 animate-pulse' 
+                                                    : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30';
+                                                $badgeTitle = $heldStatus['is_overdue']
+                                                    ? "Held for {$heldStatus['days_held']} " . ($heldStatus['test_mode'] ? 'hours' : 'days') . " (Alert threshold: {$heldStatus['threshold_days']})"
+                                                    : "Deposit held: $" . number_format($depositHeld, 2);
+                                        ?>
+                                            <span class="px-2 py-0.5 rounded text-xs border <?= $badgeClass ?>" title="<?= e($badgeTitle) ?>">
+                                                Held
+                                            </span>
+                                        <?php 
+                                            } catch (Throwable $e) {
+                                                // Fallback if deposit_held_at column doesn't exist yet
+                                                ?>
+                                                <span class="px-2 py-0.5 rounded text-xs border bg-yellow-500/10 text-yellow-400 border-yellow-500/30" title="Deposit held: $<?= number_format($depositHeld, 2) ?>">
+                                                    Held
+                                                </span>
+                                                <?php
+                                            }
+                                        endif; 
+                                        ?>
+                                    </div>
                                 </td>
                                 <td class="px-6 py-4 text-right">
                                     <div class="flex items-center justify-end gap-2">

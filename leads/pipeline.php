@@ -77,9 +77,9 @@ $requestedStaffFilter = (int) ($_GET['staff_filter'] ?? 0);
 $filterStaff = $isStaffScopeLocked ? $currentUserId : $requestedStaffFilter;
 $filterDateFrom = trim($_GET['date_from'] ?? '');
 $filterDateTo = trim($_GET['date_to'] ?? '');
-// Time range switch: 'today' (default) or 'all'
+// Time range switch: 'today' (default), 'yesterday', or 'all'
 $timeRange = trim($_GET['time_range'] ?? 'today');
-if (!in_array($timeRange, ['today', 'all'], true)) {
+if (!in_array($timeRange, ['today', 'yesterday', 'all'], true)) {
     $timeRange = 'today';
 }
 // If date_from/date_to are explicitly set, treat as 'all' (custom range)
@@ -90,6 +90,12 @@ if ($filterDateFrom !== '' || $filterDateTo !== '') {
 if ($timeRange === 'today' && $filterDateFrom === '' && $filterDateTo === '') {
     $filterDateFrom = date('Y-m-d');
     $filterDateTo   = date('Y-m-d');
+}
+// Apply yesterday filter
+if ($timeRange === 'yesterday' && $filterDateFrom === '' && $filterDateTo === '') {
+    $yesterday      = date('Y-m-d', strtotime('-1 day'));
+    $filterDateFrom = $yesterday;
+    $filterDateTo   = $yesterday;
 }
 $filterSource = trim($_GET['source_filter'] ?? '');
 $filterStatus = trim((string) ($_GET['status_filter'] ?? ''));
@@ -284,13 +290,18 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
         <div class="flex items-center gap-3 flex-wrap justify-end">
             <?php
-            $todayUrl   = 'pipeline.php?' . http_build_query(array_filter(array_merge($viewStateParams, ['view' => $viewMode, 'time_range' => 'today', 'date_from' => null, 'date_to' => null]), fn($v) => $v !== null && $v !== ''));
-            $allTimeUrl = 'pipeline.php?' . http_build_query(array_filter(array_merge($viewStateParams, ['view' => $viewMode, 'time_range' => 'all', 'date_from' => null, 'date_to' => null]), fn($v) => $v !== null && $v !== ''));
+            $todayUrl     = 'pipeline.php?' . http_build_query(array_filter(array_merge($viewStateParams, ['view' => $viewMode, 'time_range' => 'today',     'date_from' => null, 'date_to' => null]), fn($v) => $v !== null && $v !== ''));
+            $yesterdayUrl = 'pipeline.php?' . http_build_query(array_filter(array_merge($viewStateParams, ['view' => $viewMode, 'time_range' => 'yesterday', 'date_from' => null, 'date_to' => null]), fn($v) => $v !== null && $v !== ''));
+            $allTimeUrl   = 'pipeline.php?' . http_build_query(array_filter(array_merge($viewStateParams, ['view' => $viewMode, 'time_range' => 'all',       'date_from' => null, 'date_to' => null]), fn($v) => $v !== null && $v !== ''));
             ?>
             <div class="flex items-center bg-mb-surface border border-mb-subtle/20 rounded-full p-1">
                 <a href="<?= e($todayUrl) ?>"
                     class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors <?= $timeRange === 'today' ? 'bg-mb-accent text-white' : 'text-mb-silver hover:text-white' ?>">
                     Today
+                </a>
+                <a href="<?= e($yesterdayUrl) ?>"
+                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors <?= $timeRange === 'yesterday' ? 'bg-mb-accent text-white' : 'text-mb-silver hover:text-white' ?>">
+                    Yesterday
                 </a>
                 <a href="<?= e($allTimeUrl) ?>"
                     class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors <?= $timeRange === 'all' ? 'bg-mb-accent text-white' : 'text-mb-silver hover:text-white' ?>">

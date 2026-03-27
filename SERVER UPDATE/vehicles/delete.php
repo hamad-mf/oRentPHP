@@ -22,6 +22,12 @@ if ($vehicle['status'] === 'rented') {
     redirect('index.php');
 }
 
+// Guard: cannot delete sold vehicles
+if ($vehicle['status'] === 'sold') {
+    flash('error', "Cannot delete a sold vehicle ({$vehicle['license_plate']}).");
+    redirect('show.php?id=' . $id);
+}
+
 // Delete documents files
 $docs = $pdo->prepare('SELECT file_path FROM documents WHERE vehicle_id = ?');
 $docs->execute([$id]);

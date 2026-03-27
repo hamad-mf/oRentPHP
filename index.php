@@ -243,6 +243,33 @@ if (!$isAdmin) {
             'user_id' => (int)($_cuMe['id'] ?? 0),
         ]);
     }
+    // Payroll incentive snapshot (current month + past count)
+    $staffIncentiveSchemaReady=false;
+    $staffIncentiveMonthCount=0; $staffIncentiveMonthTotal=0.0;
+    $staffIncentivePastCount=0; $staffIncentiveMonthLabel=$istNow->format('F Y');
+    try {
+        $staffIncentiveSchemaReady = (bool) $pdo->query("SHOW TABLES LIKE 'staff_incentives'")->fetchColumn();
+        if ($staffIncentiveSchemaReady) {
+            $incMonth = (int) $istNow->format('n');
+            $incYear = (int) $istNow->format('Y');
+
+            $incNowStmt = $pdo->prepare("SELECT COUNT(*) AS item_count, COALESCE(SUM(amount),0) AS total_amount FROM staff_incentives WHERE user_id = ? AND month = ? AND year = ?");
+            $incNowStmt->execute([$_cuMe['id'], $incMonth, $incYear]);
+            $incNow = $incNowStmt->fetch() ?: [];
+            $staffIncentiveMonthCount = (int) ($incNow['item_count'] ?? 0);
+            $staffIncentiveMonthTotal = (float) ($incNow['total_amount'] ?? 0);
+
+            $incPastStmt = $pdo->prepare("SELECT COUNT(*) FROM staff_incentives WHERE user_id = ? AND (year < ? OR (year = ? AND month < ?))");
+            $incPastStmt->execute([$_cuMe['id'], $incYear, $incYear, $incMonth]);
+            $staffIncentivePastCount = (int) $incPastStmt->fetchColumn();
+        }
+    } catch (Throwable $e) {
+        app_log('ERROR', 'Dashboard (staff): payroll incentive widget query failed - ' . $e->getMessage(), [
+            'file' => $e->getFile() . ':' . $e->getLine(),
+            'screen' => 'index.php',
+            'user_id' => (int)($_cuMe['id'] ?? 0),
+        ]);
+    }
 }
 
 $pageTitle='Dashboard';
@@ -575,6 +602,36 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
         </div>
     </section>
 
+    <!-- Payroll Incentive -->
+    <section>
+        <h3 class="text-white text-base font-light mb-3 uppercase tracking-wider border-l-2 border-green-400 pl-2">My Payroll Incentive</h3>
+        <div class="bg-mb-surface border <?= $staffIncentiveMonthCount>0?'border-green-500/30':'border-mb-subtle/20' ?> rounded-xl p-5">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <p class="text-mb-subtle text-xs uppercase tracking-wider mb-2"><?= e($staffIncentiveMonthLabel) ?></p>
+                    <?php if(!$staffIncentiveSchemaReady):?>
+                        <p class="text-mb-subtle text-sm">Incentive tracking is not enabled yet.</p>
+                    <?php elseif($staffIncentiveMonthCount>0):?>
+                        <p class="text-green-400 text-2xl font-light">$<?= number_format($staffIncentiveMonthTotal,2) ?></p>
+                        <p class="text-mb-subtle text-xs mt-1"><?= $staffIncentiveMonthCount ?> incentive<?= $staffIncentiveMonthCount>1?'s':'' ?> this month</p>
+                    <?php else:?>
+                        <p class="text-white text-lg font-light">No incentive this month</p>
+                        <p class="text-mb-subtle text-xs mt-1">You can still check previous records.</p>
+                    <?php endif;?>
+                </div>
+                <?php if($staffIncentiveSchemaReady):?>
+                <a href="staff/incentive_history.php" class="inline-flex items-center gap-2 bg-mb-black border border-mb-subtle/30 text-mb-silver hover:text-white hover:border-green-400/40 transition-colors px-4 py-2 rounded-lg text-xs uppercase tracking-wider">
+                    View History
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5l7 7-7 7"/></svg>
+                </a>
+                <?php endif;?>
+            </div>
+            <?php if($staffIncentiveSchemaReady && $staffIncentivePastCount>0):?>
+                <p class="text-xs text-mb-subtle mt-4 pt-3 border-t border-mb-subtle/15">Past incentives available: <?= $staffIncentivePastCount ?></p>
+            <?php endif;?>
+        </div>
+    </section>
+
     <!-- Assigned Tasks -->
     <?php if (!empty($staffTasks)): ?>
     <section id="tasks-section">
@@ -650,6 +707,7 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
             if($showC)  $sl[]=["Clients","clients/index.php"];
             if($showL)  $sl[]=["Pipeline","leads/pipeline.php"];
             if($staffAdvanceSchemaReady) $sl[]=["Advance History","staff/advance_history.php"];
+            if($staffIncentiveSchemaReady) $sl[]=["Incentive History","staff/incentive_history.php"];
             $sl[]=["Settings","settings/general.php"];
             foreach($sl as [$n,$h]):?><a href="<?= $h ?>" class="bg-mb-surface border border-mb-subtle/20 p-4 rounded-lg hover:bg-mb-black hover:border-mb-accent/30 transition-all group duration-300 transform hover:-translate-y-1"><p class="text-mb-silver group-hover:text-white transition-colors text-sm uppercase tracking-wide"><?= $n ?></p></a><?php endforeach;?>
         </div>

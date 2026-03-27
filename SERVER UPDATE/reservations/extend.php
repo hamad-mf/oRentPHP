@@ -164,6 +164,22 @@ $bankAccountId = (int) ($_POST['bank_account_id'] ?? 0);
 $bankAccountId = $bankAccountId > 0 ? $bankAccountId : null;
 $activeBankAccounts = array_values(array_filter(ledger_get_accounts($pdo), fn($a) => (int) ($a['is_active'] ?? 0) === 1));
 
+// Payment source type: cash|credit|account|deposit|split
+$paymentSourceType = trim((string) ($_POST['payment_source_type'] ?? 'cash'));
+if (!in_array($paymentSourceType, ['cash', 'credit', 'account', 'deposit', 'split'], true)) {
+    $paymentSourceType = 'cash';
+}
+
+// Available deposit (graceful degradation)
+$availableDeposit = calculate_available_deposit($pdo, $id);
+
+// Split payment fields
+$splitDepositAmount = max(0, (float) ($_POST['split_deposit_amount'] ?? 0));
+$splitCashAmount    = max(0, (float) ($_POST['split_cash_amount'] ?? 0));
+$splitCashMethod    = reservation_payment_method_normalize($_POST['split_cash_method'] ?? 'cash') ?? 'cash';
+$splitCashBankId    = (int) ($_POST['split_cash_bank_id'] ?? 0);
+$splitCashBankId    = $splitCashBankId > 0 ? $splitCashBankId : null;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (in_array($selectedType, ['daily', 'monthly'], true)) {
         if (!$desiredEndDt) {
@@ -186,21 +202,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($calc['amount'] > 0) {
-        if ($paymentMethod === null) {
-            $errors['payment_method'] = 'Please select how the extension was paid.';
-        }
-        if ($paymentMethod === 'account') {
-            if ($bankAccountId === null) {
-                $errors['bank_account_id'] = 'Please select a bank account.';
-            } else {
-                $chk = $pdo->prepare("SELECT COUNT(*) FROM bank_accounts WHERE id = ? AND is_active = 1");
-                $chk->execute([$bankAccountId]);
-                if ((int) $chk->fetchColumn() === 0) {
-                    $errors['bank_account_id'] = 'Selected bank account is invalid or inactive.';
+        if ($paymentSourceType === 'deposit') {
+            $availableDeposit = calculate_available_deposit($pdo, $id);
+            if ($calc['amount'] > $availableDeposit) {
+                $errors['payment_source_type'] = 'Insufficient deposit. Available: $' . number_format($availableDeposit, 2) . '. Use split payment or another method.';
+            }
+        } elseif ($paymentSourceType === 'split') {
+            $availableDeposit = calculate_available_deposit($pdo, $id);
+            if (abs(($splitDepositAmount + $splitCashAmount) - $calc['amount']) > 0.01) {
+                $errors['split'] = 'Split amounts must total exactly $' . number_format($calc['amount'], 2) . '.';
+            }
+            if ($splitDepositAmount > $availableDeposit) {
+                $errors['split_deposit'] = 'Deposit portion ($' . number_format($splitDepositAmount, 2) . ') exceeds available deposit ($' . number_format($availableDeposit, 2) . ').';
+            }
+            if ($splitCashMethod === 'account') {
+                if ($splitCashBankId === null) {
+                    $errors['split_cash_bank_id'] = 'Please select a bank account for the cash portion.';
+                } else {
+                    $chk = $pdo->prepare("SELECT COUNT(*) FROM bank_accounts WHERE id = ? AND is_active = 1");
+                    $chk->execute([$splitCashBankId]);
+                    if ((int) $chk->fetchColumn() === 0) {
+                        $errors['split_cash_bank_id'] = 'Selected bank account is invalid or inactive.';
+                    }
                 }
             }
         } else {
-            $bankAccountId = null;
+            // Standard cash/credit/account
+            $paymentMethod = $paymentSourceType; // map source type to method
+            if ($paymentMethod === null) {
+                $errors['payment_method'] = 'Please select how the extension was paid.';
+            }
+            if ($paymentMethod === 'account') {
+                if ($bankAccountId === null) {
+                    $errors['bank_account_id'] = 'Please select a bank account.';
+                } else {
+                    $chk = $pdo->prepare("SELECT COUNT(*) FROM bank_accounts WHERE id = ? AND is_active = 1");
+                    $chk->execute([$bankAccountId]);
+                    if ((int) $chk->fetchColumn() === 0) {
+                        $errors['bank_account_id'] = 'Selected bank account is invalid or inactive.';
+                    }
+                }
+            } else {
+                $bankAccountId = null;
+            }
         }
     }
 
@@ -211,48 +255,145 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $days = (int) $calc['days'];
         $ratePerDay = (float) $calc['rate_per_day'];
 
+        // Determine payment breakdown
+        $paidFromDeposit = 0.0;
+        $paidCash = 0.0;
+        $finalPaymentMethod = $paymentMethod;
+        $finalBankAccountId = $bankAccountId;
+
+        if ($paymentSourceType === 'deposit') {
+            $paidFromDeposit = $amount;
+            $paidCash = 0.0;
+            $finalPaymentMethod = 'account'; // deposit is account-based
+            $finalBankAccountId = null;
+        } elseif ($paymentSourceType === 'split') {
+            $paidFromDeposit = $splitDepositAmount;
+            $paidCash = $splitCashAmount;
+            $finalPaymentMethod = $splitCashMethod;
+            $finalBankAccountId = $splitCashMethod === 'account' ? $splitCashBankId : null;
+        } else {
+            $paidFromDeposit = 0.0;
+            $paidCash = $amount;
+            $finalPaymentMethod = $paymentSourceType;
+            $finalBankAccountId = $paymentSourceType === 'account' ? $bankAccountId : null;
+        }
+
         $pdo->prepare("UPDATE reservations SET end_date=?, total_price=total_price+?, extension_paid_amount=extension_paid_amount+? WHERE id=?")
             ->execute([$newEndSql, $amount, $amount, $id]);
 
-        $extStmt = $pdo->prepare("INSERT INTO reservation_extensions (reservation_id, old_end_date, base_start_date, new_end_date, rental_type, days, rate_per_day, amount, payment_method, bank_account_id, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)");
-        $extStmt->execute([
-            $id,
-            $oldEndDt->format('Y-m-d H:i:s'),
-            $baseStartSql,
-            $newEndSql,
-            $selectedType,
-            $days,
-            $ratePerDay,
-            $amount,
-            $paymentMethod,
-            $bankAccountId,
-            (int) ($_SESSION['user']['id'] ?? 0)
-        ]);
+        // Update deposit_used_for_extension if deposit was used
+        if ($paidFromDeposit > 0 && column_exists($pdo, 'reservations', 'deposit_used_for_extension')) {
+            $pdo->prepare("UPDATE reservations SET deposit_used_for_extension = deposit_used_for_extension + ? WHERE id = ?")
+                ->execute([$paidFromDeposit, $id]);
+        }
+
+        // Build INSERT for extension record — check which columns exist
+        $hasPaidFromDeposit = column_exists($pdo, 'reservation_extensions', 'paid_from_deposit');
+        $hasPaidCash        = column_exists($pdo, 'reservation_extensions', 'paid_cash');
+        $hasSourceType      = column_exists($pdo, 'reservation_extensions', 'payment_source_type');
+
+        if ($hasPaidFromDeposit && $hasPaidCash && $hasSourceType) {
+            $extStmt = $pdo->prepare("INSERT INTO reservation_extensions
+                (reservation_id, old_end_date, base_start_date, new_end_date, rental_type, days, rate_per_day, amount,
+                 paid_from_deposit, paid_cash, payment_method, payment_source_type, bank_account_id, created_by)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+            $extStmt->execute([
+                $id,
+                $oldEndDt->format('Y-m-d H:i:s'),
+                $baseStartSql,
+                $newEndSql,
+                $selectedType,
+                $days,
+                $ratePerDay,
+                $amount,
+                $paidFromDeposit,
+                $paidCash,
+                $finalPaymentMethod,
+                $paymentSourceType,
+                $finalBankAccountId,
+                (int) ($_SESSION['user']['id'] ?? 0)
+            ]);
+        } else {
+            $extStmt = $pdo->prepare("INSERT INTO reservation_extensions
+                (reservation_id, old_end_date, base_start_date, new_end_date, rental_type, days, rate_per_day, amount,
+                 payment_method, bank_account_id, created_by)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)");
+            $extStmt->execute([
+                $id,
+                $oldEndDt->format('Y-m-d H:i:s'),
+                $baseStartSql,
+                $newEndSql,
+                $selectedType,
+                $days,
+                $ratePerDay,
+                $amount,
+                $finalPaymentMethod,
+                $finalBankAccountId,
+                (int) ($_SESSION['user']['id'] ?? 0)
+            ]);
+        }
         $extensionId = (int) $pdo->lastInsertId();
 
         $ledgerUserId = (int) ($_SESSION['user']['id'] ?? 0);
-        $resolvedBankId = ledger_resolve_bank_account_id($pdo, $paymentMethod, $bankAccountId);
-        $description = "Reservation #$id - Extension payment";
-        $ledgerEntryId = ledger_post(
-            $pdo,
-            'income',
-            'Reservation Extension',
-            $amount,
-            $paymentMethod,
-            $resolvedBankId,
-            'reservation',
-            $id,
-            'extension',
-            $description,
-            $ledgerUserId,
-            "reservation:extension:$extensionId"
-        );
-        if ($ledgerEntryId) {
-            $pdo->prepare("UPDATE reservation_extensions SET ledger_entry_id=? WHERE id=?")
-                ->execute([$ledgerEntryId, $extensionId]);
+        $depositBankAccountId = get_deposit_bank_account($pdo, $id);
+
+        // Post ledger entries based on payment source
+        if ($paymentSourceType === 'deposit') {
+            // Expense: deposit out
+            if ($depositBankAccountId !== null) {
+                ledger_post_extension_from_deposit($pdo, $id, $extensionId, $paidFromDeposit, $depositBankAccountId, $ledgerUserId);
+            }
+            // Income: extension revenue (from deposit account)
+            $ledgerEntryId = ledger_post(
+                $pdo, 'income', 'Reservation Extension', $amount,
+                'account', $depositBankAccountId,
+                'reservation', $id, 'extension',
+                "Reservation #$id - Extension payment (from deposit)",
+                $ledgerUserId, "reservation:extension:$extensionId"
+            );
+        } elseif ($paymentSourceType === 'split') {
+            // Expense: deposit portion out
+            if ($paidFromDeposit > 0 && $depositBankAccountId !== null) {
+                ledger_post_extension_from_deposit($pdo, $id, $extensionId, $paidFromDeposit, $depositBankAccountId, $ledgerUserId);
+            }
+            // Income: deposit portion
+            if ($paidFromDeposit > 0 && $depositBankAccountId !== null) {
+                ledger_post(
+                    $pdo, 'income', 'Reservation Extension', $paidFromDeposit,
+                    'account', $depositBankAccountId,
+                    'reservation', $id, 'extension',
+                    "Reservation #$id - Extension payment (deposit portion)",
+                    $ledgerUserId, "reservation:extension:deposit:{$extensionId}"
+                );
+            }
+            // Income: cash portion
+            if ($paidCash > 0) {
+                $resolvedCashBankId = ledger_resolve_bank_account_id($pdo, $splitCashMethod, $splitCashBankId);
+                $ledgerEntryId = ledger_post(
+                    $pdo, 'income', 'Reservation Extension', $paidCash,
+                    $splitCashMethod, $resolvedCashBankId,
+                    'reservation', $id, 'extension',
+                    "Reservation #$id - Extension payment (cash portion)",
+                    $ledgerUserId, "reservation:extension:cash:{$extensionId}"
+                );
+            }
+        } else {
+            // Standard payment
+            $resolvedBankId = ledger_resolve_bank_account_id($pdo, $finalPaymentMethod, $finalBankAccountId);
+            $ledgerEntryId = ledger_post(
+                $pdo, 'income', 'Reservation Extension', $amount,
+                $finalPaymentMethod, $resolvedBankId,
+                'reservation', $id, 'extension',
+                "Reservation #$id - Extension payment",
+                $ledgerUserId, "reservation:extension:$extensionId"
+            );
+            if (!empty($ledgerEntryId)) {
+                $pdo->prepare("UPDATE reservation_extensions SET ledger_entry_id=? WHERE id=?")
+                    ->execute([$ledgerEntryId, $extensionId]);
+            }
         }
 
-        app_log('ACTION', "Extended reservation #$id to $newEndSql (amount $amount)");
+        app_log('ACTION', "Extended reservation #$id to $newEndSql (amount $amount, source $paymentSourceType)");
         flash('success', 'Reservation extended. Extension collected: $' . number_format($amount, 2) . '.');
         redirect("show.php?id=$id");
     }
@@ -362,21 +503,44 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
 
             <div>
-                <label class="block text-sm text-mb-silver mb-2">Payment Method</label>
-                <div class="flex flex-wrap gap-3">
-                    <?php foreach (['cash' => 'Cash', 'account' => 'Account', 'credit' => 'Credit'] as $pm => $label): ?>
-                        <label class="flex items-center gap-2 bg-mb-black/40 border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-mb-silver">
-                            <input type="radio" name="payment_method" value="<?= $pm ?>" class="accent-mb-accent" <?= $paymentMethod === $pm ? 'checked' : '' ?> onchange="syncBank()">
-                            <span><?= $label ?></span>
+                <label class="block text-sm text-mb-silver mb-2">Payment Source</label>
+                <input type="hidden" name="payment_source_type" id="paymentSourceType" value="<?= e($paymentSourceType) ?>">
+                <div class="flex flex-wrap gap-3" id="paymentSourceButtons">
+                    <?php
+                    $sources = [
+                        'cash'    => 'Cash',
+                        'account' => 'Account',
+                        'credit'  => 'Credit',
+                        'deposit' => 'Security Deposit',
+                        'split'   => 'Split (Deposit + Cash)',
+                    ];
+                    foreach ($sources as $src => $srcLabel):
+                    ?>
+                        <label class="flex items-center gap-2 bg-mb-black/40 border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-mb-silver cursor-pointer">
+                            <input type="radio" name="payment_source_type_radio" value="<?= $src ?>"
+                                class="accent-mb-accent"
+                                <?= $paymentSourceType === $src ? 'checked' : '' ?>
+                                onchange="onPaymentSourceChange(this.value)">
+                            <span><?= $srcLabel ?></span>
                         </label>
                     <?php endforeach; ?>
                 </div>
-                <?php if (isset($errors['payment_method'])): ?>
-                    <p class="text-xs text-red-400 mt-1"><?= e($errors['payment_method']) ?></p>
+                <?php if (isset($errors['payment_source_type'])): ?>
+                    <p class="text-xs text-red-400 mt-1"><?= e($errors['payment_source_type']) ?></p>
                 <?php endif; ?>
+
+                <!-- Deposit info panel -->
+                <div id="depositInfoPanel" class="mt-3 bg-mb-black/40 border border-mb-accent/20 rounded-lg px-4 py-3 text-sm <?= in_array($paymentSourceType, ['deposit', 'split']) ? '' : 'hidden' ?>">
+                    <span class="text-mb-subtle">Available Security Deposit:</span>
+                    <span class="text-white font-medium ml-2">$<?= number_format($availableDeposit, 2) ?></span>
+                    <?php if ($availableDeposit <= 0): ?>
+                        <p class="text-red-400 text-xs mt-1">No deposit available. Please use another payment method.</p>
+                    <?php endif; ?>
+                </div>
             </div>
 
-            <div id="bankAccountWrap" class="max-w-sm">
+            <!-- Standard account bank selector -->
+            <div id="bankAccountWrap" class="max-w-sm <?= $paymentSourceType === 'account' ? '' : 'hidden' ?>">
                 <label class="block text-sm text-mb-silver mb-2">Bank Account</label>
                 <select name="bank_account_id" class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm">
                     <option value="">-- Select Account --</option>
@@ -386,6 +550,62 @@ require_once __DIR__ . '/../includes/header.php';
                 </select>
                 <?php if (isset($errors['bank_account_id'])): ?>
                     <p class="text-xs text-red-400 mt-1"><?= e($errors['bank_account_id']) ?></p>
+                <?php endif; ?>
+            </div>
+
+            <!-- Split payment panel -->
+            <div id="splitPaymentPanel" class="<?= $paymentSourceType === 'split' ? '' : 'hidden' ?> bg-mb-black/30 border border-mb-subtle/20 rounded-xl p-4 space-y-4">
+                <p class="text-sm text-mb-silver font-medium">Split Payment Breakdown</p>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs text-mb-subtle mb-1">From Deposit (max $<?= number_format($availableDeposit, 2) ?>)</label>
+                        <input type="number" name="split_deposit_amount" id="splitDepositAmount"
+                            min="0" max="<?= number_format($availableDeposit, 2, '.', '') ?>" step="0.01"
+                            value="<?= e(number_format($splitDepositAmount, 2, '.', '')) ?>"
+                            oninput="onSplitDepositChange()"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm">
+                        <?php if (isset($errors['split_deposit'])): ?>
+                            <p class="text-xs text-red-400 mt-1"><?= e($errors['split_deposit']) ?></p>
+                        <?php endif; ?>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-mb-subtle mb-1">Cash / Other</label>
+                        <input type="number" name="split_cash_amount" id="splitCashAmount"
+                            min="0" step="0.01"
+                            value="<?= e(number_format($splitCashAmount, 2, '.', '')) ?>"
+                            oninput="onSplitCashChange()"
+                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm">
+                    </div>
+                </div>
+                <div id="splitValidationMsg" class="text-xs hidden"></div>
+                <div>
+                    <label class="block text-xs text-mb-subtle mb-1">Cash Portion Method</label>
+                    <div class="flex gap-3">
+                        <?php foreach (['cash' => 'Cash', 'account' => 'Account', 'credit' => 'Credit'] as $pm => $pmLabel): ?>
+                            <label class="flex items-center gap-2 text-sm text-mb-silver">
+                                <input type="radio" name="split_cash_method" value="<?= $pm ?>"
+                                    class="accent-mb-accent"
+                                    <?= $splitCashMethod === $pm ? 'checked' : '' ?>
+                                    onchange="onSplitCashMethodChange(this.value)">
+                                <span><?= $pmLabel ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <div id="splitCashBankWrap" class="<?= $splitCashMethod === 'account' ? '' : 'hidden' ?>">
+                    <label class="block text-xs text-mb-subtle mb-1">Bank Account (Cash Portion)</label>
+                    <select name="split_cash_bank_id" class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm">
+                        <option value="">-- Select Account --</option>
+                        <?php foreach ($activeBankAccounts as $acct): ?>
+                            <option value="<?= (int) $acct['id'] ?>" <?= $splitCashBankId === (int) $acct['id'] ? 'selected' : '' ?>><?= e($acct['name'] ?? ('Account #' . $acct['id'])) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if (isset($errors['split_cash_bank_id'])): ?>
+                        <p class="text-xs text-red-400 mt-1"><?= e($errors['split_cash_bank_id']) ?></p>
+                    <?php endif; ?>
+                </div>
+                <?php if (isset($errors['split'])): ?>
+                    <p class="text-xs text-red-400"><?= e($errors['split']) ?></p>
                 <?php endif; ?>
             </div>
 
@@ -512,27 +732,82 @@ function calcExtension() {
     updateOutputs(days, rate, total);
 }
 
-function syncBank() {
-    const selected = document.querySelector('input[name="payment_method"]:checked');
-    const wrap = document.getElementById('bankAccountWrap');
-    if (!wrap) return;
-    wrap.style.display = selected && selected.value === 'account' ? 'block' : 'none';
+const AVAILABLE_DEPOSIT = <?= number_format($availableDeposit, 2, '.', '') ?>;
+
+function syncBank() { /* legacy */ }
+
+function onPaymentSourceChange(src) {
+    document.getElementById('paymentSourceType').value = src;
+    const bankWrap     = document.getElementById('bankAccountWrap');
+    const depositPanel = document.getElementById('depositInfoPanel');
+    const splitPanel   = document.getElementById('splitPaymentPanel');
+    if (bankWrap)     bankWrap.classList.toggle('hidden', src !== 'account');
+    if (depositPanel) depositPanel.classList.toggle('hidden', src !== 'deposit' && src !== 'split');
+    if (splitPanel)   splitPanel.classList.toggle('hidden', src !== 'split');
+    if (src === 'split') {
+        const extAmt = parseFloat(document.getElementById('extensionAmount').value) || 0;
+        const dep = Math.min(AVAILABLE_DEPOSIT, extAmt);
+        document.getElementById('splitDepositAmount').value = dep.toFixed(2);
+        document.getElementById('splitCashAmount').value = Math.max(0, extAmt - dep).toFixed(2);
+        validateSplitPayment();
+    }
+}
+
+function onSplitDepositChange() {
+    const extAmt = parseFloat(document.getElementById('extensionAmount').value) || 0;
+    const dep = Math.min(Math.max(0, parseFloat(document.getElementById('splitDepositAmount').value) || 0), AVAILABLE_DEPOSIT);
+    document.getElementById('splitDepositAmount').value = dep.toFixed(2);
+    document.getElementById('splitCashAmount').value = Math.max(0, extAmt - dep).toFixed(2);
+    validateSplitPayment();
+}
+
+function onSplitCashChange() {
+    const extAmt = parseFloat(document.getElementById('extensionAmount').value) || 0;
+    const cash = Math.max(0, parseFloat(document.getElementById('splitCashAmount').value) || 0);
+    document.getElementById('splitDepositAmount').value = Math.min(AVAILABLE_DEPOSIT, Math.max(0, extAmt - cash)).toFixed(2);
+    validateSplitPayment();
+}
+
+function onSplitCashMethodChange(method) {
+    const w = document.getElementById('splitCashBankWrap');
+    if (w) w.classList.toggle('hidden', method !== 'account');
+}
+
+function validateSplitPayment() {
+    const extAmt = parseFloat(document.getElementById('extensionAmount').value) || 0;
+    const dep = parseFloat(document.getElementById('splitDepositAmount').value) || 0;
+    const cash = parseFloat(document.getElementById('splitCashAmount').value) || 0;
+    const total = Math.round((dep + cash) * 100) / 100;
+    const msgEl = document.getElementById('splitValidationMsg');
+    if (!msgEl) return;
+    const diff = Math.round((extAmt - total) * 100) / 100;
+    msgEl.classList.remove('hidden');
+    if (Math.abs(diff) < 0.01) {
+        msgEl.className = 'text-xs text-green-400';
+        msgEl.textContent = '✓ Split totals match: $' + total.toFixed(2);
+    } else if (diff > 0) {
+        msgEl.className = 'text-xs text-amber-400';
+        msgEl.textContent = '⚠ Remaining: $' + diff.toFixed(2) + ' (Total needed: $' + extAmt.toFixed(2) + ')';
+    } else {
+        msgEl.className = 'text-xs text-red-400';
+        msgEl.textContent = '⚠ Over by: $' + Math.abs(diff).toFixed(2);
+    }
 }
 
 document.getElementById('endDate').addEventListener('change', calcExtension);
 document.getElementById('endHour').addEventListener('change', calcExtension);
 document.getElementById('endMin').addEventListener('change', calcExtension);
 document.getElementById('endAMPM').addEventListener('change', calcExtension);
+document.querySelectorAll('input[name="rental_type"]').forEach(el => el.addEventListener('change', calcExtension));
 
-document.querySelectorAll('input[name="rental_type"]').forEach((el) => {
-    el.addEventListener('change', calcExtension);
-});
-
-document.querySelectorAll('input[name="payment_method"]').forEach((el) => {
-    el.addEventListener('change', syncBank);
-});
+// Initialize payment source UI
+(function() {
+    const src = document.getElementById('paymentSourceType').value || 'cash';
+    onPaymentSourceChange(src);
+    const radio = document.querySelector('input[name="payment_source_type_radio"][value="' + src + '"]');
+    if (radio) radio.checked = true;
+})();
 
 calcExtension();
-syncBank();
 </script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

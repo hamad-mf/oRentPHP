@@ -153,6 +153,11 @@ require_once __DIR__ . '/../includes/header.php';
                         <div class="text-xs text-mb-subtle">
                             Loan: <span class="text-mb-silver">$<?= number_format($inv['loan_amount'], 2) ?></span>
                         </div>
+                        <?php if ($nextDue && !$completed): ?>
+                        <div class="text-xs text-mb-subtle">
+                            Next EMI: <span class="text-mb-silver"><?= date('d M Y', strtotime($nextDue)) ?></span>
+                        </div>
+                        <?php endif; ?>
                         <div class="ml-auto flex items-center gap-2">
                             <a href="show.php?id=<?= $inv['id'] ?>"
                                 class="text-mb-accent hover:text-mb-accent/80 text-xs font-medium transition-colors px-3 py-1.5 border border-mb-accent/30 rounded-lg hover:border-mb-accent/60">View EMI Schedule</a>

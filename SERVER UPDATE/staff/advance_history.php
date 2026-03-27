@@ -113,8 +113,13 @@ require_once __DIR__ . '/../includes/header.php';
                             <?php foreach ($historyPg['rows'] as $row): ?>
                                 <?php
                                 $monthNo = (int) ($row['month'] ?? 0);
-                                $monthLabel = ($monthNo >= 1 && $monthNo <= 12) ? date('M', mktime(0, 0, 0, $monthNo, 1)) : ('M' . max(0, $monthNo));
-                                $periodLabel = $monthLabel . ' ' . (int) ($row['year'] ?? 0);
+                                $yearNo = (int) ($row['year'] ?? 0);
+                                if ($monthNo >= 1 && $monthNo <= 12 && $yearNo > 0) {
+                                    $monthNext = $monthNo === 12 ? 1 : $monthNo + 1;
+                                    $periodLabel = '15 ' . date('M', mktime(0,0,0,$monthNo,1)) . ' – 14 ' . date('M', mktime(0,0,0,$monthNext,1)) . ' ' . $yearNo;
+                                } else {
+                                    $periodLabel = 'M' . $monthNo . ' ' . $yearNo;
+                                }
                                 $status = (string) ($row['status'] ?? 'pending');
                                 $statusLabel = ucwords(str_replace('_', ' ', $status));
                                 $statusClass = match ($status) {

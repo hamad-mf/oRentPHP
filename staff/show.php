@@ -30,11 +30,17 @@ $bankAccounts = [];
 try {
     $hasAdvanceTable = (bool) $pdo->query("SHOW TABLES LIKE 'payroll_advances'")->fetchColumn();
     if ($hasAdvanceTable && $userId) {
-        $advStmt = $pdo->prepare("SELECT id, amount, remaining_amount, status, note, given_at FROM payroll_advances WHERE user_id = ? ORDER BY given_at DESC LIMIT 10");
+        $advStmt = $pdo->prepare("SELECT id, amount, remaining_amount, status, note, given_at, month, year FROM payroll_advances WHERE user_id = ? ORDER BY given_at DESC LIMIT 10");
         $advStmt->execute([$userId]);
         $advanceHistory = $advStmt->fetchAll();
-        $balStmt = $pdo->prepare("SELECT COALESCE(SUM(remaining_amount),0) FROM payroll_advances WHERE user_id = ? AND remaining_amount > 0 AND status IN ('pending','partially_recovered')");
-        $balStmt->execute([$userId]);
+        // Calculate default period (used for dropdowns and query when URL params absent)
+        $defAdv_m = isset($_GET['adv_month']) ? (int)$_GET['adv_month'] : (int)date('n');
+        $defAdv_y = isset($_GET['adv_year'])  ? (int)$_GET['adv_year']  : (int)date('Y');
+        // Use calculated defaults for query (always filter by period)
+        $selAdvMonth = $defAdv_m;
+        $selAdvYear  = $defAdv_y;
+        $balStmt = $pdo->prepare("SELECT COALESCE(SUM(remaining_amount),0) FROM payroll_advances WHERE user_id = ? AND remaining_amount > 0 AND status IN ('pending','partially_recovered') AND month = ? AND year = ?");
+        $balStmt->execute([$userId, $selAdvMonth, $selAdvYear]);
         $advanceBalance = (float) $balStmt->fetchColumn();
     }
     $bankAccounts = $pdo->query("SELECT id, name FROM bank_accounts WHERE is_active=1 ORDER BY name")->fetchAll();
@@ -110,10 +116,15 @@ try {
         $incStmt = $pdo->prepare("SELECT id, month, year, amount, note, created_at FROM staff_incentives WHERE user_id = ? ORDER BY year DESC, month DESC, id DESC");
         $incStmt->execute([$userId]);
         $incentiveHistory = $incStmt->fetchAll();
-        $incSumStmt = $pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM staff_incentives WHERE user_id = ?");
-        $incSumStmt->execute([$userId]);
-        $totalIncentives = (float) $incSumStmt->fetchColumn();
-    }
+        // Calculate default period (used for dropdowns and query when URL params absent)
+        $defInc_m = isset($_GET['inc_month']) ? (int)$_GET['inc_month'] : (int)date('n');
+        $defInc_y = isset($_GET['inc_year'])  ? (int)$_GET['inc_year']  : (int)date('Y');
+        // Use calculated defaults for query (always filter by period)
+        $selIncMonth = $defInc_m;
+        $selIncYear  = $defInc_y;
+        $incSumStmt = $pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM staff_incentives WHERE user_id = ? AND month = ? AND year = ?");
+        $incSumStmt->execute([$userId, $selIncMonth, $selIncYear]);
+        $totalIncentives = (float) $incSumStmt->fetchColumn();    }
 } catch (Exception $incEx) {}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_incentive_from_profile') {
@@ -338,17 +349,12 @@ $s = getFlash('success');
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-xs text-mb-subtle mb-1">For Period (15–15)</label>
-                            <select name="advance_month" class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-orange-400">
+                            <select name="advance_month" id="adv_month_sel" class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-orange-400">
                                 <?php
-                                $defAdv_m = (int)date('n');
-                                $defAdv_y = (int)date('Y');
-                                if ((int)date('j') >= 20) {
-                                    $defAdv_m = $defAdv_m === 12 ? 1 : $defAdv_m + 1;
-                                    if ($defAdv_m === 1) $defAdv_y++;
-                                }
+                                // Use already-calculated default period from above
                                 for ($am = 1; $am <= 12; $am++):
                                     $amNext = $am === 12 ? 1 : $am + 1;
-                                    $amLabel = '15 ' . date('M', mktime(0,0,0,$am,1)) . ' – 15 ' . date('M', mktime(0,0,0,$amNext,1));
+                                    $amLabel = '15 ' . date('M', mktime(0,0,0,$am,1)) . ' – 14 ' . date('M', mktime(0,0,0,$amNext,1));
                                 ?>
                                     <option value="<?= $am ?>" <?= $am === $defAdv_m ? 'selected' : '' ?>>
                                         <?= $amLabel ?>
@@ -358,7 +364,7 @@ $s = getFlash('success');
                         </div>
                         <div>
                             <label class="block text-xs text-mb-subtle mb-1">Year</label>
-                            <select name="advance_year" class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-orange-400">
+                            <select name="advance_year" id="adv_year_sel" class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-orange-400">
                                 <?php for ($ay = (int)date('Y'); $ay <= (int)date('Y') + 1; $ay++): ?>
                                     <option value="<?= $ay ?>" <?= $ay === $defAdv_y ? 'selected' : '' ?>><?= $ay ?></option>
                                 <?php endfor; ?>
@@ -389,6 +395,18 @@ $s = getFlash('success');
                         Give Advance
                     </button>
                 </form>
+                <script>
+                function reloadAdvPeriod() {
+                    var m = document.getElementById('adv_month_sel').value;
+                    var y = document.getElementById('adv_year_sel').value;
+                    var url = new URL(window.location.href);
+                    url.searchParams.set('adv_month', m);
+                    url.searchParams.set('adv_year', y);
+                    window.location.href = url.toString();
+                }
+                document.getElementById('adv_month_sel').addEventListener('change', reloadAdvPeriod);
+                document.getElementById('adv_year_sel').addEventListener('change', reloadAdvPeriod);
+                </script>
                 <?php else: ?><p class="text-xs text-mb-subtle italic">No active bank accounts found.</p><?php endif; ?>
                 <?php if (!empty($advanceHistory)): ?>
                     <div class="mt-4 pt-4 border-t border-mb-subtle/10 space-y-2.5">
@@ -398,6 +416,15 @@ $s = getFlash('success');
                                 <div>
                                     <span class="<?= $adv['status'] === 'recovered' ? 'text-green-400' : 'text-orange-300' ?>">$<?= number_format($adv['amount'], 2) ?></span>
                                     <?php if ($adv['note']): ?><span class="text-mb-subtle ml-1">— <?= e($adv['note']) ?></span><?php endif; ?>
+                                    <?php
+                                        $advM = (int)($adv['month'] ?? 0);
+                                        $advY = (int)($adv['year'] ?? 0);
+                                        if ($advM >= 1 && $advM <= 12 && $advY > 0):
+                                            $advMNext = $advM === 12 ? 1 : $advM + 1;
+                                            $advPeriod = '15 ' . date('M', mktime(0,0,0,$advM,1)) . ' – 14 ' . date('M', mktime(0,0,0,$advMNext,1)) . ' ' . $advY;
+                                    ?>
+                                        <p class="text-mb-subtle/80 mt-0.5">Period: <?= $advPeriod ?></p>
+                                    <?php endif; ?>
                                     <p class="text-mb-subtle/60 mt-0.5"><?= date('d M Y', strtotime($adv['given_at'])) ?></p>
                                 </div>
                                 <span class="mt-0.5 shrink-0 px-1.5 py-0.5 rounded text-[10px] <?= $adv['status'] === 'recovered' ? 'bg-green-500/10 text-green-400' : ($adv['status'] === 'partially_recovered' ? 'bg-yellow-500/10 text-yellow-400' : 'bg-orange-500/10 text-orange-300') ?>">
@@ -427,13 +454,12 @@ $s = getFlash('success');
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-xs text-mb-subtle mb-1">For Period (15–15)</label>
-                            <select name="incentive_month" class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-green-400">
+                            <select name="incentive_month" id="inc_month_sel" class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-green-400">
                                 <?php
-                                $defInc_m = (int)date('n');
-                                $defInc_y = (int)date('Y');
+                                // Reuse already-calculated defaults from above
                                 for ($im = 1; $im <= 12; $im++):
                                     $imNext = $im === 12 ? 1 : $im + 1;
-                                    $imLabel = '15 ' . date('M', mktime(0,0,0,$im,1)) . ' – 15 ' . date('M', mktime(0,0,0,$imNext,1));
+                                    $imLabel = '15 ' . date('M', mktime(0,0,0,$im,1)) . ' – 14 ' . date('M', mktime(0,0,0,$imNext,1));
                                 ?>
                                     <option value="<?= $im ?>" <?= $im === $defInc_m ? 'selected' : '' ?>>
                                         <?= $imLabel ?>
@@ -443,7 +469,7 @@ $s = getFlash('success');
                         </div>
                         <div>
                             <label class="block text-xs text-mb-subtle mb-1">Year</label>
-                            <select name="incentive_year" class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-green-400">
+                            <select name="incentive_year" id="inc_year_sel" class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-green-400">
                                 <?php for ($iy = (int)date('Y') - 1; $iy <= (int)date('Y') + 1; $iy++): ?>
                                     <option value="<?= $iy ?>" <?= $iy === $defInc_y ? 'selected' : '' ?>><?= $iy ?></option>
                                 <?php endfor; ?>
@@ -465,6 +491,18 @@ $s = getFlash('success');
                         Add Incentive
                     </button>
                 </form>
+                <script>
+                function reloadIncPeriod() {
+                    var m = document.getElementById('inc_month_sel').value;
+                    var y = document.getElementById('inc_year_sel').value;
+                    var url = new URL(window.location.href);
+                    url.searchParams.set('inc_month', m);
+                    url.searchParams.set('inc_year', y);
+                    window.location.href = url.toString();
+                }
+                document.getElementById('inc_month_sel').addEventListener('change', reloadIncPeriod);
+                document.getElementById('inc_year_sel').addEventListener('change', reloadIncPeriod);
+                </script>
                 <?php if (!empty($incentiveHistory)): ?>
                     <div class="mt-4 pt-4 border-t border-mb-subtle/10 space-y-2.5">
                         <p class="text-xs text-mb-subtle uppercase tracking-wider mb-2">Incentive History</p>
@@ -473,7 +511,16 @@ $s = getFlash('success');
                                 <div>
                                     <span class="text-green-400">$<?= number_format($inc['amount'], 2) ?></span>
                                     <?php if ($inc['note']): ?><span class="text-mb-subtle ml-1">— <?= e($inc['note']) ?></span><?php endif; ?>
-                                    <p class="text-mb-subtle/60 mt-0.5"><?= date('M Y', strtotime($inc['created_at'])) ?></p>
+                                    <?php
+                                        $incM = (int)($inc['month'] ?? 0);
+                                        $incY = (int)($inc['year'] ?? 0);
+                                        if ($incM >= 1 && $incM <= 12 && $incY > 0):
+                                            $incMNext = $incM === 12 ? 1 : $incM + 1;
+                                            $incPeriod = '15 ' . date('M', mktime(0,0,0,$incM,1)) . ' – 14 ' . date('M', mktime(0,0,0,$incMNext,1)) . ' ' . $incY;
+                                    ?>
+                                        <p class="text-mb-subtle/80 mt-0.5">Period: <?= $incPeriod ?></p>
+                                    <?php endif; ?>
+                                    <p class="text-mb-subtle/60 mt-0.5"><?= date('d M Y', strtotime($inc['created_at'])) ?></p>
                                 </div>
                             </div>
                         <?php endforeach; ?>

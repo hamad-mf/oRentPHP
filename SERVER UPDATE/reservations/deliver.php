@@ -48,22 +48,40 @@ settings_ensure_table($pdo);
 $depositPct = (float) settings_get($pdo, 'deposit_percentage', '0');
 $deliveryPrepaid = max(0, (float) ($r['delivery_charge_prepaid'] ?? 0));
 $deliveryPrepaidMethod = $r['delivery_prepaid_payment_method'] ?? null;
-$deliveryChargeDefault = $deliveryPrepaid > 0 ? 0.0 : (float) settings_get($pdo, 'delivery_charge_default', '0');
+$reservationDeliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
+$reservationDeliveryMethod = $r['delivery_prepaid_payment_method'] ?? null;
+$reservationDeliveryBankId = (int) ($r['delivery_prepaid_bank_account_id'] ?? 0);
+$reservationDeliveryBankId = $reservationDeliveryBankId > 0 ? $reservationDeliveryBankId : null;
+$deliveryChargeDefault = $deliveryPrepaid > 0 ? 0.0 : ($reservationDeliveryCharge > 0 ? $reservationDeliveryCharge : (float) settings_get($pdo, 'delivery_charge_default', '0'));
 
 $voucherApplied = max(0, (float) ($r['voucher_applied'] ?? 0));
 $advancePaid = max(0, (float) ($r['advance_paid'] ?? 0));
 $extensionPaid = max(0, (float) ($r['extension_paid_amount'] ?? 0));
 $basePriceForDelivery = max(0, (float) $r['total_price'] - $extensionPaid);
-$baseCollectNow = max(0, $basePriceForDelivery - $voucherApplied - $advancePaid);
+// Booking discount
+$bookingDiscType  = $r['booking_discount_type'] ?? null;
+$bookingDiscValue = (float) ($r['booking_discount_value'] ?? 0);
+$bookingDiscAmt   = 0;
+if ($bookingDiscType === 'percent') {
+    $bookingDiscAmt = round($basePriceForDelivery * min($bookingDiscValue, 100) / 100, 2);
+} elseif ($bookingDiscType === 'amount') {
+    $bookingDiscAmt = min($bookingDiscValue, $basePriceForDelivery);
+}
+$basePriceAfterBookingDiscount = max(0, $basePriceForDelivery - $bookingDiscAmt);
+$baseCollectNow = max(0, $basePriceAfterBookingDiscount - $voucherApplied - $advancePaid);
 $existingDeliveryCharge = max(0, (float) ($r['delivery_charge'] ?? 0));
 $deliveryCharge = max(0, (float) ($_POST['delivery_charge'] ?? ($existingDeliveryCharge > 0 ? $existingDeliveryCharge : $deliveryChargeDefault)));
 $existingDeliveryManualAmount = max(0, (float) ($r['delivery_manual_amount'] ?? 0));
 $deliveryManualAmount = max(0, (float) ($_POST['delivery_manual_amount'] ?? $existingDeliveryManualAmount));
 $deliveryPaymentMethod = reservation_payment_method_normalize($_POST['delivery_payment_method'] ?? ($r['delivery_payment_method'] ?? 'cash')) ?? 'cash';
-// Delivery discount (applied to base + delivery charges before collecting)
+// Delivery charge has its OWN separate payment method/bank
+$deliveryChargePaymentMethod = reservation_payment_method_normalize($_POST['delivery_charge_payment_method'] ?? $reservationDeliveryMethod ?? 'cash') ?? 'cash';
+$deliveryChargeBankAccountId = (int) ($_POST['delivery_charge_bank_account_id'] ?? $reservationDeliveryBankId ?? 0);
+$deliveryChargeBankAccountId = $deliveryChargeBankAccountId > 0 ? $deliveryChargeBankAccountId : null;
+// Delivery discount (applied to base rent only — not delivery charge)
 $delivDiscType = in_array($_POST['delivery_discount_type'] ?? '', ['percent', 'amount']) ? $_POST['delivery_discount_type'] : ($r['delivery_discount_type'] ?? null);
 $delivDiscVal = max(0, (float) ($_POST['delivery_discount_value'] ?? ($r['delivery_discount_value'] ?? 0)));
-$baseWithCharge = $baseCollectNow + $deliveryCharge + $deliveryManualAmount;
+$baseWithCharge = $baseCollectNow + $deliveryManualAmount;
 $delivDiscountAmt = 0;
 if ($delivDiscType === 'percent') {
     $delivDiscountAmt = round($baseWithCharge * min($delivDiscVal, 100) / 100, 2);
@@ -71,8 +89,8 @@ if ($delivDiscType === 'percent') {
     $delivDiscountAmt = min($delivDiscVal, $baseWithCharge);
 }
 $collectNowAtDelivery = max(0, $baseWithCharge - $delivDiscountAmt);
-$suggestedDeposit = round($collectNowAtDelivery * ($depositPct / 100), 2);
-$deliveryBankAccountId = (int) ($_POST['delivery_bank_account_id'] ?? 0);
+$suggestedDeposit = round(($collectNowAtDelivery + $deliveryCharge) * ($depositPct / 100), 2);
+$deliveryBankAccountId = (int) ($_POST['delivery_bank_account_id'] ?? ($r['delivery_bank_account_id'] ?? 0));
 $deliveryBankAccountId = $deliveryBankAccountId > 0 ? $deliveryBankAccountId : null;
 $activeBankAccounts = array_values(array_filter(ledger_get_accounts($pdo), fn($a) => (int) ($a['is_active'] ?? 0) === 1));
 $configuredSecurityDepositBankId = ledger_get_active_bank_account_id(
@@ -95,6 +113,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $deliveryPaymentMethod = reservation_payment_method_normalize($_POST['delivery_payment_method'] ?? null);
     $deliveryBankAccountId = (int) ($_POST['delivery_bank_account_id'] ?? 0);
     $deliveryBankAccountId = $deliveryBankAccountId > 0 ? $deliveryBankAccountId : null;
+    // Delivery charge separate payment
+    $deliveryChargePaymentMethod = reservation_payment_method_normalize($_POST['delivery_charge_payment_method'] ?? null);
+    $deliveryChargeBankAccountId = (int) ($_POST['delivery_charge_bank_account_id'] ?? 0);
+    $deliveryChargeBankAccountId = $deliveryChargeBankAccountId > 0 ? $deliveryChargeBankAccountId : null;
     $paymentSourceType = trim($_POST['payment_source_type'] ?? 'single');
     $multiCashAmount = max(0, (float) ($_POST['multi_cash_amount'] ?? 0));
     $multiCreditAmount = max(0, (float) ($_POST['multi_credit_amount'] ?? 0));
@@ -110,7 +132,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['delivery_manual_amount'] = 'Manual delivery amount cannot be negative.';
     }
     $deliveryCharge = max(0, $deliveryCharge);
-    $baseWithCharge = $baseCollectNow + $deliveryCharge + $deliveryManualAmount;
+    // Rent-only collect-now (delivery charge is separate)
+    $baseWithCharge = $baseCollectNow + $deliveryManualAmount;
     $delivDiscountAmt = 0;
     if ($delivDiscType === 'percent') {
         $delivDiscountAmt = round($baseWithCharge * min($delivDiscVal, 100) / 100, 2);
@@ -118,13 +141,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $delivDiscountAmt = min($delivDiscVal, $baseWithCharge);
     }
     $collectNowAtDelivery = max(0, $baseWithCharge - $delivDiscountAmt);
+    // Validate rent payment method
     if ($collectNowAtDelivery > 0 && $paymentSourceType === 'single') {
         if ($deliveryPaymentMethod === null) {
-            $errors['delivery_payment_method'] = 'Please select how this delivery payment was received.';
+            $errors['delivery_payment_method'] = 'Please select how the rental payment was received.';
         }
         if ($deliveryPaymentMethod === 'account') {
             if ($deliveryBankAccountId === null) {
-                $errors['delivery_bank_account_id'] = 'Please select the bank account that received this payment.';
+                $errors['delivery_bank_account_id'] = 'Please select the bank account for the rental payment.';
             } else {
                 $chk = $pdo->prepare("SELECT COUNT(*) FROM bank_accounts WHERE id = ? AND is_active = 1");
                 $chk->execute([$deliveryBankAccountId]);
@@ -152,6 +176,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $deliveryPaymentMethod = 'multi';
     }
+    // Validate delivery charge payment method separately
+    if ($deliveryCharge > 0) {
+        if ($deliveryChargePaymentMethod === null) {
+            $errors['delivery_charge_payment_method'] = 'Please select how the delivery charge was received.';
+        }
+        if ($deliveryChargePaymentMethod === 'account') {
+            if ($deliveryChargeBankAccountId === null) {
+                $errors['delivery_charge_bank_account_id'] = 'Please select the bank account for the delivery charge.';
+            } else {
+                $chk = $pdo->prepare("SELECT COUNT(*) FROM bank_accounts WHERE id = ? AND is_active = 1");
+                $chk->execute([$deliveryChargeBankAccountId]);
+                if ((int) $chk->fetchColumn() === 0) {
+                    $errors['delivery_charge_bank_account_id'] = 'Selected bank account is invalid or inactive.';
+                }
+            }
+        } else {
+            $deliveryChargeBankAccountId = null;
+        }
+    }
 
     if ($fuel < 0 || $fuel > 100)
         $errors['fuel_level'] = 'Fuel level must be 0–100.';
@@ -165,11 +208,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['extra_km_price'] = 'Extra price per KM is required when KM limit is set.';
 
     // All photos are required
-    $requiredPhotos = ['front','back','left','right','interior','odometer','with_customer'];
+    $requiredPhotos = ['front','back','left','right','odometer','with_customer'];
     foreach ($requiredPhotos as $photoKey) {
         if (empty($_FILES['photos']['name'][$photoKey]) || $_FILES['photos']['error'][$photoKey] !== UPLOAD_ERR_OK) {
             $errors['photo_' . $photoKey] = ucfirst(str_replace('_', ' ', $photoKey)) . ' photo is required.';
         }
+    }
+    // Interior: require at least 1, max 15
+    $interiorOk = 0;
+    for ($n = 1; $n <= 15; $n++) {
+        $key = "interior_$n";
+        if (!empty($_FILES['photos']['name'][$key]) && $_FILES['photos']['error'][$key] === UPLOAD_ERR_OK) {
+            $interiorOk++;
+        }
+    }
+    if ($interiorOk === 0) {
+        $errors['photo_interior'] = 'At least one interior photo is required.';
+    }
+
+    // Scratch photo validation (max 15, optional)
+    $scratchAttempted = 0;
+    for ($n = 1; $n <= 15; $n++) {
+        if (!empty($_FILES['scratch_photos']['name'][$n] ?? '')
+            && ($_FILES['scratch_photos']['name'][$n] ?? '') !== '') {
+            $scratchAttempted++;
+        }
+    }
+    if ($scratchAttempted > 15) {
+        $errors['scratch_photos'] = 'A maximum of 15 scratch photos is allowed.';
     }
 
     if (empty($errors)) {
@@ -190,6 +256,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $pStmt = $pdo->prepare('INSERT INTO inspection_photos (inspection_id, view_name, file_path) VALUES (?,?,?)');
                         $pStmt->execute([$inspectionId, $area, 'uploads/inspections/' . $filename]);
                     }
+                }
+            }
+        }
+
+        // Save scratch photos
+        $scratchDir = __DIR__ . '/../uploads/scratch_photos/';
+        if (!is_dir($scratchDir)) {
+            mkdir($scratchDir, 0777, true);
+        }
+        if (!empty($_FILES['scratch_photos']['name'])) {
+            for ($n = 1; $n <= 15; $n++) {
+                if (empty($_FILES['scratch_photos']['name'][$n] ?? '')
+                    || ($_FILES['scratch_photos']['error'][$n] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                    continue;
+                }
+                $spName = $_FILES['scratch_photos']['name'][$n];
+                $spExt  = strtolower(pathinfo($spName, PATHINFO_EXTENSION));
+                $spFilename = 'scratch_' . $id . '_delivery_' . $n . '_' . time() . '.' . $spExt;
+                if (move_uploaded_file($_FILES['scratch_photos']['tmp_name'][$n], $scratchDir . $spFilename)) {
+                    $pdo->prepare(
+                        'INSERT INTO reservation_scratch_photos (reservation_id, event_type, slot_index, file_path) VALUES (?, ?, ?, ?)'
+                    )->execute([$id, 'delivery', $n, 'uploads/scratch_photos/' . $spFilename]);
                 }
             }
         }
@@ -225,9 +313,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id
 ]);
         $pdo->prepare("UPDATE vehicles SET status='rented' WHERE id=?")->execute([$r['vehicle_id']]);
-        $msg = 'Vehicle delivered. Amount collected at delivery: $' . number_format($collectNowAtDelivery, 2) . '.';
+        $msg = 'Vehicle delivered.';
         if ($collectNowAtDelivery > 0) {
-            $msg .= ' Method: ' . reservation_payment_method_label($deliveryPaymentMethodSave) . '.';
+            $msg .= ' Rental collected: $' . number_format($collectNowAtDelivery, 2) . ' (' . reservation_payment_method_label($deliveryPaymentMethodSave) . ').';
+        }
+        if ($deliveryCharge > 0) {
+            $msg .= ' Delivery charge: $' . number_format($deliveryCharge, 2) . ' (' . reservation_payment_method_label($deliveryChargePaymentMethod) . ').';
         }
         if ($voucherApplied > 0) {
             $msg .= ' Voucher used: $' . number_format($voucherApplied, 2) . '.';
@@ -235,16 +326,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($advancePaid > 0) {
             $msg .= ' Advance already collected: $' . number_format($advancePaid, 2) . '.';
         }
-        if ($deliveryCharge > 0) {
-            $msg .= ' Delivery charge: $' . number_format($deliveryCharge, 2) . '.';
-        }
         if ($deliveryManualAmount > 0) {
             $msg .= ' Manual additional amount: $' . number_format($deliveryManualAmount, 2) . '.';
         }
         $msg .= ' Reservation is now active.';
         app_log('ACTION', "Delivered reservation (ID: $id)");
         $ledgerUserId = (int) ($_SESSION['user']['id'] ?? 0);
-        // ── Auto-post income to ledger ──────────────────────────────────
+        // ── Post RENT to ledger ──────────────────────────────────
         if ($paymentSourceType === 'multi' && $collectNowAtDelivery > 0) {
             $splits = [];
             if ($multiCashAmount > 0)   $splits[] = ['mode' => 'cash',    'amount' => $multiCashAmount,   'bank_id' => null];
@@ -253,6 +341,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ledger_post_reservation_event_multi($pdo, $id, 'delivery', $splits, $ledgerUserId);
         } else {
             ledger_post_reservation_event($pdo, $id, 'delivery', $collectNowAtDelivery, $deliveryPaymentMethodSave, $ledgerUserId, $deliveryBankAccountId);
+        }
+        // ── Post DELIVERY CHARGE to ledger separately ──────────
+        if ($deliveryCharge > 0 && $deliveryChargePaymentMethod !== null) {
+            ledger_post_reservation_event($pdo, $id, 'delivery_charge', $deliveryCharge, $deliveryChargePaymentMethod, $ledgerUserId, $deliveryChargeBankAccountId);
         }
         if ($depositAmt > 0) {
             if ($configuredSecurityDepositBankId !== null) {
@@ -374,6 +466,12 @@ require_once __DIR__ . '/../includes/header.php';
                     <span>Base Rental Value</span>
                     <span>$<?= number_format((float) $r['total_price'], 2) ?></span>
                 </div>
+                <?php if ($bookingDiscAmt > 0): ?>
+                    <div class="flex justify-between text-green-400">
+                        <span>Booking Discount<?= $bookingDiscType === 'percent' ? " ({$bookingDiscValue}%)" : '' ?></span>
+                        <span>-$<?= number_format($bookingDiscAmt, 2) ?></span>
+                    </div>
+                <?php endif; ?>
                 <?php if ($voucherApplied > 0): ?>
                     <div class="flex justify-between text-green-400">
                         <span>Voucher Applied</span>
@@ -387,14 +485,51 @@ require_once __DIR__ . '/../includes/header.php';
                     </div>
                 <?php endif; ?>
                 <div class="flex items-center justify-between text-mb-silver gap-3">
-                    <span><?= $deliveryPrepaid > 0 ? 'Additional Delivery Charge' : 'Delivery Charge' ?></span>
+                    <span>Delivery Charge</span>
                     <div class="relative w-44">
                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-mb-subtle text-xs">$</span>
                         <input type="number" name="delivery_charge" id="deliveryChargeInput" step="0.01" min="0"
                             class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-7 pr-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm"
                             placeholder="0.00"
-                            value="<?= e($_POST['delivery_charge'] ?? number_format($deliveryCharge, 2, '.', '')) ?>">
+                            value="<?= e($_POST['delivery_charge'] ?? number_format($deliveryCharge, 2, '.', '')) ?>"
+                            oninput="toggleDeliveryChargeMethodSection()">
                     </div>
+                </div>
+                <!-- Delivery Charge: Separate Payment Method -->
+                <div id="deliveryChargeMethodSection" class="border border-blue-500/20 bg-blue-500/5 rounded-lg p-3 space-y-2 <?= $deliveryCharge > 0 ? '' : 'hidden' ?>">
+                    <p class="text-xs text-blue-400 font-medium uppercase tracking-wider">Delivery Charge Payment</p>
+                    <div class="flex items-center justify-between text-mb-silver gap-3">
+                        <span class="text-xs">Method</span>
+                        <div class="w-44">
+                            <select name="delivery_charge_payment_method" id="deliveryChargeMethodSel"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm"
+                                onchange="toggleDeliveryChargeBankField()">
+                                <option value="cash" <?= $deliveryChargePaymentMethod === 'cash' ? 'selected' : '' ?>>Cash</option>
+                                <option value="account" <?= $deliveryChargePaymentMethod === 'account' ? 'selected' : '' ?>>Account</option>
+                                <option value="credit" <?= $deliveryChargePaymentMethod === 'credit' ? 'selected' : '' ?>>Credit</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="deliveryChargeBankWrap" class="items-center justify-between text-mb-silver gap-3 <?= $deliveryChargePaymentMethod === 'account' ? 'flex' : 'hidden' ?>">
+                        <span class="text-xs">Bank Account</span>
+                        <div class="w-44">
+                            <select name="delivery_charge_bank_account_id" id="deliveryChargeBankSel"
+                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm">
+                                <option value="">Select account</option>
+                                <?php foreach ($activeBankAccounts as $acc): ?>
+                                    <option value="<?= (int) $acc['id'] ?>" <?= (int) ($deliveryChargeBankAccountId ?? 0) === (int) $acc['id'] ? 'selected' : '' ?>>
+                                        <?= e($acc['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <?php if (isset($errors['delivery_charge_payment_method'])): ?>
+                        <p class="text-red-400 text-xs"><?= e($errors['delivery_charge_payment_method']) ?></p>
+                    <?php endif; ?>
+                    <?php if (isset($errors['delivery_charge_bank_account_id'])): ?>
+                        <p class="text-red-400 text-xs"><?= e($errors['delivery_charge_bank_account_id']) ?></p>
+                    <?php endif; ?>
                 </div>
                 <div class="flex items-center justify-between text-mb-silver gap-3">
                     <span>Manual Additional Amount</span>
@@ -579,10 +714,10 @@ require_once __DIR__ . '/../includes/header.php';
 
                 <!-- Deposit Section -->
                 <div class="pt-4 border-t border-mb-subtle/10 space-y-4">
-                    <h3 class="text-white font-light border-l-2 border-mb-accent pl-3">Delivery Deposit</h3>
+                    <h3 class="text-white font-light border-l-2 border-mb-accent pl-3">Security Deposit</h3>
                     <p class="text-xs text-mb-subtle">Enter the security deposit amount collected from the client.</p>
                     <div>
-                        <label class="block text-sm text-mb-silver mb-2">Delivery Deposit Collected ($)</label>
+                        <label class="block text-sm text-mb-silver mb-2">Security Deposit Collected ($)</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-mb-subtle text-sm">$</span>
                             <input type="number" name="deposit_amount" id="depositAmount" step="0.01" min="0" required
@@ -637,7 +772,6 @@ require_once __DIR__ . '/../includes/header.php';
                     'back' => 'Back',
                     'left' => 'Left',
                     'right' => 'Right',
-                    'interior' => 'Interior',
                     'odometer' => 'Photo of Odometer',
                     'with_customer' => 'Photo with Customer',
                 ];
@@ -654,7 +788,51 @@ require_once __DIR__ . '/../includes/header.php';
                                    hover:file:bg-mb-surface/80 cursor-pointer">
                     </div>
                 <?php endforeach; ?>
+
+                <!-- Dynamic Interior Photos -->
+                <div class="bg-mb-black/30 p-4 rounded-lg border border-mb-subtle/10">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="block text-sm font-medium text-mb-silver">Interior Photos <span class="text-mb-subtle text-xs">(1–15)</span></label>
+                        <?php if (isset($errors['photo_interior'])): ?>
+                            <p class="text-red-400 text-xs"><?= e($errors['photo_interior']) ?></p>
+                        <?php endif; ?>
+                    </div>
+                    <div id="interior-slots-container" class="space-y-2">
+                        <div class="interior-slot flex items-center gap-2" data-slot="1">
+                            <input type="file" name="photos[interior_1]" accept="image/*" class="block flex-1 text-sm text-mb-silver
+                                       file:mr-4 file:py-2 file:px-4
+                                       file:rounded-full file:border-0
+                                       file:text-xs file:font-semibold
+                                       file:bg-mb-surface file:text-mb-accent
+                                       hover:file:bg-mb-surface/80 cursor-pointer">
+                        </div>
+                    </div>
+                    <button type="button" id="add-interior-btn"
+                        class="mt-3 text-xs text-mb-accent hover:text-white border border-mb-accent/30 hover:border-mb-accent/60 px-3 py-1.5 rounded-full transition-colors">
+                        + Add another interior photo
+                    </button>
+                </div>
             </div>
+        </div>
+
+        <!-- Scratch / Damage Photos -->
+        <div class="bg-mb-surface border border-mb-subtle/20 rounded-lg p-6">
+            <h3 class="text-white font-light border-l-2 border-orange-500 pl-3 mb-4">
+                Scratch / Damage Photos <span class="text-mb-subtle text-xs font-normal">(optional, max 15)</span>
+            </h3>
+            <?php if (!empty($errors['scratch_photos'])): ?>
+                <p class="text-red-400 text-xs mb-3"><?= e($errors['scratch_photos']) ?></p>
+            <?php endif; ?>
+            <div id="scratch-slots-container" class="space-y-2">
+                <div class="scratch-slot flex items-center gap-2" data-slot="1">
+                    <input type="file" name="scratch_photos[1]" accept="image/*"
+                           class="block flex-1 text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-orange-400 hover:file:bg-mb-surface/80 cursor-pointer">
+                </div>
+            </div>
+            <button type="button" id="add-scratch-btn"
+                    class="mt-3 text-xs text-orange-400 hover:text-white border border-orange-500/30 hover:border-orange-500/60 px-3 py-1.5 rounded-full transition-colors">
+                + Add another scratch photo
+            </button>
         </div>
 
         <div class="flex items-center justify-between pt-8 border-t border-mb-subtle/10">
@@ -729,7 +907,8 @@ function updateDeliveryCollectNow() {
     if (!isFinite(deliveryCharge) || deliveryCharge < 0) deliveryCharge = 0;
     let deliveryManual = parseFloat(deliveryManualAmountInput.value || "0");
     if (!isFinite(deliveryManual) || deliveryManual < 0) deliveryManual = 0;
-    const baseWithCharge = BASE_COLLECT_NOW + deliveryCharge + deliveryManual;
+    // Rent only — delivery charge is separate
+    const baseWithCharge = BASE_COLLECT_NOW + deliveryManual;
 
     const manualRow = document.getElementById("deliveryManualRow");
     const manualAmtEl = document.getElementById("deliveryManualAmt");
@@ -779,6 +958,26 @@ function updateDeliveryCollectNow() {
 }
 
 slider.addEventListener("input", () => updateFuel(slider.value));
+
+function toggleDeliveryChargeMethodSection() {
+    const chargeInput = document.getElementById('deliveryChargeInput');
+    const section = document.getElementById('deliveryChargeMethodSection');
+    if (!chargeInput || !section) return;
+    const val = parseFloat(chargeInput.value || '0');
+    section.classList.toggle('hidden', !(val > 0));
+    updateDeliveryCollectNow();
+}
+function toggleDeliveryChargeBankField() {
+    const sel = document.getElementById('deliveryChargeMethodSel');
+    const bankWrap = document.getElementById('deliveryChargeBankWrap');
+    const bankSel = document.getElementById('deliveryChargeBankSel');
+    if (!sel || !bankWrap) return;
+    const needsBank = sel.value === 'account';
+    bankWrap.classList.toggle('hidden', !needsBank);
+    bankWrap.classList.toggle('flex', needsBank);
+    if (bankSel && !needsBank) bankSel.value = '';
+}
+
 if (deliveryChargeInput) {
     deliveryChargeInput.addEventListener("input", updateDeliveryCollectNow);
     deliveryChargeInput.addEventListener("change", updateDeliveryCollectNow);
@@ -835,6 +1034,114 @@ function validateMultiTotal() {
         validationEl.textContent = 'Over by: $' + Math.abs(diff).toFixed(2) + ' (Max: $' + required.toFixed(2) + ')';
     }
 }
+
+// Interior photo slots
+(function() {
+    const container = document.getElementById('interior-slots-container');
+    const addBtn = document.getElementById('add-interior-btn');
+    const MAX = 15;
+
+    function updateAddBtn() {
+        const count = container.querySelectorAll('.interior-slot').length;
+        addBtn.disabled = count >= MAX;
+        addBtn.classList.toggle('opacity-40', count >= MAX);
+        addBtn.classList.toggle('cursor-not-allowed', count >= MAX);
+    }
+
+    function makeRemoveBtn(slot) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = '✕';
+        btn.className = 'text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded transition-colors flex-shrink-0';
+        btn.onclick = function() {
+            slot.remove();
+            reindex();
+            updateAddBtn();
+        };
+        return btn;
+    }
+
+    function reindex() {
+        container.querySelectorAll('.interior-slot').forEach(function(slot, i) {
+            const n = i + 1;
+            slot.dataset.slot = n;
+            const input = slot.querySelector('input[type=file]');
+            if (input) input.name = 'photos[interior_' + n + ']';
+        });
+    }
+
+    addBtn.addEventListener('click', function() {
+        const count = container.querySelectorAll('.interior-slot').length;
+        if (count >= MAX) return;
+        const n = count + 1;
+        const slot = document.createElement('div');
+        slot.className = 'interior-slot flex items-center gap-2';
+        slot.dataset.slot = n;
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.name = 'photos[interior_' + n + ']';
+        input.accept = 'image/*';
+        input.className = 'block flex-1 text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-mb-accent hover:file:bg-mb-surface/80 cursor-pointer';
+        slot.appendChild(input);
+        slot.appendChild(makeRemoveBtn(slot));
+        container.appendChild(slot);
+        updateAddBtn();
+    });
+
+    updateAddBtn();
+})();
+
+// Scratch photo slots
+(function() {
+    var container = document.getElementById('scratch-slots-container');
+    var addBtn    = document.getElementById('add-scratch-btn');
+    if (!container || !addBtn) return;
+    var MAX = 15;
+
+    function updateAddBtn() {
+        var count = container.querySelectorAll('.scratch-slot').length;
+        addBtn.disabled = count >= MAX;
+        addBtn.style.opacity = count >= MAX ? '0.4' : '1';
+    }
+
+    function reindex() {
+        container.querySelectorAll('.scratch-slot').forEach(function(slot, i) {
+            var n = i + 1;
+            slot.dataset.slot = n;
+            var input = slot.querySelector('input[type=file]');
+            if (input) input.name = 'scratch_photos[' + n + ']';
+        });
+    }
+
+    addBtn.addEventListener('click', function() {
+        var count = container.querySelectorAll('.scratch-slot').length;
+        if (count >= MAX) return;
+        var n = count + 1;
+        var slot = document.createElement('div');
+        slot.className = 'scratch-slot flex items-center gap-2';
+        slot.dataset.slot = n;
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.name = 'scratch_photos[' + n + ']';
+        input.accept = 'image/*';
+        input.className = 'block flex-1 text-sm text-mb-silver file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mb-surface file:text-orange-400 hover:file:bg-mb-surface/80 cursor-pointer';
+        var removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = 'Remove';
+        removeBtn.className = 'text-xs text-red-400 hover:text-red-300 border border-red-500/30 px-2 py-1 rounded-full transition-colors';
+        removeBtn.addEventListener('click', function() {
+            slot.remove();
+            reindex();
+            updateAddBtn();
+        });
+        slot.appendChild(input);
+        slot.appendChild(removeBtn);
+        container.appendChild(slot);
+        updateAddBtn();
+    });
+
+    updateAddBtn();
+})();
 </script>
 JS;
 require_once __DIR__ . '/../includes/footer.php';

@@ -16,15 +16,30 @@ $description   = trim($_POST['description'] ?? '');
 $paymentMode   = trim($_POST['payment_mode'] ?? '');
 $bankAccountId = !empty($_POST['bank_account_id']) ? (int)$_POST['bank_account_id'] : null;
 $expenseDate   = trim($_POST['expense_date'] ?? '');
+$kmReading     = trim($_POST['km_reading'] ?? '');
 $currentUser   = current_user();
 
+// KM reading required for Service, Tyre, Spare Parts
+$kmRequiredCategories = ['Service', 'Tyre', 'Spare Parts'];
+if (in_array($category, $kmRequiredCategories, true) && $kmReading === '') {
+    flash('error', 'KM reading is required for ' . $category . ' expenses.');
+    redirect('show.php?id=' . $vehicleId);
+}
+$kmReadingInt = ($kmReading !== '') ? (int) $kmReading : null;
+
 // Validate vehicle exists
-$vCheck = $pdo->prepare('SELECT id, brand, model FROM vehicles WHERE id=?');
+$vCheck = $pdo->prepare('SELECT id, brand, model, status FROM vehicles WHERE id=?');
 $vCheck->execute([$vehicleId]);
 $vehicle = $vCheck->fetch();
 if (!$vehicle) {
     flash('error', 'Vehicle not found.');
     redirect('index.php');
+}
+
+// Block expense on sold vehicles
+if (($vehicle['status'] ?? '') === 'sold') {
+    flash('error', 'Cannot add expenses to a sold vehicle.');
+    redirect('show.php?id=' . $vehicleId);
 }
 
 // Validate amount
@@ -73,6 +88,9 @@ if ($expenseDate !== '') {
 $fullDesc = $vehicle['brand'] . ' ' . $vehicle['model'] . ' - ' . $category;
 if ($description !== '') {
     $fullDesc .= ': ' . $description;
+}
+if ($kmReadingInt !== null) {
+    $fullDesc .= ' [KM: ' . $kmReadingInt . ']';
 }
 
 // Post to ledger

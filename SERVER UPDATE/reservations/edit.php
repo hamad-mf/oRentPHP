@@ -64,7 +64,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $advanceMethod = reservation_payment_method_normalize($_POST['advance_payment_method'] ?? null);
     $advanceBankId = (int) ($_POST['advance_bank_account_id'] ?? 0);
     $advanceBankId = $advanceBankId > 0 ? $advanceBankId : null;
-    // Delivery charge is collected at delivery time — not at booking
+    // Delivery charge: saved as a quote — no ledger posting here
+    $deliveryChargeQuoted = max(0, (float) ($_POST['delivery_charge_quoted'] ?? ($r['delivery_charge'] ?? 0)));
+    $deliveryQuotedMethod = reservation_payment_method_normalize($_POST['delivery_quoted_payment_method'] ?? ($r['delivery_prepaid_payment_method'] ?? null));
+    $deliveryQuotedBankId = (int) ($_POST['delivery_quoted_bank_account_id'] ?? ($r['delivery_prepaid_bank_account_id'] ?? 0));
+    $deliveryQuotedBankId = $deliveryQuotedBankId > 0 ? $deliveryQuotedBankId : null;
 
     if ($totalPrice <= 0)
         $errors['total_price'] = 'Total price must be greater than 0.';
@@ -111,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
     if (empty($errors)) {
-        $pdo->prepare('UPDATE reservations SET client_id=?,vehicle_id=?,rental_type=?,start_date=?,end_date=?,total_price=?,advance_paid=?,advance_payment_method=?,advance_bank_account_id=? WHERE id=?')
+        $pdo->prepare('UPDATE reservations SET client_id=?,vehicle_id=?,rental_type=?,start_date=?,end_date=?,total_price=?,advance_paid=?,advance_payment_method=?,advance_bank_account_id=?,delivery_charge=?,delivery_prepaid_payment_method=?,delivery_prepaid_bank_account_id=? WHERE id=?')
             ->execute([
                 $clientId,
                 $vehicleId,
@@ -122,6 +126,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $advancePaid,
                 $advanceMethod,
                 $advanceBankId,
+                $deliveryChargeQuoted,
+                $deliveryQuotedMethod,
+                $deliveryQuotedBankId,
                 $id
             ]);
 
@@ -440,6 +447,46 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
             </div>
 
+            <!-- Delivery Charge (Quoted — collected at delivery) -->
+            <div class="pt-2 space-y-2">
+                <label class="block text-sm text-mb-silver mb-2">Delivery Charge <span class="text-xs text-mb-subtle">(collected at delivery)</span></label>
+                <input type="number" name="delivery_charge_quoted" id="deliveryChargeQuoted"
+                    value="<?= e($_POST['delivery_charge_quoted'] ?? ($r['delivery_charge'] ?? '')) ?>" step="0.01"
+                    min="0" placeholder="0.00" oninput="updateDeliveryQuotedSection()"
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500/60 text-sm">
+            </div>
+            <div id="deliveryQuotedMethodWrap" class="space-y-2 <?= (($_POST['delivery_charge_quoted'] ?? ($r['delivery_charge'] ?? 0)) > 0) ? '' : 'hidden' ?>">
+                <label class="block text-xs text-mb-silver">Planned Payment Method</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <?php
+                    $dqMethodSelected = $_POST['delivery_quoted_payment_method'] ?? ($r['delivery_prepaid_payment_method'] ?? '');
+                    $delivMethods = ['cash' => 'Cash', 'account' => 'Account', 'credit' => 'Credit'];
+                    foreach ($delivMethods as $val => $label):
+                    ?>
+                        <label class="flex items-center gap-2 cursor-pointer bg-mb-black/30 border border-mb-subtle/10 rounded-lg px-3 py-2 hover:border-mb-accent/40 transition-all">
+                            <input type="radio" name="delivery_quoted_payment_method" value="<?= $val ?>"
+                                <?= ($dqMethodSelected === $val) ? 'checked' : '' ?>
+                                class="accent-mb-accent" onchange="toggleDeliveryQuotedBankField()">
+                            <span class="text-mb-silver text-sm"><?= $label ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+                <div id="deliveryQuotedBankWrap" class="<?= ($dqMethodSelected === 'account') ? '' : 'hidden' ?>">
+                    <label class="block text-xs text-mb-silver mb-1">Bank Account</label>
+                    <select name="delivery_quoted_bank_account_id" id="deliveryQuotedBankAccount"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-mb-accent text-sm">
+                        <option value="">Select account</option>
+                        <?php
+                        $dqBankSelected = $_POST['delivery_quoted_bank_account_id'] ?? ($r['delivery_prepaid_bank_account_id'] ?? '');
+                        foreach ($activeBankAccounts as $acc): ?>
+                            <option value="<?= (int) $acc['id'] ?>" <?= (string)$dqBankSelected === (string)$acc['id'] ? 'selected' : '' ?>>
+                                <?= e($acc['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+
         </div>
         <div class="flex items-center justify-end gap-4">
             <a href="show.php?id=<?= $id ?>" class="text-mb-silver hover:text-white text-sm">Cancel</a>
@@ -561,6 +608,31 @@ document.querySelectorAll('input[name="advance_payment_method"]').forEach(r => {
     r.addEventListener('change', toggleAdvanceBankField);
 });
 updateAdvanceSection();
+function updateDeliveryQuotedSection() {
+    const el = document.getElementById('deliveryChargeQuoted');
+    const wrap = document.getElementById('deliveryQuotedMethodWrap');
+    if (!el || !wrap) return;
+    const val = parseFloat(el.value || '0');
+    wrap.classList.toggle('hidden', !(val > 0));
+    if (!(val > 0)) {
+        document.querySelectorAll('input[name="delivery_quoted_payment_method"]').forEach(r => r.checked = false);
+    }
+    toggleDeliveryQuotedBankField();
+}
+function toggleDeliveryQuotedBankField() {
+    const method = document.querySelector('input[name="delivery_quoted_payment_method"]:checked');
+    const bankWrap = document.getElementById('deliveryQuotedBankWrap');
+    const bankSelect = document.getElementById('deliveryQuotedBankAccount');
+    const val = parseFloat(document.getElementById('deliveryChargeQuoted')?.value || '0');
+    const needsBank = method && method.value === 'account' && val > 0;
+    if (bankWrap) bankWrap.classList.toggle('hidden', !needsBank);
+    if (bankSelect) {
+        if (needsBank) { bankSelect.setAttribute('required', 'required'); }
+        else { bankSelect.removeAttribute('required'); bankSelect.value = ''; }
+    }
+}
+document.getElementById('deliveryChargeQuoted')?.addEventListener('input', updateDeliveryQuotedSection);
+document.querySelectorAll('input[name="delivery_quoted_payment_method"]').forEach(r => r.addEventListener('change', toggleDeliveryQuotedBankField));
 </script>
 JS;
 require_once __DIR__ . '/../includes/footer.php';

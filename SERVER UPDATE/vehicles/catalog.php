@@ -27,8 +27,9 @@ if ($singleVehicleMode) {
     $params[] = $vehicleId;
     $search = '';
 } else {
-    // Show all non-maintenance vehicles that have no active booking on the picked date
+    // Show all non-maintenance, non-sold vehicles that have no active booking on the picked date
     $where[] = "v.status != 'maintenance'";
+    $where[] = "v.status != 'sold'";
 
     // Exclude vehicles with an active reservation overlapping the selected date
     $where[] = "v.id NOT IN (
@@ -54,6 +55,12 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $vehicles = $stmt->fetchAll();
 $selectedVehicle = $singleVehicleMode ? ($vehicles[0] ?? null) : null;
+
+// Block single-vehicle mode for sold vehicles
+if ($singleVehicleMode && $selectedVehicle && ($selectedVehicle['status'] ?? '') === 'sold') {
+    $selectedVehicle = null;
+    $vehicles = [];
+}
 
 // $totalAvailable is now derived from count($vehicles) since results are already date-filtered
 

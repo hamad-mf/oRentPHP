@@ -22,6 +22,7 @@ This file tracks all database changes that need to be applied to **production** 
 | 2026-03-25 | vehicle_sold_status | `migrations/releases/2026-03-25_vehicle_sold_status.sql` | Extends `vehicles.status` ENUM to include `'sold'`. Adds `sold_at DATETIME NULL` column to `vehicles`. Run before deploying vehicle-sold-status feature. |
 | 2026-03-25 | booking_discount | `migrations/releases/2026-03-25_booking_discount.sql` | Adds `booking_discount_type VARCHAR(10)` and `booking_discount_value DECIMAL(10,2)` to `reservations`. Run before deploying booking discount feature. |
 | 2026-03-25 | reservation_scratch_photos | `migrations/releases/2026-03-25_reservation_scratch_photos.sql` | Creates `reservation_scratch_photos` table for storing delivery and return scratch/damage photos (up to 15 per event) per reservation. Run before deploying reservation-scratch-photos feature. |
+| 2026-03-27 | vehicle_monthly_targets | `migrations/releases/2026-03-27_vehicle_monthly_targets.sql` | Creates `vehicle_monthly_targets` table for tracking monthly income targets per vehicle with unique constraint on (vehicle_id, period_start). Run before deploying vehicle-monthly-targets feature. |
 
 ---
 
