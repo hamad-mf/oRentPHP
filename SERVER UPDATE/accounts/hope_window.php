@@ -882,6 +882,18 @@ require_once __DIR__ . '/../includes/header.php';
             <p class="text-green-400 text-lg mt-2">$<?= number_format($totalExpected, 2) ?></p>
             <p class="text-mb-subtle text-xs mt-2">Sum of scheduled reservation collections + predictions for <?= e($monthLabel) ?>.</p>
         </div>
+        <a href="vehicle_targets.php?m=<?= $selM ?>&y=<?= $selY ?>" 
+           class="block bg-mb-surface border border-mb-subtle/20 rounded-xl p-5 hover:border-mb-accent/50 transition-colors">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-mb-subtle uppercase tracking-wider mb-2">Vehicle Breakdown</p>
+                    <p class="text-white text-sm">View targets by vehicle</p>
+                </div>
+                <svg class="w-5 h-5 text-mb-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </div>
+        </a>
     </div>
 
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">

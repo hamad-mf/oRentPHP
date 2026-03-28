@@ -101,6 +101,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $hash = password_hash($newPassword, PASSWORD_BCRYPT);
                     $uu = $pdo->prepare("UPDATE users SET name=?, username=?, password_hash=?, role=?, is_active=? WHERE id=?");
                     $uu->execute([$name, $username, $hash, $userRole, $isActive, $userId]);
+                    
+                    // Invalidate all remember tokens when password changes (security requirement)
+                    delete_all_user_tokens($userId);
+                    app_log('AUTH', "All remember tokens invalidated due to password change for user {$userId}");
                 } else {
                     $uu = $pdo->prepare("UPDATE users SET name=?, username=?, role=?, is_active=? WHERE id=?");
                     $uu->execute([$name, $username, $userRole, $isActive, $userId]);

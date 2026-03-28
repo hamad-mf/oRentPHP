@@ -60,6 +60,7 @@ $clients  = $pgResult['rows'];
 $totalCount = $pdo->query('SELECT COUNT(*) FROM clients')->fetchColumn();
 $blacklisted = $pdo->query('SELECT COUNT(*) FROM clients WHERE is_blacklisted = 1')->fetchColumn();
 $topRated = $pdo->query('SELECT COUNT(*) FROM clients WHERE rating >= 4')->fetchColumn();
+$completedRentals = $pdo->query('SELECT COUNT(DISTINCT c.id) FROM clients c WHERE EXISTS (SELECT 1 FROM reservations r WHERE r.client_id = c.id AND r.status = \'completed\')')->fetchColumn();
 
 $success = getFlash('success');
 $error = getFlash('error');
@@ -121,10 +122,25 @@ require_once __DIR__ . '/../includes/header.php';
                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
             </div>
-            <?php foreach (['' => 'All', 'blacklisted' => 'Blacklisted', 'rated' => 'Rated', 'unrated' => 'Unrated', 'completed' => 'Completed Rental'] as $val => $lbl): ?>
+            <?php 
+            $filterCounts = [
+                '' => $totalCount,
+                'blacklisted' => $blacklisted,
+                'rated' => null,
+                'unrated' => null,
+                'completed' => $completedRentals
+            ];
+            foreach (['' => 'All', 'blacklisted' => 'Blacklisted', 'rated' => 'Rated', 'unrated' => 'Unrated', 'completed' => 'Completed Rental'] as $val => $lbl): 
+                $count = $filterCounts[$val] ?? null;
+            ?>
                 <a href="?<?= http_build_query(array_filter(['filter' => $val, 'search' => $search, 'fm' => $filterMonth ?: null, 'fy' => $filterYear ?: null])) ?>"
-                    class="text-xs px-3 py-1 rounded-full border transition-colors <?= $filter === $val ? 'border-mb-accent text-mb-accent' : 'border-mb-subtle/20 text-mb-subtle hover:text-white' ?>">
+                    class="text-xs px-3 py-1 rounded-full border transition-colors flex items-center gap-1.5 <?= $filter === $val ? 'border-mb-accent text-mb-accent' : 'border-mb-subtle/20 text-mb-subtle hover:text-white' ?>">
                     <?= $lbl ?>
+                    <?php if ($count !== null): ?>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-full <?= $filter === $val ? 'bg-mb-accent/20' : 'bg-mb-subtle/20' ?>">
+                            <?= $count ?>
+                        </span>
+                    <?php endif; ?>
                 </a>
             <?php endforeach; ?>
             <?php

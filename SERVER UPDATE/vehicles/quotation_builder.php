@@ -142,6 +142,27 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
             <div class="rate-list space-y-2"></div>
         </div>
+        
+        <!-- Discount Controls -->
+        <div class="discount-controls mt-4 border-t border-mb-subtle/10 pt-4">
+            <p class="text-mb-subtle text-xs uppercase tracking-wider mb-3">Vehicle Discount</p>
+            <div class="flex gap-2">
+                <select class="discount-type bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent w-28 flex-shrink-0">
+                    <option value="">None</option>
+                    <option value="percent">Percent %</option>
+                    <option value="amount">Fixed $</option>
+                </select>
+                <div class="discount-value-wrap flex-1 hidden">
+                    <input type="number" class="discount-value w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-mb-accent" 
+                           step="0.01" min="0" placeholder="0.00">
+                </div>
+            </div>
+            <div class="discount-preview hidden mt-2 text-xs space-y-1">
+                <p class="text-mb-subtle">Subtotal: <span class="vehicle-subtotal">$0.00</span></p>
+                <p class="text-green-400">Discount: <span class="vehicle-discount">-$0.00</span></p>
+                <p class="text-white font-medium">Total: <span class="vehicle-total">$0.00</span></p>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -157,6 +178,9 @@ require_once __DIR__ . '/../includes/header.php';
 
 <script>
 (function () {
+    // Discount state management
+    const vehicleDiscounts = new Map();
+    
     const vehicleList   = document.getElementById('vehicleList');
     const vehicleTemplate = document.getElementById('vehicleTemplate');
     const rateTemplate  = document.getElementById('rateTemplate');
@@ -179,8 +203,29 @@ require_once __DIR__ . '/../includes/header.php';
         const node  = vehicleTemplate.content.cloneNode(true);
         const block = node.querySelector('.vehicle-block');
         const rateList = block.querySelector('.rate-list');
+        
+        // Existing bindings
         block.querySelector('.add-rate').addEventListener('click', () => addRateRow(rateList));
-        block.querySelector('.remove-vehicle').addEventListener('click', () => block.remove());
+        block.querySelector('.remove-vehicle').addEventListener('click', () => {
+            const vehicleId = getVehicleId(block);
+            vehicleDiscounts.delete(vehicleId); // Clean up state
+            block.remove();
+        });
+        
+        // Discount bindings
+        const typeSelect = block.querySelector('.discount-type');
+        const valueInput = block.querySelector('.discount-value');
+        
+        typeSelect.addEventListener('change', () => updateVehicleDiscount(block));
+        valueInput.addEventListener('input', () => updateVehicleDiscount(block));
+        
+        // Recalculate discount when rates change
+        rateList.addEventListener('input', () => {
+            if (vehicleDiscounts.has(getVehicleId(block))) {
+                updateVehicleDiscount(block);
+            }
+        });
+        
         addRateRow(rateList);
         vehicleList.appendChild(node);
     }
@@ -193,6 +238,82 @@ require_once __DIR__ . '/../includes/header.php';
 
     function esc(s) {
         return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function getVehicleId(vehicleBlock) {
+        // Generate unique ID based on timestamp and random string
+        if (!vehicleBlock.dataset.vehicleId) {
+            vehicleBlock.dataset.vehicleId = 'v-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        }
+        return vehicleBlock.dataset.vehicleId;
+    }
+
+    function calculateVehicleSubtotal(vehicleBlock) {
+        // Sum all rate prices for this vehicle
+        const rates = Array.from(vehicleBlock.querySelectorAll('.rate-row'));
+        let subtotal = 0;
+        rates.forEach(row => {
+            const price = parseFloat(row.querySelector('.rate-price')?.value || 0);
+            if (price > 0) subtotal += price;
+        });
+        return subtotal;
+    }
+
+    function calculateDiscountAmount(subtotal, type, value) {
+        if (!type || value <= 0) return 0;
+        
+        if (type === 'percent') {
+            // Cap at 100%
+            const percent = Math.min(value, 100);
+            return Math.round((subtotal * percent / 100) * 100) / 100;
+        } else if (type === 'amount') {
+            // Cap at subtotal
+            return Math.round(Math.min(value, subtotal) * 100) / 100;
+        }
+        return 0;
+    }
+
+    function updateVehicleDiscount(vehicleBlock) {
+        const vehicleId = getVehicleId(vehicleBlock);
+        const typeSelect = vehicleBlock.querySelector('.discount-type');
+        const valueInput = vehicleBlock.querySelector('.discount-value');
+        const valueWrap = vehicleBlock.querySelector('.discount-value-wrap');
+        const previewDiv = vehicleBlock.querySelector('.discount-preview');
+        
+        const type = typeSelect.value || null;
+        const value = parseFloat(valueInput.value || 0);
+        
+        // Show/hide value input
+        if (type) {
+            valueWrap.classList.remove('hidden');
+        } else {
+            valueWrap.classList.add('hidden');
+            valueInput.value = '';
+        }
+        
+        // Calculate
+        const subtotal = calculateVehicleSubtotal(vehicleBlock);
+        const discountAmount = calculateDiscountAmount(subtotal, type, value);
+        const total = Math.round((subtotal - discountAmount) * 100) / 100;
+        
+        // Store in state
+        vehicleDiscounts.set(vehicleId, {
+            type,
+            value,
+            subtotal,
+            discountAmount,
+            total
+        });
+        
+        // Update preview display
+        if (type && discountAmount > 0) {
+            previewDiv.classList.remove('hidden');
+            vehicleBlock.querySelector('.vehicle-subtotal').textContent = '$' + subtotal.toFixed(2);
+            vehicleBlock.querySelector('.vehicle-discount').textContent = '-$' + discountAmount.toFixed(2);
+            vehicleBlock.querySelector('.vehicle-total').textContent = '$' + total.toFixed(2);
+        } else {
+            previewDiv.classList.add('hidden');
+        }
     }
 
     function buildPreview() {
@@ -219,6 +340,7 @@ require_once __DIR__ . '/../includes/header.php';
 
         /* collect vehicles data */
         const vehicleData = vehicles.map((block, idx) => {
+            const vehicleId = getVehicleId(block);
             const name  = block.querySelector('.vehicle-name')?.value.trim() || 'Vehicle ' + (idx + 1);
             const model = block.querySelector('.vehicle-model')?.value.trim() || '';
             const year  = block.querySelector('.vehicle-year')?.value.trim()  || '';
@@ -226,10 +348,23 @@ require_once __DIR__ . '/../includes/header.php';
                 const type  = row.querySelector('.rate-type')?.value.trim()  || '';
                 const price = row.querySelector('.rate-price')?.value.trim() || '';
                 const f     = fmt(price);
-                if (f) grandTotal += parseFloat(f);
                 return { type: type || 'Rental', price: f };
             }).filter(r => r.price);
-            return { name, model, year, rates };
+            
+            // Get discount data
+            const discountData = vehicleDiscounts.get(vehicleId) || null;
+            
+            // Add to grand total (with discount applied if exists)
+            if (discountData && discountData.total > 0) {
+                grandTotal += discountData.total;
+            } else {
+                // No discount - sum rates
+                rates.forEach(r => {
+                    if (r.price) grandTotal += parseFloat(r.price);
+                });
+            }
+            
+            return { name, model, year, rates, discount: discountData };
         });
 
         /* ══════════════════════════════════════════════════════════
@@ -351,6 +486,39 @@ require_once __DIR__ . '/../includes/header.php';
                         <td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right; font-weight:bold;">$${r.price}</td>
                     </tr>`;
                 });
+                
+                // Add discount section if applicable
+                if (v.discount && v.discount.discountAmount > 0) {
+                    const subtotal = v.discount.subtotal.toFixed(2);
+                    const discountAmt = v.discount.discountAmount.toFixed(2);
+                    const total = v.discount.total.toFixed(2);
+                    
+                    // Discount label
+                    let discountLabel = 'Discount';
+                    if (v.discount.type === 'percent') {
+                        discountLabel += ` (${v.discount.value}%)`;
+                    } else {
+                        discountLabel += ` (Fixed)`;
+                    }
+                    
+                    h += `
+                        <tr style="background:#fff; border-top:2px solid #ccc;">
+                            <td style="padding:8px 10px; text-align:right; font-weight:bold;">Subtotal</td>
+                            <td style="padding:8px 10px; text-align:right;"></td>
+                            <td style="padding:8px 10px; text-align:right; font-weight:bold;">${subtotal}</td>
+                        </tr>
+                        <tr style="background:#f0f0f0;">
+                            <td style="padding:8px 10px; text-align:right; color:#16a34a;">${esc(discountLabel)}</td>
+                            <td style="padding:8px 10px; text-align:right;"></td>
+                            <td style="padding:8px 10px; text-align:right; color:#16a34a; font-weight:bold;">-${discountAmt}</td>
+                        </tr>
+                        <tr style="background:#111; color:#fff;">
+                            <td style="padding:8px 10px; text-align:right; font-weight:bold;">TOTAL</td>
+                            <td style="padding:8px 10px; text-align:right;"></td>
+                            <td style="padding:8px 10px; text-align:right; font-weight:bold;">${total}</td>
+                        </tr>
+                    `;
+                }
             } else {
                 h += `<tr><td colspan="3" style="padding:10px; color:#999; text-align:center; font-style:italic;">No rental rates specified.</td></tr>`;
             }

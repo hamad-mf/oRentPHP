@@ -158,6 +158,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $actualReturnAMPM = $_POST['actual_return_ampm'] ?? 'AM';
     $clientRating = (int) ($_POST['client_rating'] ?? 0);
     $clientRatingReview = trim($_POST['client_rating_review'] ?? '');
+    $clientSatisfied = isset($_POST['client_satisfied']) && in_array($_POST['client_satisfied'], ['yes', 'no'], true) 
+        ? $_POST['client_satisfied'] 
+        : null;
+    $clientComment = isset($_POST['client_comment']) && trim($_POST['client_comment']) !== '' 
+        ? trim(substr($_POST['client_comment'], 0, 255)) 
+        : null;
     $returnVoucherRequest = max(0, round((float) ($_POST['return_voucher_amount'] ?? 0), 2));
     $depositReturned = max(0, (float) ($_POST['deposit_returned'] ?? 0));
     $depositDeducted = max(0, (float) ($_POST['deposit_deducted'] ?? 0));
@@ -279,6 +285,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($depositHeld > 0 && $depositHoldReason === '') {
         $errors['deposit_hold_reason'] = 'Please provide a reason for holding the deposit.';
     }
+    // Validate bank account is configured when deposit transactions are needed
+    if (($depositReturned > 0 || $depositDeducted > 0 || $depositHeld > 0) && $configuredSecurityDepositBankId === null) {
+        $errors['deposit_bank_account'] = 'Security deposit bank account must be configured in Settings before processing deposit transactions.';
+    }
     if ($cashDueAtReturn > 0 && $returnPaymentSourceType === 'single') {
         if ($returnPaymentMethod === null)
             $errors['return_payment_method'] = 'Please select how the return payment was received.';
@@ -395,7 +405,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("UPDATE reservations SET status='completed', actual_end_date=?, overdue_amount=?,
                 km_driven=?, km_overage_charge=?, damage_charge=?, additional_charge=?, chellan_amount=?, discount_type=?, discount_value=?,
                 return_voucher_applied=?, return_payment_method=?, return_paid_amount=?, early_return_credit=?, voucher_credit_issued=?, 
-                deposit_returned=?, deposit_deducted=?, deposit_held=?, deposit_hold_reason=?, deposit_held_at=? WHERE id=?")
+                deposit_returned=?, deposit_deducted=?, deposit_held=?, deposit_hold_reason=?, deposit_held_at=?, 
+                client_satisfied=?, client_comment=? WHERE id=?")
                 ->execute([
                     $actualEndSave,
                     $overdueAmt + $lateChg,
@@ -416,6 +427,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $depositHeld,
                     $depositHoldReason ?: null,
                     $depositHeldAt,
+                    $clientSatisfied,
+                    $clientComment,
                     $id,
                 ]);
             // Only free up the vehicle if no other active reservation exists for it
@@ -598,6 +611,42 @@ require_once __DIR__ . '/../includes/header.php';
             value="<?= e($_POST['client_rating'] ?? ($r['client_rating_current'] ?? '')) ?>">
         <input type="hidden" name="client_rating_review" id="clientRatingReviewInput"
             value="<?= e($_POST['client_rating_review'] ?? '') ?>">
+        
+        <!-- Client Satisfaction Section -->
+        <div class="bg-mb-surface border border-mb-subtle/20 rounded-lg p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-mb-silver mb-3">
+                    Client Satisfied?
+                </label>
+                <div class="flex gap-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="client_satisfied" value="yes" 
+                               <?= (($_POST['client_satisfied'] ?? '') === 'yes') ? 'checked' : '' ?>
+                               class="accent-green-500">
+                        <span class="text-white">Yes</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="client_satisfied" value="no" 
+                               <?= (($_POST['client_satisfied'] ?? '') === 'no') ? 'checked' : '' ?>
+                               class="accent-red-500">
+                        <span class="text-white">No</span>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-mb-silver mb-2">
+                    Client Comment (Optional)
+                </label>
+                <textarea name="client_comment" rows="2" maxlength="255"
+                          class="w-full bg-mb-surface border border-mb-subtle/20 
+                                 rounded-lg px-4 py-3 text-white focus:outline-none 
+                                 focus:border-mb-accent transition-colors"
+                          placeholder="Brief feedback from client..."><?= e($_POST['client_comment'] ?? '') ?></textarea>
+                <p class="text-xs text-mb-subtle mt-1">Maximum 255 characters</p>
+            </div>
+        </div>
+        
         <!-- Header Info -->
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-lg p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
@@ -689,7 +738,14 @@ require_once __DIR__ . '/../includes/header.php';
                         (km)</label>
                     <input type="number" name="mileage" id="mileage" required
                         class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors"
-                        placeholder="e.g. 15500" value="<?= e($_POST['mileage'] ?? '') ?>">
+                        placeholder="e.g. 15500" value="<?= e($_POST['mileage'] ?? '') ?>" 
+                        oninput="calculateKmDriven()">
+                    <?php if ($delivery): ?>
+                        <p class="text-xs text-mb-silver mt-2">
+                            Delivery mileage: <span class="text-white font-medium"><?= number_format($delivery['mileage']) ?> km</span>
+                            <span id="kmDrivenDisplay" class="ml-3 text-green-400 font-medium"></span>
+                        </p>
+                    <?php endif; ?>
                 </div>
                 <div>
                     <label for="fuel_level" class="block text-sm font-medium text-mb-silver mb-2">Return Fuel Level
@@ -1289,6 +1345,31 @@ const CLIENT_VOUCHER_BALANCE=' . $clientVoucherBalance . ';
 const DEPOSIT_REMAINING=' . max(0, (float)($r['deposit_amount'] ?? 0) - (float)($r['deposit_returned'] ?? 0) - (float)($r['deposit_deducted'] ?? 0) - (float)($r['deposit_held'] ?? 0) - (column_exists($pdo, 'reservations', 'deposit_used_for_extension') ? max(0, (float)($r['deposit_used_for_extension'] ?? 0)) : 0)) . ';
 const START_DATE = new Date("' . $r['start_date'] . '".replace(" ","T"));
 const SCHEDULED_END = new Date("' . $r['end_date'] . '".replace(" ","T"));
+const DELIVERY_MILEAGE = ' . ($delivery ? (int)$delivery['mileage'] : 0) . ';
+
+function calculateKmDriven() {
+    var returnMileage = parseInt(document.getElementById("mileage").value) || 0;
+    var kmDrivenDisplay = document.getElementById("kmDrivenDisplay");
+    var kmDrivenInput = document.getElementById("kmDriven");
+    
+    if (returnMileage > 0 && DELIVERY_MILEAGE > 0) {
+        var kmDriven = returnMileage - DELIVERY_MILEAGE;
+        if (kmDriven >= 0) {
+            kmDrivenDisplay.textContent = "→ " + kmDriven.toLocaleString() + " km driven";
+            // Auto-fill the KM Driven input if it exists
+            if (kmDrivenInput) {
+                kmDrivenInput.value = kmDriven;
+                updateSummary(); // Trigger summary update for overage calculation
+            }
+        } else {
+            kmDrivenDisplay.textContent = "⚠ Return mileage is less than delivery mileage";
+            kmDrivenDisplay.classList.add("text-red-400");
+            kmDrivenDisplay.classList.remove("text-green-400");
+        }
+    } else {
+        kmDrivenDisplay.textContent = "";
+    }
+}
 
 function getActualDate() {
     var d = document.getElementById("retDate").value;
@@ -1910,6 +1991,11 @@ updateDepositSummary();
 
     updateAddBtn();
 })();
+
+// Initialize KM driven calculation on page load
+if (document.getElementById("mileage")) {
+    calculateKmDriven();
+}
 </script>';
 require_once __DIR__ . '/../includes/footer.php';
 ?>

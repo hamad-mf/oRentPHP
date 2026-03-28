@@ -247,6 +247,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+    
+    // Validate bank account is configured when using deposit for extension
+    if (($paymentSourceType === 'deposit' || $paidFromDeposit > 0) && $configuredSecurityDepositBankId === null) {
+        $errors['deposit_bank_account'] = 'Security deposit bank account must be configured in Settings before using deposit for extensions.';
+    }
 
     if (empty($errors)) {
         $newEndSql = $calc['new_end_dt']->format('Y-m-d H:i:s');

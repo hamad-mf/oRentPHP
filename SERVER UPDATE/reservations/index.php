@@ -81,7 +81,7 @@ $baseFrom  = 'FROM reservations r
         JOIN vehicles v ON r.vehicle_id = v.id
         WHERE ' . implode(' AND ', $where);
 $countSql  = 'SELECT COUNT(*) ' . $baseFrom;
-$sql       = 'SELECT r.*, c.name AS client_name, v.brand, v.model, v.license_plate, v.daily_rate ' . $baseFrom . ' ORDER BY r.created_at DESC';
+$sql       = 'SELECT r.*, c.name AS client_name, v.brand, v.model, v.license_plate, v.daily_rate, r.client_satisfied, r.client_comment ' . $baseFrom . ' ORDER BY r.created_at DESC';
 $pgResult     = paginate_query($pdo, $sql, $countSql, $params, $page, $perPage);
 $reservations = $pgResult['rows'];
 
@@ -335,7 +335,36 @@ require_once __DIR__ . '/../includes/header.php';
                                             }
                                         endif; 
                                         ?>
+                                        
+                                        <?php
+                                        // Client satisfaction indicator (graceful degradation if columns don't exist)
+                                        if ($r['status'] === 'completed' && isset($r['client_satisfied'])):
+                                            if ($r['client_satisfied'] === 'yes'): ?>
+                                                <span class="px-2 py-0.5 rounded text-xs border 
+                                                             bg-green-500/10 text-green-400 border-green-500/30" 
+                                                      title="Client satisfied">
+                                                    ✓
+                                                </span>
+                                            <?php elseif ($r['client_satisfied'] === 'no'): ?>
+                                                <span class="px-2 py-0.5 rounded text-xs border 
+                                                             bg-red-500/10 text-red-400 border-red-500/30" 
+                                                      title="Client not satisfied">
+                                                    ✗
+                                                </span>
+                                            <?php endif;
+                                        endif;
+                                        ?>
                                     </div>
+                                    
+                                    <?php
+                                    // Client comment display (graceful degradation if column doesn't exist)
+                                    if ($r['status'] === 'completed' && !empty($r['client_comment'])): ?>
+                                        <p class="text-xs text-mb-silver mt-1 truncate max-w-xs" 
+                                           title="<?= e($r['client_comment']) ?>">
+                                            <?= e(mb_substr($r['client_comment'], 0, 50)) ?>
+                                            <?php if (mb_strlen($r['client_comment']) > 50): ?>...<?php endif; ?>
+                                        </p>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 text-right">
                                     <div class="flex items-center justify-end gap-2">

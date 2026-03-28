@@ -364,7 +364,6 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
                 JOIN emi_investments i ON i.id = s.investment_id
                 WHERE s.status = 'pending'
                   AND s.due_date <= DATE_ADD(CURDATE(), INTERVAL 2 DAY)
-                  AND s.due_date >= CURDATE()
                 ORDER BY s.due_date ASC
             ");
             $emiAlertStmt->execute();
@@ -380,15 +379,16 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
             <div class="flex items-center gap-3 mb-2">
                 <span class="text-purple-400 text-xs font-semibold uppercase tracking-wider">💳 EMI Due Alert</span>
                 <span class="bg-purple-500/20 text-purple-400 text-xs font-bold px-2 py-0.5 rounded-full"><?= count($emiDueAlerts) ?></span>
-                <span class="text-purple-400/60 text-xs">due today or within 2 days</span>
+                <span class="text-purple-400/60 text-xs">overdue or due within 2 days</span>
             </div>
             <div class="space-y-1.5 max-h-40 overflow-y-auto">
                 <?php foreach ($emiDueAlerts as $emi):
                     $daysLeft = (int) floor((strtotime($emi['due_date']) - strtotime($istToday)) / 86400);
                     $isDueToday = $daysLeft === 0;
+                    $isOverdue = $daysLeft < 0;
                 ?>
                     <a href="investments/index.php"
-                       class="flex items-center justify-between bg-mb-surface/40 border <?= $isDueToday ? 'border-purple-500/40' : 'border-purple-500/15' ?> rounded px-3 py-1.5 hover:border-purple-500/40 transition-colors">
+                       class="flex items-center justify-between bg-mb-surface/40 border <?= $isOverdue ? 'border-red-500/40' : ($isDueToday ? 'border-purple-500/40' : 'border-purple-500/15') ?> rounded px-3 py-1.5 hover:border-purple-500/40 transition-colors">
                         <div class="flex items-center gap-2 min-w-0">
                             <span class="text-white text-xs font-medium truncate"><?= e($emi['investment_title']) ?></span>
                             <?php if ($emi['lender']): ?>
@@ -397,8 +397,10 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
                             <span class="text-mb-subtle text-xs whitespace-nowrap">EMI #<?= (int) $emi['installment_no'] ?> &bull; <?= date('d M', strtotime($emi['due_date'])) ?></span>
                         </div>
                         <div class="flex items-center gap-3 flex-shrink-0 ml-3">
-                            <span class="text-purple-400 text-xs font-medium">$<?= number_format((float) $emi['amount'], 2) ?></span>
-                            <?php if ($isDueToday): ?>
+                            <span class="<?= $isOverdue ? 'text-red-400' : 'text-purple-400' ?> text-xs font-medium">$<?= number_format((float) $emi['amount'], 2) ?></span>
+                            <?php if ($isOverdue): ?>
+                                <span class="text-red-400 text-xs font-semibold animate-pulse"><?= abs($daysLeft) ?>d overdue</span>
+                            <?php elseif ($isDueToday): ?>
                                 <span class="text-purple-300 text-xs font-semibold animate-pulse">Today!</span>
                             <?php else: ?>
                                 <span class="text-purple-400/60 text-xs"><?= $daysLeft ?>d</span>

@@ -24,7 +24,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Create or reset the admin user
         $exists = (int) $pdo->query("SELECT COUNT(*) FROM users WHERE username='admin'")->fetchColumn();
         if ($exists) {
+            // Get admin user ID before updating
+            $adminUserId = (int) $pdo->query("SELECT id FROM users WHERE username='admin'")->fetchColumn();
+            
             $pdo->prepare("UPDATE users SET password_hash=?, role='admin', is_active=1 WHERE username='admin'")->execute([$hash]);
+            
+            // Invalidate all remember tokens when password changes (security requirement)
+            if ($adminUserId) {
+                delete_all_user_tokens($adminUserId);
+                app_log('AUTH', "All remember tokens invalidated due to admin password reset for user {$adminUserId}");
+            }
+            
             $msg = '✅ Admin password reset.';
         } else {
             $pdo->prepare("INSERT INTO users (name, username, password_hash, role, is_active) VALUES ('Admin','admin',?,'admin',1)")->execute([$hash]);

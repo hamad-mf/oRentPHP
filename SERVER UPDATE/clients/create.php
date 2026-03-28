@@ -26,6 +26,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) $errors['email'] = 'Invalid email format.';
     if (!$phone) $errors['phone'] = 'Phone is required.';
     if (!$address) $errors['address'] = 'Address is required.';
+    
+    // Validate client photo is required
+    if ($supportsClientPhoto && empty($_POST['cropped_photo_data'])) {
+        $errors['client_photo'] = 'Client photo is required.';
+    }
 
     if ($email && !isset($errors['email'])) {
         $chk = $pdo->prepare('SELECT id FROM clients WHERE email = ?');
@@ -186,7 +191,7 @@ require_once __DIR__ . '/../includes/header.php';
             <!-- ── Client Photo ─────────────────────────────────────────────── -->
             <?php if ($supportsClientPhoto): ?>
             <div>
-                <label class="block text-sm text-mb-silver mb-3">Client Photo <span class="text-mb-subtle font-normal">(optional)</span></label>
+                <label class="block text-sm text-mb-silver mb-3">Client Photo <span class="text-red-400">*</span></label>
                 <div class="flex items-start gap-6">
                     <div class="relative flex-shrink-0">
                         <div id="photoPreviewContainer" class="w-28 h-28 rounded-full overflow-hidden bg-mb-black border-2 border-dashed border-mb-subtle/30 flex items-center justify-center">
@@ -208,6 +213,9 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="flex-1 pt-2">
                         <p class="text-mb-subtle text-xs">Upload a profile photo. Click the camera icon to select and crop.</p>
                         <p class="text-mb-subtle text-xs mt-1">Supported: JPG, PNG, WEBP. Max 5MB.</p>
+                        <?php if ($errors['client_photo'] ?? ''): ?>
+                            <p class="text-red-400 text-xs mt-2"><?= e($errors['client_photo']) ?></p>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -519,14 +527,29 @@ function hideProofError() {
 
 // Client-side guard: ensure at least one proof is cropped before submitting
 document.getElementById('clientForm')?.addEventListener('submit', function (e) {
+    var hasError = false;
+    
+    <?php if ($supportsClientPhoto): ?>
+    // Check if client photo is uploaded
+    var photoData = document.getElementById('cropped_photo_data')?.value;
+    if (!photoData || photoData.trim() === '') {
+        e.preventDefault();
+        alert('Client photo is required. Please upload and crop a photo.');
+        document.getElementById('photoPreviewContainer')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        hasError = true;
+    }
+    <?php endif; ?>
+    
     <?php if ($supportsClientProofs): ?>
-    if (_proofItems.length === 0) {
+    if (!hasError && _proofItems.length === 0) {
         e.preventDefault();
         showProofError('At least one proof document is required. Please select and crop an image.');
         document.getElementById('proofDropZone')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return false;
     }
     <?php endif; ?>
+    
+    if (hasError) return false;
 });
 
 function escHtml(str) {

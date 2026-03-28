@@ -23,6 +23,8 @@ This file tracks all database changes that need to be applied to **production** 
 | 2026-03-25 | booking_discount | `migrations/releases/2026-03-25_booking_discount.sql` | Adds `booking_discount_type VARCHAR(10)` and `booking_discount_value DECIMAL(10,2)` to `reservations`. Run before deploying booking discount feature. |
 | 2026-03-25 | reservation_scratch_photos | `migrations/releases/2026-03-25_reservation_scratch_photos.sql` | Creates `reservation_scratch_photos` table for storing delivery and return scratch/damage photos (up to 15 per event) per reservation. Run before deploying reservation-scratch-photos feature. |
 | 2026-03-27 | vehicle_monthly_targets | `migrations/releases/2026-03-27_vehicle_monthly_targets.sql` | Creates `vehicle_monthly_targets` table for tracking monthly income targets per vehicle with unique constraint on (vehicle_id, period_start). Run before deploying vehicle-monthly-targets feature. |
+| 2026-03-28 | client_satisfaction_tracking | `migrations/releases/2026-03-28_client_satisfaction_tracking.sql` | Adds `client_satisfied` ENUM('yes','no') NULL and `client_comment` VARCHAR(255) NULL to `reservations` table for tracking client satisfaction on return. Run before deploying client-satisfaction-tracking feature. |
+| 2026-03-29 | remember_me_tokens | `migrations/releases/2026-03-29_remember_me_tokens.sql` | Creates `remember_tokens` table for persistent authentication with columns: id, user_id, selector (32-char lookup key), validator_hash (hashed token), expires_at (30-day expiry), created_at. Supports multi-device "Remember Me" login functionality. Run before deploying remember-me-login feature. |
 
 ---
 

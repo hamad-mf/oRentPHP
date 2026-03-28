@@ -46,6 +46,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$name)  $errors['name']  = 'Name is required.';
     if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) $errors['email'] = 'Invalid email.';
     if (!$phone) $errors['phone'] = 'Phone is required.';
+    
+    // Validate client photo is required only if no existing photo
+    if ($supportsClientPhoto && !$existingPhoto && empty($_POST['cropped_photo_data'])) {
+        $errors['client_photo'] = 'Client photo is required.';
+    }
 
     if ($email && !isset($errors['email'])) {
         $chk = $pdo->prepare('SELECT id FROM clients WHERE email=? AND id!=?');
@@ -56,6 +61,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $chk = $pdo->prepare('SELECT id FROM clients WHERE phone=? AND id!=?');
         $chk->execute([$phone, $id]);
         if ($chk->fetch()) $errors['phone'] = 'Phone already used.';
+    }
+
+    // Generate photo filename early for validation
+    $newPhotoPath = null;
+    if ($supportsClientPhoto && !empty($_POST['cropped_photo_data'])) {
+        $photoData = $_POST['cropped_photo_data'];
+        if (preg_match('/^data:image\/(\w+);base64,(.+)$/', $photoData, $m)) {
+            $ext = strtolower($m[1]);
+            if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+                // Generate filename once for both validation and saving
+                $newPhotoPath = 'uploads/clients/client_photo_' . uniqid() . '.' . $ext;
+            }
+        }
+    }
+
+    // Photo uniqueness validation - only for non-NULL photo values
+    // Skip validation if no new photo is being uploaded (newPhotoPath is null)
+    // This prevents false positives when current photo is NULL
+    if ($newPhotoPath && !isset($errors['client_photo'])) {
+        // Check if this photo path is already used by another client
+        // Explicitly exclude NULL values to avoid false positives
+        $chk = $pdo->prepare('SELECT id FROM clients WHERE photo=? AND photo IS NOT NULL AND id!=?');
+        $chk->execute([$newPhotoPath, $id]);
+        if ($chk->fetch()) {
+            $errors['client_photo'] = 'Photo already in use.';
+        }
     }
 
     if (empty($errors)) {
@@ -141,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // ── Client photo update ──────────────────────────────────────────
-            if ($supportsClientPhoto && !empty($_POST['cropped_photo_data'])) {
+            if ($supportsClientPhoto && $newPhotoPath) {
                 $photoData = $_POST['cropped_photo_data'];
                 if (preg_match('/^data:image\/(\w+);base64,(.+)$/', $photoData, $m)) {
                     $ext      = strtolower($m[1]);
@@ -155,10 +186,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($existingPhoto && file_exists(__DIR__ . '/../' . $existingPhoto)) {
                             @unlink(__DIR__ . '/../' . $existingPhoto);
                         }
-                        $fileName = 'client_photo_' . uniqid() . '.' . $ext;
+                        // Use the pre-generated filename from validation
+                        $fileName = basename($newPhotoPath);
                         if (file_put_contents($uploadDir . $fileName, $imgBytes)) {
                             $pdo->prepare('UPDATE clients SET photo = ? WHERE id = ?')
-                                ->execute(['uploads/clients/' . $fileName, $id]);
+                                ->execute([$newPhotoPath, $id]);
                             app_log('ACTION', "Updated client photo (ID: $id)");
                         }
                     }
@@ -213,7 +245,7 @@ require_once __DIR__ . '/../includes/header.php';
             <!-- ── Client Photo ─────────────────────────────────────────────── -->
             <?php if ($supportsClientPhoto): ?>
             <div>
-                <label class="block text-sm text-mb-silver mb-3">Client Photo <span class="text-mb-subtle font-normal">(optional)</span></label>
+                <label class="block text-sm text-mb-silver mb-3">Client Photo <?= $existingPhoto ? '<span class="text-mb-subtle font-normal">(optional)</span>' : '<span class="text-red-400">*</span>' ?></label>
                 <div class="flex items-start gap-6">
                     <div class="relative flex-shrink-0">
                         <div id="photoPreviewContainer" class="w-28 h-28 rounded-full overflow-hidden bg-mb-black border-2 <?= $existingPhoto ? 'border-mb-accent' : 'border-dashed border-mb-subtle/30' ?> flex items-center justify-center">
@@ -244,6 +276,11 @@ require_once __DIR__ . '/../includes/header.php';
                         <p class="text-mb-subtle text-xs mt-1">Supported: JPG, PNG, WEBP. Max 5MB.</p>
                         <?php if ($existingPhoto): ?>
                             <p class="text-mb-subtle text-xs mt-2">Leave unchanged to keep the current photo.</p>
+                        <?php else: ?>
+                            <p class="text-red-400 text-xs mt-2">Photo is required for this client.</p>
+                        <?php endif; ?>
+                        <?php if ($errors['client_photo'] ?? ''): ?>
+                            <p class="text-red-400 text-xs mt-2"><?= e($errors['client_photo']) ?></p>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -552,6 +589,19 @@ function syncProofHiddenInputs() {
 
 function showProofError(msg) { var el = document.getElementById('proofFilesError'); if (el) { el.textContent = msg; el.classList.remove('hidden'); } }
 function hideProofError()    { var el = document.getElementById('proofFilesError'); if (el) { el.textContent = ''; el.classList.add('hidden'); } }
+
+// Client-side validation: ensure photo is uploaded if no existing photo
+document.getElementById('clientForm')?.addEventListener('submit', function (e) {
+    <?php if ($supportsClientPhoto && !$existingPhoto): ?>
+    var photoData = document.getElementById('cropped_photo_data')?.value;
+    if (!photoData || photoData.trim() === '') {
+        e.preventDefault();
+        alert('Client photo is required. Please upload and crop a photo.');
+        document.getElementById('photoPreviewContainer')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return false;
+    }
+    <?php endif; ?>
+});
 
 function escHtml(str)  { return String(str).replace(/[&<>"']/g, function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[c];}); }
 function escAttr(str)  { return String(str).replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
