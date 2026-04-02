@@ -1,8 +1,9 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/export_enabled.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
 require_once __DIR__ . '/../includes/ledger_helpers.php';
+require_once __DIR__ . '/../includes/activity_log.php';
 $pdo = db();
 
 settings_ensure_table($pdo);
@@ -97,6 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     settings_set($pdo, 'mobile_bottom_nav_keys', mobile_bottom_nav_encode_keys($selectedBottomNavKeys));
     app_log('ACTION', 'Updated general settings');
+    log_activity($pdo, 'update_settings', 'settings', 0, 'Updated general settings');
     flash('success', 'Settings saved successfully.');
     redirect('general.php');
 }

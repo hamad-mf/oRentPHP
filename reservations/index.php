@@ -51,8 +51,8 @@ $where = ['1=1'];
 $params = [];
 
 if ($search !== '') {
-    $where[] = '(c.name LIKE ? OR v.brand LIKE ? OR v.license_plate LIKE ?)';
-    $params = array_merge($params, ["%$search%", "%$search%", "%$search%"]);
+    $where[] = '(r.id = ? OR c.name LIKE ? OR v.brand LIKE ? OR v.license_plate LIKE ?)';
+    $params = array_merge($params, [is_numeric($search) ? (int)$search : 0, "%$search%", "%$search%", "%$search%"]);
 }
 if ($status !== '') {
     if ($status === 'overdue') {
@@ -81,7 +81,7 @@ $baseFrom  = 'FROM reservations r
         JOIN vehicles v ON r.vehicle_id = v.id
         WHERE ' . implode(' AND ', $where);
 $countSql  = 'SELECT COUNT(*) ' . $baseFrom;
-$sql       = 'SELECT r.*, c.name AS client_name, v.brand, v.model, v.license_plate, v.daily_rate, r.client_satisfied, r.client_comment ' . $baseFrom . ' ORDER BY r.created_at DESC';
+$sql       = 'SELECT r.*, c.name AS client_name, v.brand, v.model, v.license_plate, v.daily_rate ' . $baseFrom . ' ORDER BY r.created_at DESC';
 $pgResult     = paginate_query($pdo, $sql, $countSql, $params, $page, $perPage);
 $reservations = $pgResult['rows'];
 
@@ -160,7 +160,7 @@ require_once __DIR__ . '/../includes/header.php';
             <?php if ($dueToday): ?><input type="hidden" name="due_today" value="1">
             <?php endif; ?>
             <div class="relative flex-1 min-w-[220px] max-w-sm">
-                <input type="text" name="search" value="<?= e($search) ?>" placeholder="Search client or vehicle..."
+                <input type="text" name="search" value="<?= e($search) ?>" placeholder="Search by ID, client or vehicle..."
                     class="w-full bg-mb-surface border border-mb-subtle/20 rounded-full py-2 pl-10 pr-4 text-white placeholder-mb-subtle focus:outline-none focus:border-mb-accent text-sm transition-colors">
                 <svg class="w-4 h-4 text-mb-subtle absolute left-4 top-2.5" fill="none" stroke="currentColor"
                     viewBox="0 0 24 24">

@@ -24,11 +24,9 @@ $listSql = "SELECT
             ORDER BY
                 /* Completed investments always last */
                 (SUM(s.status = 'paid') >= COUNT(s.id) AND COUNT(s.id) > 0) ASC,
-                /* Overdue first (next_emi_date in the past), upcoming after */
-                (MIN(CASE WHEN s.status='pending' THEN s.due_date END) >= CURDATE()) ASC,
                 /* NULLs last (completed or no schedule) */
                 ISNULL(MIN(CASE WHEN s.status='pending' THEN s.due_date END)) ASC,
-                /* Within each group: nearest date first */
+                /* Within non-completed: earliest date first (overdue will naturally be first) */
                 MIN(CASE WHEN s.status='pending' THEN s.due_date END) ASC
 ";
 $countSql = "SELECT COUNT(*) FROM emi_investments";
@@ -153,7 +151,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <div class="text-xs text-mb-subtle">
                             Loan: <span class="text-mb-silver">$<?= number_format($inv['loan_amount'], 2) ?></span>
                         </div>
-                        <?php if ($nextDue && !$completed): ?>
+                        <?php if ($nextDue): ?>
                         <div class="text-xs text-mb-subtle">
                             Next EMI: <span class="text-mb-silver"><?= date('d M Y', strtotime($nextDue)) ?></span>
                         </div>

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/db.php';
 auth_check();
 $_currentUser = current_user();
@@ -389,6 +389,7 @@ $_notifs = notif_all($pdo);
                 'payroll',
                 'reports',
                 'dashboard',
+                'staff_monitor',
             ];
             $moduleIdx = null;
             foreach ($segments as $i => $seg) {
@@ -440,7 +441,7 @@ $_notifs = notif_all($pdo);
                     <svg class="w-4 h-4 opacity-50 sidebar-chevron ' . ($vActive ? 'expanded' : '') . '" id="chevron-vehicles" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                 </div>';
                 echo '<div id="submenu-vehicles" class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1 sidebar-submenu ' . ($vActive ? 'open' : '') . '">';
-                echo '<a href="' . $root . 'vehicles/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'vehicles' && !in_array($currentPage, ['availability.php', 'requests.php', 'challans.php', 'create_challan.php', 'edit_challan.php']) ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle List</a>';
+                echo '<a href="' . $root . 'vehicles/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'vehicles' && !in_array($currentPage, ['availability.php', 'requests.php', 'challans.php', 'create_challan.php', 'edit_challan.php', 'job_card.php']) ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle List</a>';
                 if ($canVehiclesAvailability) {
                     echo '<a href="' . $root . 'vehicles/availability.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'availability.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Availability</a>';
                 }
@@ -449,6 +450,7 @@ $_notifs = notif_all($pdo);
                 }
                 if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
                     echo '<a href="' . $root . 'vehicles/challans.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'challans.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Challans</a>';
+                    echo '<a href="' . $root . 'vehicles/job_card.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'job_card.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Job Card</a>';
                 }
                 echo '</div>';
             }
@@ -499,6 +501,10 @@ $_notifs = notif_all($pdo);
                 } else {
                     echo navLink("{$root}staff/index.php", 'Staff', $icons['staff'], $currentDir === 'staff');
                 }
+            }
+            if ($isAdmin || in_array('view_staff_monitor', $cuPerms, true)) {
+                $monitorIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>';
+                echo navLink("{$root}staff_monitor/index.php", 'Staff Monitor', $monitorIcon, $currentDir === 'staff_monitor');
             }
             if ($isAdmin) {
                 $attendanceIcon = '<svg class="w-5 h-5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>';

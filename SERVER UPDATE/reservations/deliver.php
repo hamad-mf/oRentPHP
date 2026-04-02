@@ -237,6 +237,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($scratchAttempted > 15) {
         $errors['scratch_photos'] = 'A maximum of 15 scratch photos is allowed.';
     }
+    
+    // Validate bank account is configured when collecting security deposit
+    if ($depositAmt > 0 && $configuredSecurityDepositBankId === null) {
+        $errors['deposit_bank_account'] = 'Security deposit bank account must be configured in Settings before collecting deposits.';
+    }
 
     if (empty($errors)) {
         $iStmt = $pdo->prepare('INSERT INTO vehicle_inspections (reservation_id,type,fuel_level,mileage,notes) VALUES (?,?,?,?,?)');

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/db.php';
 if (!auth_has_perm('add_reservations') && !auth_has_perm('do_delivery') && !auth_has_perm('do_return')) {
     flash('error', 'You do not have permission to extend reservations.');
@@ -6,6 +6,7 @@ if (!auth_has_perm('add_reservations') && !auth_has_perm('do_delivery') && !auth
 }
 require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
 require_once __DIR__ . '/../includes/ledger_helpers.php';
+require_once __DIR__ . '/../includes/activity_log.php';
 
 $pdo = db();
 reservation_payment_ensure_schema($pdo);
@@ -399,6 +400,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         app_log('ACTION', "Extended reservation #$id to $newEndSql (amount $amount, source $paymentSourceType)");
+        log_activity($pdo, 'extend_reservation', 'reservation', $id, "Extended reservation #$id by {$days} days to $newEndSql — \$$amount ($paymentSourceType)");
         flash('success', 'Reservation extended. Extension collected: $' . number_format($amount, 2) . '.');
         redirect("show.php?id=$id");
     }

@@ -192,14 +192,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $overdueAmt = (float) ($calcOverdue['amount'] ?? 0);
 
     // Late return charge (time-based with grace period; switch to daily rate at 6+ hours)
+    // Only charges for the remaining hours AFTER subtracting full overdue days
     $lateChg = 0;
     if ($actualDt > $scheduledEndDt) {
-        $lateMinutes = (int) round(($actualDt->getTimestamp() - $scheduledEndDt->getTimestamp()) / 60);
-        if ($lateMinutes >= 30) {
-            if ($lateMinutes >= 360) {
+        $totalLateMinutes = (int) round(($actualDt->getTimestamp() - $scheduledEndDt->getTimestamp()) / 60);
+        // Subtract the overdue days (already charged separately) to get remaining hours
+        $remainingLateMinutes = $totalLateMinutes - ($overdueDays * 24 * 60);
+        if ($remainingLateMinutes >= 30) {
+            if ($remainingLateMinutes >= 360) {
                 $lateChg = round((float) $r['daily_rate'], 2);
             } elseif ($lateRatePerHour > 0) {
-                $lateChg = round($lateMinutes * ($lateRatePerHour / 60), 2);
+                $lateChg = round($remainingLateMinutes * ($lateRatePerHour / 60), 2);
             }
         }
     }
@@ -1386,11 +1389,14 @@ function getActualDate() {
 function calcLateCharge() {
     var actual = getActualDate();
     if (actual <= SCHEDULED_END) return 0;
-    var lateMinutes = Math.round((actual - SCHEDULED_END) / 60000);
-    if (lateMinutes < 30) return 0; // grace period
-    if (lateMinutes >= LATE_TO_DAILY_THRESHOLD_MIN) return DAILY_RATE;
+    var totalLateMinutes = Math.round((actual - SCHEDULED_END) / 60000);
+    // Subtract overdue days (already charged separately) to get remaining hours
+    var overdue = calcOverdueCharge();
+    var remainingLateMinutes = totalLateMinutes - (overdue.days * 24 * 60);
+    if (remainingLateMinutes < 30) return 0; // grace period
+    if (remainingLateMinutes >= LATE_TO_DAILY_THRESHOLD_MIN) return DAILY_RATE;
     if (LATE_RATE <= 0) return 0;
-    return lateMinutes * (LATE_RATE / 60);
+    return remainingLateMinutes * (LATE_RATE / 60);
 }
 
 function calcOverdueCharge() {
@@ -1684,13 +1690,14 @@ function updateSummary(){
         if(lateChg>0){
             lateRow.classList.remove("hidden"); lateRow.classList.add("flex");
             var actualDt=getActualDate();
-            var lateMin=Math.round((actualDt-SCHEDULED_END)/60000);
-            if(lateMin >= LATE_TO_DAILY_THRESHOLD_MIN){
+            var totalLateMin=Math.round((actualDt-SCHEDULED_END)/60000);
+            var remainingLateMin=totalLateMin-(overdue.days*24*60);
+            if(remainingLateMin >= LATE_TO_DAILY_THRESHOLD_MIN){
                 document.getElementById("previewLateLabel").textContent="Late Return (>= 6h, Daily Rate Applied)";
                 document.getElementById("previewLateAmt").textContent="+$"+DAILY_RATE.toFixed(2);
             }else{
-                var hrs = Math.floor(lateMin/60);
-                var mins = lateMin%60;
+                var hrs = Math.floor(remainingLateMin/60);
+                var mins = remainingLateMin%60;
                 var timeStr = hrs > 0 ? hrs + "h " + mins + "m" : mins + "m";
                 document.getElementById("previewLateLabel").textContent="Late Return ("+timeStr+" @ $"+LATE_RATE.toFixed(2)+"/hr)";
                 document.getElementById("previewLateAmt").textContent="+$"+lateChg.toFixed(2);

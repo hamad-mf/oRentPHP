@@ -120,20 +120,126 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $date = trim($_POST['posted_at'] ?? date('Y-m-d'));
         $postedAt = date('Y-m-d H:i:s', strtotime($date . ' ' . date('H:i:s')));
         $transferError = '';
-        if (ledger_transfer($pdo, $fromId, $toId, $amount, $desc ?: null, $userId, $postedAt, $transferError)) {
-            flash('success', 'Transfer completed successfully.');
-        } else {
-            flash('error', $transferError ?: 'Transfer failed.');
+        
+        // Frontend validation checks (Requirements 4.1-4.6)
+        
+        // Validate amount > 0 (Requirement 4.3)
+        if ($amount <= 0) {
+            flash('error', 'Transfer amount must be greater than zero.');
+            redirect('index.php');
         }
-        redirect('index.php');
+        
+        // Validate source != destination (Requirements 4.1, 4.2)
+        if ($fromId === $toId) {
+            flash('error', 'Cannot transfer to the same account.');
+            redirect('index.php');
+        }
+        
+        // Validate bank accounts exist and are active (Requirement 4.6)
+        // For Cash-to-Bank: validate destination bank account
+        if ($fromId === 0 && $toId > 0) {
+            $stmt = $pdo->prepare("SELECT id, is_active FROM bank_accounts WHERE id = ? LIMIT 1");
+            $stmt->execute([$toId]);
+            $destAcct = $stmt->fetch();
+            if (!$destAcct || !(int) $destAcct['is_active']) {
+                flash('error', 'Destination account not found or inactive.');
+                redirect('index.php');
+            }
+        }
+        
+        // For Bank-to-Cash: validate source bank account
+        if ($fromId > 0 && $toId === 0) {
+            $stmt = $pdo->prepare("SELECT id, balance, is_active FROM bank_accounts WHERE id = ? LIMIT 1");
+            $stmt->execute([$fromId]);
+            $sourceAcct = $stmt->fetch();
+            if (!$sourceAcct || !(int) $sourceAcct['is_active']) {
+                flash('error', 'Source account not found or inactive.');
+                redirect('index.php');
+            }
+        }
+        
+        // For Bank-to-Bank: validate both accounts
+        if ($fromId > 0 && $toId > 0) {
+            $stmt = $pdo->prepare("SELECT id, balance, is_active FROM bank_accounts WHERE id IN (?, ?)");
+            $stmt->execute([$fromId, $toId]);
+            $accts = [];
+            foreach ($stmt->fetchAll() as $row) {
+                $accts[(int) $row['id']] = $row;
+            }
+            if (!isset($accts[$fromId]) || !(int) $accts[$fromId]['is_active']) {
+                flash('error', 'Source account not found or inactive.');
+                redirect('index.php');
+            }
+            if (!isset($accts[$toId]) || !(int) $accts[$toId]['is_active']) {
+                flash('error', 'Destination account not found or inactive.');
+                redirect('index.php');
+            }
+        }
+        
+        // Validate sufficient balance for source account (Requirements 4.4, 4.5)
+        if ($fromId === 0) {
+            // Cash-to-Bank: validate cash balance
+            $cashIncome  = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income' AND voided_at IS NULL")->fetchColumn();
+            $cashExpense = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='expense' AND voided_at IS NULL")->fetchColumn();
+            $cashBalance = $cashIncome - $cashExpense;
+            if ($cashBalance < $amount) {
+                flash('error', 'Insufficient cash balance (Balance: $' . number_format($cashBalance, 2) . ').');
+                redirect('index.php');
+            }
+        } elseif ($fromId > 0) {
+            // Bank-to-Cash or Bank-to-Bank: validate bank balance
+            $stmt = $pdo->prepare("SELECT balance FROM bank_accounts WHERE id = ? LIMIT 1");
+            $stmt->execute([$fromId]);
+            $sourceAcct = $stmt->fetch();
+            if ($sourceAcct) {
+                $bankBalance = (float) $sourceAcct['balance'];
+                if ($bankBalance < $amount) {
+                    flash('error', 'Insufficient balance in source account (Balance: $' . number_format($bankBalance, 2) . ').');
+                    redirect('index.php');
+                }
+            }
+        }
+        
+        // Route to appropriate transfer function based on account types
+        // Cash Account is represented by ID = 0
+        if ($fromId === 0 && $toId === 0) {
+            // Cash-to-Cash: Invalid transfer (already validated above)
+            flash('error', 'Cannot transfer to the same account.');
+            redirect('index.php');
+        } elseif ($fromId === 0) {
+            // Cash-to-Bank: Use ledger_transfer_cash_to_bank()
+            if (ledger_transfer_cash_to_bank($pdo, $toId, $amount, $desc ?: null, $userId, $postedAt, $transferError)) {
+                flash('success', 'Transfer completed successfully.');
+            } else {
+                flash('error', $transferError ?: 'Transfer failed.');
+            }
+            redirect('index.php');
+        } elseif ($toId === 0) {
+            // Bank-to-Cash: Use ledger_transfer_bank_to_cash()
+            if (ledger_transfer_bank_to_cash($pdo, $fromId, $amount, $desc ?: null, $userId, $postedAt, $transferError)) {
+                flash('success', 'Transfer completed successfully.');
+            } else {
+                flash('error', $transferError ?: 'Transfer failed.');
+            }
+            redirect('index.php');
+        } else {
+            // Bank-to-Bank: Use existing ledger_transfer()
+            if (ledger_transfer($pdo, $fromId, $toId, $amount, $desc ?: null, $userId, $postedAt, $transferError)) {
+                flash('success', 'Transfer completed successfully.');
+            } else {
+                flash('error', $transferError ?: 'Transfer failed.');
+            }
+            redirect('index.php');
+        }
     }
 }
 
 
 $fType = $_GET['type'] ?? '';
 $fAccount = trim((string) ($_GET['account'] ?? ''));
-$fDateFrom = $_GET['date_from'] ?? date('Y-m-01');
-$fDateTo = $_GET['date_to'] ?? date('Y-m-d');
+$hasFilters = !empty($_GET);
+$fDateFrom = $hasFilters ? trim((string)($_GET['date_from'] ?? '')) : date('Y-m-01');
+$fDateTo = $hasFilters ? trim((string)($_GET['date_to'] ?? '')) : date('Y-m-d');
 $fSource = $_GET['source'] ?? '';
 $fCategory = trim($_GET['category'] ?? '');
 $includeVoided = (string)($_GET['include_voided'] ?? '') === '1';
@@ -406,7 +512,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="flex items-center flex-wrap gap-3">
                 <h2 class="text-white font-light leading-none m-0 p-0 shrink-0" style="margin:0;padding:0;line-height:1">Ledger</h2>
                 <!-- Filters -->
-                <form method="GET" class="flex flex-wrap gap-2 items-center ml-auto">
+                <form method="GET" id="ledgerFilterForm" class="flex flex-wrap gap-2 items-center ml-auto">
                     <select name="type" onchange="this.form.submit()"
                         class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
                         <option value="">All Types</option>
@@ -723,6 +829,11 @@ require_once __DIR__ . '/../includes/header.php';
 
 <script>
     // ── Accounts view toggle (Monthly / All-time) ──────────────────────────
+    // Monthly period dates from PHP
+    var _monthlyFrom = '<?= e($accMPS) ?>';
+    var _monthlyTo   = '<?= e($accMPE) ?>';
+    var _isInitialLoad = true;
+
     function switchAccView(v) {
         var isMonthly = v === 'monthly';
 
@@ -747,9 +858,41 @@ require_once __DIR__ . '/../includes/header.php';
             btnA.className = 'text-xs px-3 py-1 rounded-full transition-colors font-medium bg-mb-accent text-white';
             btnM.className = 'text-xs px-3 py-1 rounded-full transition-colors font-medium text-mb-subtle hover:text-white';
         }
+
+        // Update ledger date filters and resubmit (skip on initial page load)
+        if (!_isInitialLoad) {
+            var form = document.getElementById('ledgerFilterForm');
+            if (form) {
+                var dateFrom = form.querySelector('input[name="date_from"]');
+                var dateTo   = form.querySelector('input[name="date_to"]');
+                if (dateFrom && dateTo) {
+                    if (isMonthly) {
+                        dateFrom.value = _monthlyFrom;
+                        dateTo.value   = _monthlyTo;
+                    } else {
+                        dateFrom.value = '';
+                        dateTo.value   = '';
+                    }
+                    form.submit();
+                    return;
+                }
+            }
+        }
     }
-    // Default: Monthly on page load
-    switchAccView('monthly');
+
+    // Detect current view from URL dates
+    (function() {
+        var params = new URLSearchParams(window.location.search);
+        var df = params.get('date_from') || '';
+        var dt = params.get('date_to') || '';
+        // If both dates are empty, we're in all-time mode
+        if (df === '' && dt === '' && params.has('date_from')) {
+            switchAccView('alltime');
+        } else {
+            switchAccView('monthly');
+        }
+        _isInitialLoad = false;
+    })();
 
     function toggleEntryBankField() {
         const modeEl = document.getElementById('entryPaymentMode');
@@ -871,8 +1014,9 @@ require_once __DIR__ . '/../includes/header.php';
         }
     }
     function updateTransferTo() {
-        var fromId = parseInt(document.getElementById('transferFrom').value) || 0;
-        var fromAcc = transferAccountsData.find(function(a){ return a.id === fromId; });
+        var fromValue = document.getElementById('transferFrom').value;
+        var fromId = fromValue === '' ? null : parseInt(fromValue);
+        var fromAcc = fromId !== null ? transferAccountsData.find(function(a){ return a.id === fromId; }) : null;
         var balEl = document.getElementById('transferFromBalance');
         balEl.textContent = fromAcc ? 'Available: $' + parseFloat(fromAcc.balance).toFixed(2) : '';
         var toSel = document.getElementById('transferTo');
@@ -880,7 +1024,9 @@ require_once __DIR__ . '/../includes/header.php';
         toSel.innerHTML = '';
         var blank = document.createElement('option'); blank.value=''; blank.textContent='-- Select destination --'; toSel.appendChild(blank);
         transferAccountsData.forEach(function(a) {
-            if (a.id === fromId) return;
+            // Filter out source account from destination dropdown
+            // This includes Cash Account (ID = 0) when Cash is selected as source
+            if (fromId !== null && a.id === fromId) return;
             var opt = document.createElement('option');
             opt.value = a.id;
             opt.textContent = a.name + ' ($' + parseFloat(a.balance).toFixed(2) + ')';
@@ -908,6 +1054,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <select id="transferFrom" name="from_account_id" required onchange="updateTransferTo()"
                     class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
                     <option value="">-- Select source account --</option>
+                    <option value="0">Cash Account ($<?= number_format($cashBalance, 2) ?>)</option>
                     <?php foreach ($accounts as $acc): ?>
                     <option value="<?= $acc['id'] ?>"><?= htmlspecialchars($acc['name']) ?> ($<?= number_format($acc['balance'],2) ?>)</option>
                     <?php endforeach; ?>
@@ -919,6 +1066,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <select id="transferTo" name="to_account_id" required
                     class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500">
                     <option value="">-- Select destination account --</option>
+                    <option value="0">Cash Account ($<?= number_format($cashBalance, 2) ?>)</option>
                     <?php foreach ($accounts as $acc): ?>
                     <option value="<?= $acc['id'] ?>"><?= htmlspecialchars($acc['name']) ?> ($<?= number_format($acc['balance'],2) ?>)</option>
                     <?php endforeach; ?>
@@ -953,7 +1101,14 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 <script>
 var transferAccountsData = <?php
-    $tData = array_values(array_map(function($a){ return ['id'=>(int)$a['id'],'name'=>$a['name'],'balance'=>(float)$a['balance']]; }, $accounts));
+    // Add Cash Account (ID = 0) to the beginning of the array
+    $tData = [
+        ['id' => 0, 'name' => 'Cash Account', 'balance' => $cashBalance]
+    ];
+    // Add all bank accounts
+    $tData = array_merge($tData, array_values(array_map(function($a){ 
+        return ['id'=>(int)$a['id'],'name'=>$a['name'],'balance'=>(float)$a['balance']]; 
+    }, $accounts)));
     echo json_encode($tData);
 ?>;
 </script>

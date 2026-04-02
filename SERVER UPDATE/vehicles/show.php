@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/ledger_helpers.php';
+require_once __DIR__ . '/../includes/activity_log.php';
 
 $id = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
 $pdo = db();
@@ -47,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
     try {
         $pdo->prepare('UPDATE vehicles SET status = \'sold\', sold_at = NOW() WHERE id = ?')->execute([$id]);
         app_log('ACTION', "Vehicle marked as sold (ID: $id)");
+        log_activity($pdo, 'sell_vehicle', 'vehicle', $id, "Marked vehicle ID #$id as sold");
         flash('success', 'Vehicle has been marked as sold and removed from the active fleet.');
     } catch (Throwable $e) {
         app_log('ERROR', 'Mark vehicle sold failed - ' . $e->getMessage(), ['vehicle_id' => $id]);

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/activity_log.php';
 if (!auth_has_perm('manage_clients')) {
     flash('error', 'You do not have permission to delete clients.');
     redirect('index.php');
@@ -25,5 +26,6 @@ if ($activeCount > 0) {
 
 $pdo->prepare('DELETE FROM clients WHERE id=?')->execute([$id]);
 app_log('ACTION', "Deleted client: {$c['name']} (ID: $id)");
+log_activity($pdo, 'delete_client', 'client', $id, "Deleted client {$c['name']} ({$c['phone']})");
 flash('success', "{$c['name']} has been removed.");
 redirect('index.php');

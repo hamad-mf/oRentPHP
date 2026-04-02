@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/remember_token_helpers.php';
 
 // Already logged in → go to dashboard
 if (isset($_SESSION['user'])) {
@@ -53,6 +54,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
 
             app_log('ACTION', "Login successful: $username (role: {$user['role']})");
+            
+            // Process "Remember Me" checkbox
+            if (isset($_POST['remember_me'])) {
+                try {
+                    // Generate remember token (enforces 5-token limit internally)
+                    $token = generate_remember_token($user['id']);
+                    
+                    // Detect if HTTPS is being used
+                    $is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') 
+                                || ($_SERVER['SERVER_PORT'] ?? 80) == 443;
+                    
+                    // Set secure cookie with 30-day expiry
+                    setcookie('remember_token', $token['cookie_value'], [
+                        'expires' => time() + (30 * 86400),  // 30 days
+                        'path' => '/',
+                        'httponly' => true,
+                        'secure' => $is_https,
+                        'samesite' => 'Lax'
+                    ]);
+                    
+                    app_log('AUTH', "Remember token cookie set for user {$user['id']}", [
+                        'expires_at' => $token['expires_at']
+                    ]);
+                    
+                } catch (Exception $e) {
+                    // Log error but don't block login - fall back to session-only
+                    app_log('ERROR', 'Failed to create remember token during login', [
+                        'user_id' => $user['id'],
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+            
             redirect('../index.php');
         } else {
             app_log('ACTION', "Login failed for username: $username");
@@ -197,6 +231,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </svg>
                         </button>
                     </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" name="remember_me" id="remember_me" value="on"
+                        class="w-4 h-4 bg-mb-black border border-mb-subtle/30 rounded text-mb-accent focus:ring-mb-accent focus:ring-2 focus:ring-offset-0 cursor-pointer">
+                    <label for="remember_me" class="text-sm text-mb-silver cursor-pointer select-none">
+                        Remember me for 30 days
+                    </label>
                 </div>
                 <button type="submit"
                     class="w-full bg-mb-accent text-white py-3 rounded-xl font-medium hover:bg-mb-accent/80 transition-all shadow-lg shadow-mb-accent/20 hover:shadow-mb-accent/40 mt-2">

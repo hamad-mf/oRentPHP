@@ -6,6 +6,7 @@ if (!auth_has_perm('add_reservations')) {
 }
 require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
 require_once __DIR__ . '/../includes/ledger_helpers.php';
+require_once __DIR__ . '/../includes/activity_log.php';
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
 reservation_payment_ensure_schema($pdo);
@@ -191,6 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
         app_log('ACTION', "Updated reservation (ID: $id)");
+        log_activity($pdo, 'edit_reservation', 'reservation', $id, "Edited reservation #$id — \$$totalPrice");
         flash('success', 'Reservation updated.');
         redirect("show.php?id=$id");
     }

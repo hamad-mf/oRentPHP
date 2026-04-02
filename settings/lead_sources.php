@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
+require_once __DIR__ . '/../includes/activity_log.php';
 $pdo = db();
 
 $errors = [];
@@ -18,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         settings_set($pdo, 'lead_sources', lead_sources_encode_map($parsedSources));
         app_log('ACTION', 'Updated lead sources settings');
+        log_activity($pdo, 'update_settings', 'settings', 0, 'Updated lead sources');
 flash('success', 'Lead sources updated successfully.');
         redirect('lead_sources.php');
     }

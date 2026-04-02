@@ -7,6 +7,7 @@ if (!auth_has_perm('add_reservations')) {
 require_once __DIR__ . '/../includes/voucher_helpers.php';
 require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
 require_once __DIR__ . '/../includes/ledger_helpers.php';
+require_once __DIR__ . '/../includes/activity_log.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
 require_once __DIR__ . '/../includes/notifications.php';
 $pdo = db();
@@ -252,6 +253,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $logMsg .= " [Delivery Prepaid: \$$deliveryPrepaid ($deliveryPrepaidMethod)]";
             }
             app_log('ACTION', $logMsg);
+            log_activity($pdo, 'create_reservation', 'reservation', $id, "Created reservation #$id for $clientName ($vehicleName) — \$$totalPrice");
             flash('success', $msg);
             redirect("show.php?id=$id");
         } catch (Throwable $e) {

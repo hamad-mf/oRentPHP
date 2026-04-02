@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/client_helpers.php';
+require_once __DIR__ . '/../includes/activity_log.php';
 
 $id  = (int)($_GET['id'] ?? 0);
 $pdo = db();
@@ -17,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($rating >= 1 && $rating <= 5) {
             $pdo->prepare('UPDATE clients SET rating=?, rating_review=? WHERE id=?')->execute([$rating, $review, $id]);
             app_log('ACTION', "Updated client rating to $rating stars with review (ID: $id)");
+            log_activity($pdo, 'rate_client', 'client', $id, "Rated client $rating stars");
             flash('success', "Rating updated to $rating stars.");
         }
         redirect("show.php?id=$id");
@@ -29,11 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($c['is_blacklisted']) {
             $pdo->prepare('UPDATE clients SET is_blacklisted=0, blacklist_reason=NULL WHERE id=?')->execute([$id]);
             app_log('ACTION', "Removed client from blacklist: {$c['name']} (ID: $id)");
+            log_activity($pdo, 'unblacklist_client', 'client', $id, "Removed {$c['name']} from blacklist");
             flash('success', "{$c['name']} removed from blacklist.");
         } else {
             $reason = trim($_POST['blacklist_reason'] ?? '');
             $pdo->prepare('UPDATE clients SET is_blacklisted=1, blacklist_reason=? WHERE id=?')->execute([$reason, $id]);
             app_log('ACTION', "Added client to blacklist: {$c['name']} (ID: $id)");
+            log_activity($pdo, 'blacklist_client', 'client', $id, "Blacklisted {$c['name']}" . ($reason ? " — $reason" : ''));
             flash('success', "{$c['name']} added to blacklist.");
         }
         redirect("show.php?id=$id");

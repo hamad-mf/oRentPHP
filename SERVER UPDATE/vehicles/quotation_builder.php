@@ -158,9 +158,9 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
             </div>
             <div class="discount-preview hidden mt-2 text-xs space-y-1">
-                <p class="text-mb-subtle">Subtotal: <span class="vehicle-subtotal">$0.00</span></p>
-                <p class="text-green-400">Discount: <span class="vehicle-discount">-$0.00</span></p>
-                <p class="text-white font-medium">Total: <span class="vehicle-total">$0.00</span></p>
+                <p class="text-green-400 font-medium"><span class="vehicle-subtotal"></span></p>
+                <span class="vehicle-discount hidden"></span>
+                <span class="vehicle-total hidden"></span>
             </div>
         </div>
     </div>
@@ -248,27 +248,13 @@ require_once __DIR__ . '/../includes/header.php';
         return vehicleBlock.dataset.vehicleId;
     }
 
-    function calculateVehicleSubtotal(vehicleBlock) {
-        // Sum all rate prices for this vehicle
-        const rates = Array.from(vehicleBlock.querySelectorAll('.rate-row'));
-        let subtotal = 0;
-        rates.forEach(row => {
-            const price = parseFloat(row.querySelector('.rate-price')?.value || 0);
-            if (price > 0) subtotal += price;
-        });
-        return subtotal;
-    }
-
-    function calculateDiscountAmount(subtotal, type, value) {
-        if (!type || value <= 0) return 0;
-        
+    function calculateDiscountForRate(price, type, value) {
+        if (!type || value <= 0 || price <= 0) return 0;
         if (type === 'percent') {
-            // Cap at 100%
             const percent = Math.min(value, 100);
-            return Math.round((subtotal * percent / 100) * 100) / 100;
+            return Math.round((price * percent / 100) * 100) / 100;
         } else if (type === 'amount') {
-            // Cap at subtotal
-            return Math.round(Math.min(value, subtotal) * 100) / 100;
+            return Math.round(Math.min(value, price) * 100) / 100;
         }
         return 0;
     }
@@ -281,36 +267,35 @@ require_once __DIR__ . '/../includes/header.php';
         const previewDiv = vehicleBlock.querySelector('.discount-preview');
         
         const type = typeSelect.value || null;
-        const value = parseFloat(valueInput.value || 0);
+        let value = parseFloat(valueInput.value || 0);
         
-        // Show/hide value input
+        // Show/hide value input and set constraints
         if (type) {
             valueWrap.classList.remove('hidden');
+            if (type === 'percent') {
+                valueInput.max = 100;
+                valueInput.placeholder = '0 - 100';
+                if (value > 100) {
+                    value = 100;
+                    valueInput.value = 100;
+                }
+            } else {
+                valueInput.removeAttribute('max');
+                valueInput.placeholder = '0.00';
+            }
         } else {
             valueWrap.classList.add('hidden');
             valueInput.value = '';
         }
         
-        // Calculate
-        const subtotal = calculateVehicleSubtotal(vehicleBlock);
-        const discountAmount = calculateDiscountAmount(subtotal, type, value);
-        const total = Math.round((subtotal - discountAmount) * 100) / 100;
-        
-        // Store in state
-        vehicleDiscounts.set(vehicleId, {
-            type,
-            value,
-            subtotal,
-            discountAmount,
-            total
-        });
+        // Store in state (discount applies per-rate, not as a sum)
+        vehicleDiscounts.set(vehicleId, { type, value });
         
         // Update preview display
-        if (type && discountAmount > 0) {
+        if (type && value > 0) {
             previewDiv.classList.remove('hidden');
-            vehicleBlock.querySelector('.vehicle-subtotal').textContent = '$' + subtotal.toFixed(2);
-            vehicleBlock.querySelector('.vehicle-discount').textContent = '-$' + discountAmount.toFixed(2);
-            vehicleBlock.querySelector('.vehicle-total').textContent = '$' + total.toFixed(2);
+            const label = type === 'percent' ? value + '% off each rate' : '$' + value.toFixed(2) + ' off each rate';
+            vehicleBlock.querySelector('.vehicle-subtotal').textContent = label;
         } else {
             previewDiv.classList.add('hidden');
         }
@@ -332,13 +317,7 @@ require_once __DIR__ . '/../includes/header.php';
         const extraEnabled = additionalToggle.checked;
         const extraVal     = extraEnabled ? (fmt(additionalCharge.value) || '0.00') : null;
 
-        /* ── collect all rate rows for grand total ── */
-        let grandTotal = 0;
-        grandTotal += parseFloat(deliveryVal);
-        grandTotal += parseFloat(returnVal);
-        if (extraEnabled && extraVal) grandTotal += parseFloat(extraVal);
-
-        /* collect vehicles data */
+        /* collect vehicles data (no grand total sum — rates are alternatives, not additive) */
         const vehicleData = vehicles.map((block, idx) => {
             const vehicleId = getVehicleId(block);
             const name  = block.querySelector('.vehicle-name')?.value.trim() || 'Vehicle ' + (idx + 1);
@@ -353,16 +332,6 @@ require_once __DIR__ . '/../includes/header.php';
             
             // Get discount data
             const discountData = vehicleDiscounts.get(vehicleId) || null;
-            
-            // Add to grand total (with discount applied if exists)
-            if (discountData && discountData.total > 0) {
-                grandTotal += discountData.total;
-            } else {
-                // No discount - sum rates
-                rates.forEach(r => {
-                    if (r.price) grandTotal += parseFloat(r.price);
-                });
-            }
             
             return { name, model, year, rates, discount: discountData };
         });
@@ -478,46 +447,35 @@ require_once __DIR__ . '/../includes/header.php';
             `;
 
             if (v.rates.length) {
+                const hasDiscount = v.discount && v.discount.type && v.discount.value > 0;
                 v.rates.forEach((r, ri) => {
                     const bg = ri % 2 === 0 ? '#fff' : '#fafafa';
-                    h += `<tr style="background:${bg};">
-                        <td style="padding:6px 10px; border-bottom:1px solid #eee;">${esc(r.type)}</td>
-                        <td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right;">$${r.price}</td>
-                        <td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right; font-weight:bold;">$${r.price}</td>
-                    </tr>`;
+                    const originalPrice = parseFloat(r.price);
+                    if (hasDiscount) {
+                        const discAmt = calculateDiscountForRate(originalPrice, v.discount.type, v.discount.value);
+                        const discounted = Math.max(0, originalPrice - discAmt);
+                        h += `<tr style="background:${bg};">
+                            <td style="padding:6px 10px; border-bottom:1px solid #eee;">${esc(r.type)}</td>
+                            <td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right; text-decoration:line-through; color:#999;">$${r.price}</td>
+                            <td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right; font-weight:bold; color:#16a34a;">$${discounted.toFixed(2)}</td>
+                        </tr>`;
+                    } else {
+                        h += `<tr style="background:${bg};">
+                            <td style="padding:6px 10px; border-bottom:1px solid #eee;">${esc(r.type)}</td>
+                            <td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right;">$${r.price}</td>
+                            <td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right; font-weight:bold;">$${r.price}</td>
+                        </tr>`;
+                    }
                 });
                 
-                // Add discount section if applicable
-                if (v.discount && v.discount.discountAmount > 0) {
-                    const subtotal = v.discount.subtotal.toFixed(2);
-                    const discountAmt = v.discount.discountAmount.toFixed(2);
-                    const total = v.discount.total.toFixed(2);
-                    
-                    // Discount label
-                    let discountLabel = 'Discount';
-                    if (v.discount.type === 'percent') {
-                        discountLabel += ` (${v.discount.value}%)`;
-                    } else {
-                        discountLabel += ` (Fixed)`;
-                    }
-                    
-                    h += `
-                        <tr style="background:#fff; border-top:2px solid #ccc;">
-                            <td style="padding:8px 10px; text-align:right; font-weight:bold;">Subtotal</td>
-                            <td style="padding:8px 10px; text-align:right;"></td>
-                            <td style="padding:8px 10px; text-align:right; font-weight:bold;">${subtotal}</td>
-                        </tr>
-                        <tr style="background:#f0f0f0;">
-                            <td style="padding:8px 10px; text-align:right; color:#16a34a;">${esc(discountLabel)}</td>
-                            <td style="padding:8px 10px; text-align:right;"></td>
-                            <td style="padding:8px 10px; text-align:right; color:#16a34a; font-weight:bold;">-${discountAmt}</td>
-                        </tr>
-                        <tr style="background:#111; color:#fff;">
-                            <td style="padding:8px 10px; text-align:right; font-weight:bold;">TOTAL</td>
-                            <td style="padding:8px 10px; text-align:right;"></td>
-                            <td style="padding:8px 10px; text-align:right; font-weight:bold;">${total}</td>
-                        </tr>
-                    `;
+                // Show discount note row if applicable
+                if (hasDiscount) {
+                    const discLabel = v.discount.type === 'percent'
+                        ? v.discount.value + '% Discount Applied'
+                        : '$' + v.discount.value.toFixed(2) + ' Discount Applied';
+                    h += `<tr style="background:#f0fff0;">
+                        <td colspan="3" style="padding:5px 10px; text-align:center; color:#16a34a; font-size:10px; font-style:italic; border-bottom:1px solid #eee;">${esc(discLabel)}</td>
+                    </tr>`;
                 }
             } else {
                 h += `<tr><td colspan="3" style="padding:10px; color:#999; text-align:center; font-style:italic;">No rental rates specified.</td></tr>`;
@@ -526,7 +484,8 @@ require_once __DIR__ . '/../includes/header.php';
             h += `</tbody></table></div>`;
         });
 
-        /* ── charges + totals footer ── */
+        /* ── charges + totals footer (no grand total — rates are options) ── */
+        const hasAnyCharges = parseFloat(deliveryVal) > 0 || parseFloat(returnVal) > 0 || (extraEnabled && parseFloat(extraVal) > 0);
         h += `
         <!-- ░░ FOOTER / TOTALS ░░ -->
         <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;">
@@ -543,22 +502,16 @@ require_once __DIR__ . '/../includes/header.php';
                 </td>
 
                 <!-- Right: charges table -->
-                <td style="width:50%; vertical-align:top;">
+                ${hasAnyCharges ? `<td style="width:50%; vertical-align:top;">
                     <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #ccc; font-size:11px;">
                         <tr>
-                            <td style="padding:6px 10px; border-bottom:1px solid #eee; background:#f7f7f7;">Delivery Charge</td>
-                            <td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right; background:#f7f7f7;">$${deliveryVal}</td>
+                            <td colspan="2" style="padding:5px 10px; background:#f0f0f0; font-size:10px; text-transform:uppercase; letter-spacing:.5px; font-weight:bold; border-bottom:1px solid #ccc;">Additional Charges (per booking)</td>
                         </tr>
-                        <tr>
-                            <td style="padding:6px 10px; border-bottom:1px solid #eee;">Return Charge</td>
-                            <td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right;">$${returnVal}</td>
-                        </tr>
-                        ${extraEnabled ? `<tr>
-                            <td style="padding:6px 10px; border-bottom:1px solid #eee; background:#f7f7f7;">Additional Charge</td>
-                            <td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right; background:#f7f7f7;">$${extraVal}</td>
-                        </tr>` : ''}
+                        ${parseFloat(deliveryVal) > 0 ? '<tr><td style="padding:6px 10px; border-bottom:1px solid #eee; background:#f7f7f7;">Delivery Charge</td><td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right; background:#f7f7f7;">$' + deliveryVal + '</td></tr>' : ''}
+                        ${parseFloat(returnVal) > 0 ? '<tr><td style="padding:6px 10px; border-bottom:1px solid #eee;">Return Charge</td><td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right;">$' + returnVal + '</td></tr>' : ''}
+                        ${extraEnabled && parseFloat(extraVal) > 0 ? '<tr><td style="padding:6px 10px; border-bottom:1px solid #eee; background:#f7f7f7;">Additional Charge</td><td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right; background:#f7f7f7;">$' + extraVal + '</td></tr>' : ''}
                     </table>
-                </td>
+                </td>` : '<td style="width:50%;"></td>'}
             </tr>
         </table>
 

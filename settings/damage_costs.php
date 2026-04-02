@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/activity_log.php';
 $pdo = db();
 
 // Handle Form Submissions
@@ -12,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($name !== '') {
             $pdo->prepare("INSERT INTO damage_costs (item_name, cost) VALUES (?, ?)")->execute([$name, $cost]);
             app_log('ACTION', 'Updated damage costs settings');
+            log_activity($pdo, 'update_settings', 'settings', 0, "Added damage cost item: $name");
 flash('success', 'Damage cost item added successfully.');
         }
     } elseif ($action === 'edit') {
@@ -21,6 +23,7 @@ flash('success', 'Damage cost item added successfully.');
         if ($id > 0 && $name !== '') {
             $pdo->prepare("UPDATE damage_costs SET item_name = ?, cost = ? WHERE id = ?")->execute([$name, $cost, $id]);
             app_log('ACTION', 'Updated damage costs settings');
+            log_activity($pdo, 'update_settings', 'settings', 0, "Edited damage cost item: $name");
 flash('success', 'Damage cost item updated successfully.');
         }
     } elseif ($action === 'delete') {
@@ -28,6 +31,7 @@ flash('success', 'Damage cost item updated successfully.');
         if ($id > 0) {
             $pdo->prepare("DELETE FROM damage_costs WHERE id = ?")->execute([$id]);
             app_log('ACTION', 'Updated damage costs settings');
+            log_activity($pdo, 'update_settings', 'settings', 0, 'Deleted damage cost item');
 flash('success', 'Damage cost item deleted.');
         }
     }

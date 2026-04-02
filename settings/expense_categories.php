@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
+require_once __DIR__ . '/../includes/activity_log.php';
 $pdo = db();
 
 auth_require_admin();
@@ -20,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         settings_set($pdo, 'expense_categories', expense_categories_encode_list($parsedCategories));
         app_log('ACTION', 'Updated expense categories settings');
+        log_activity($pdo, 'update_settings', 'settings', 0, 'Updated expense categories');
         flash('success', 'Expense categories updated successfully.');
         redirect('expense_categories.php');
     }

@@ -935,6 +935,122 @@ require_once __DIR__ . '/../includes/header.php';
                         <div class="col-span-2">Predictions</div>
                         <div class="col-span-2 text-right">Variance</div>
                     </div>
+                    <?php 
+                    // Render today's row first if it's in the selected range
+                    if (isset($dayByDate[$today]) && $today >= $rangeStart && $today <= $rangeEnd):
+                        $row = $dayByDate[$today];
+                        $gap = $row['expected'] - $row['target'];
+                        $gapClass = $gap >= 0 ? 'text-green-400' : 'text-red-400';
+                        $rowClass = 'border-mb-accent/60 bg-mb-accent/10';
+                    ?>
+                        <div class="grid grid-cols-12 items-center border <?= $rowClass ?> rounded-lg px-3 py-2 text-sm hope-row cursor-pointer" data-pred-toggle="<?= e($row['date']) ?>">
+                            <div class="col-span-2">
+                                <p class="text-white"><?= e($row['label']) ?></p>
+                                <span class="text-xs text-mb-accent">Today</span>
+                            </div>
+                            <div class="col-span-2">
+                                <?php if ($isAdmin): ?>
+                                    <input type="number" step="0.01" min="0" name="target[<?= e($row['date']) ?>]"
+                                        value="<?= number_format($row['target'], 2, '.', '') ?>"
+                                        class="w-28 bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                <?php else: ?>
+                                    <span class="text-white">$<?= number_format($row['target'], 2) ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="col-span-2">
+                                <span class="text-green-400">$<?= number_format($row['expected'], 2) ?></span>
+                            </div>
+                            <div class="col-span-2">
+                                <span class="text-blue-400">$<?= number_format($row['actual'], 2) ?></span>
+                            </div>
+                            <div class="col-span-2">
+                                <span class="text-white font-medium"><?= (int) $row['prediction_count'] ?></span>
+                                <?php if ($row['prediction_sum'] > 0): ?>
+                                    <span class="text-xs text-mb-subtle ml-1">($<?= number_format($row['prediction_sum'], 2) ?>)</span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="col-span-2 text-right">
+                                <?php
+                                    $variance = $row['actual'] - $row['expected'];
+                                    $varianceClass = $variance >= 0 ? 'text-green-400' : 'text-red-400';
+                                    $varianceSign  = $variance >= 0 ? '+' : '-';
+                                ?>
+                                <span class="<?= $varianceClass ?>">
+                                    <?= $varianceSign ?>$<?= number_format(abs($variance), 2) ?>
+                                </span>
+                            </div>
+                        </div>
+                        <div id="pred-<?= e($row['date']) ?>" class="hidden border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-4 py-3 text-sm">
+                            <!-- Expected Income Breakdown -->
+                            <div class="mb-4 pb-4 border-b border-mb-subtle/10">
+                                <p class="text-white font-medium mb-3">Expected Income Breakdown</p>
+                                <?= hope_render_breakdown($breakdownMap, $row['date']) ?>
+                            </div>
+                            
+                            <!-- Actual Income Breakdown -->
+                            <div class="mb-4 pb-4 border-b border-mb-subtle/10">
+                                <p class="text-white font-medium mb-3">Actual Income Breakdown</p>
+                                <?= hope_render_actual_breakdown(hope_fetch_actual_breakdown($pdo, $row['date'])) ?>
+                            </div>
+                            
+                            <!-- Predictions Section -->
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-white font-medium">Predictions for <?= e($row['label']) ?></p>
+                                    <p class="text-mb-subtle text-xs">Add your own expected deals to include in projected income.</p>
+                                </div>
+                            </div>
+                            <div class="mt-3 space-y-2">
+                                <?php if (!empty($row['predictions'])): ?>
+                                    <?php foreach ($row['predictions'] as $pred): ?>
+                                        <?php if ($isAdmin): ?>
+                                            <div class="grid grid-cols-12 gap-2 items-center">
+                                                <div class="col-span-7">
+                                                    <input type="text" name="pred_label[<?= (int) $pred['id'] ?>]" value="<?= e($pred['label']) ?>"
+                                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                                </div>
+                                                <div class="col-span-3">
+                                                    <input type="number" step="0.01" min="0" name="pred_amount[<?= (int) $pred['id'] ?>]" value="<?= number_format($pred['amount'], 2, '.', '') ?>"
+                                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                                </div>
+                                                <div class="col-span-2 flex items-center gap-2">
+                                                    <label class="flex items-center gap-2 text-xs text-mb-subtle">
+                                                        <input type="checkbox" name="pred_delete[<?= (int) $pred['id'] ?>]" class="accent-red-500">
+                                                        Remove
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="flex items-center justify-between text-sm">
+                                                <span class="text-white"><?= e($pred['label']) ?></span>
+                                                <span class="text-green-400">$<?= number_format($pred['amount'], 2) ?></span>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <p class="text-xs text-mb-subtle">No predictions yet for this date.</p>
+                                <?php endif; ?>
+                            </div>
+                            <?php if ($isAdmin): ?>
+                                <div class="mt-4 grid grid-cols-12 gap-2 items-center">
+                                    <div class="col-span-7">
+                                        <input type="text" name="pred_new_label[<?= e($row['date']) ?>]" placeholder="Prediction note (e.g., Tesla booking)"
+                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                    </div>
+                                    <div class="col-span-3">
+                                        <input type="number" step="0.01" min="0" name="pred_new_amount[<?= e($row['date']) ?>]" placeholder="0.00"
+                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                    </div>
+                                    <div class="col-span-2">
+                                        <button type="submit"
+                                            class="w-full bg-mb-accent text-white px-3 py-2 rounded-lg text-xs hover:bg-mb-accent/80 transition-colors">
+                                            Add & Save
+                                        </button>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                     <?php foreach ($days as $row):
                         $gap = $row['expected'] - $row['target'];
                         $gapClass = $gap >= 0 ? 'text-green-400' : 'text-red-400';

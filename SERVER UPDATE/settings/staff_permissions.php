@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/activity_log.php';
 auth_require_admin();
 $pdo = db();
 
@@ -15,6 +16,7 @@ $allPerms = [
     'manage_clients'    => 'Manage Clients',
     'view_finances'     => 'View Financial Data',
     'manage_staff'      => 'View Staff Section',
+    'view_staff_monitor'=> 'View Staff Monitor',
 ];
 
 // Handle bulk permission save
@@ -47,6 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     app_log('ACTION', 'Updated staff permissions settings');
+    log_activity($pdo, 'update_settings', 'settings', 0, 'Updated staff permissions');
 flash('success', 'Permissions updated successfully.');
     redirect('staff_permissions.php');
 }
@@ -183,6 +186,7 @@ const permLabels = {
     'manage_clients': 'Manage Clients',
     'view_finances': 'View Financial Data',
     'manage_staff': 'View Staff Section',
+    'view_staff_monitor': 'View Staff Monitor',
 };
 
 function syncPermissions(changedCheckbox) {

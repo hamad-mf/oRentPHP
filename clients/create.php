@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/client_helpers.php';
+require_once __DIR__ . '/../includes/activity_log.php';
 if (!auth_has_perm('manage_clients')) {
     flash('error', 'You do not have permission to add clients.');
     redirect('index.php');
@@ -157,6 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             app_log('ACTION', "Created client: $name (ID: $id)");
+            log_activity($pdo, 'create_client', 'client', (int)$id, "Added client $name ($phone)");
             flash('success', "Client $name added successfully.");
             redirect("show.php?id=$id");
         }

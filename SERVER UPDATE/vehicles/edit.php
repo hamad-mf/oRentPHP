@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/vehicle_helpers.php';
+require_once __DIR__ . '/../includes/activity_log.php';
 if (!auth_has_perm('add_vehicles')) {
     flash('error', 'You do not have permission to edit vehicles.');
     redirect('index.php');
@@ -275,6 +276,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         app_log('ACTION', "Updated vehicle (ID: $id)");
+        log_activity($pdo, 'edit_vehicle', 'vehicle', $id, "Edited vehicle $brand $model ($plate)");
         flash('success', 'Vehicle updated successfully.');
         redirect("show.php?id=$id");
     }

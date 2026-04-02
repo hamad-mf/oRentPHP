@@ -132,8 +132,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $fType = $_GET['type'] ?? '';
 $fAccount = trim((string) ($_GET['account'] ?? ''));
-$fDateFrom = $_GET['date_from'] ?? date('Y-m-01');
-$fDateTo = $_GET['date_to'] ?? date('Y-m-d');
+$hasFilters = !empty($_GET);
+$fDateFrom = $hasFilters ? trim((string)($_GET['date_from'] ?? '')) : date('Y-m-01');
+$fDateTo = $hasFilters ? trim((string)($_GET['date_to'] ?? '')) : date('Y-m-d');
 $fSource = $_GET['source'] ?? '';
 $fCategory = trim($_GET['category'] ?? '');
 $includeVoided = (string)($_GET['include_voided'] ?? '') === '1';
@@ -406,7 +407,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="flex items-center flex-wrap gap-3">
                 <h2 class="text-white font-light leading-none m-0 p-0 shrink-0" style="margin:0;padding:0;line-height:1">Ledger</h2>
                 <!-- Filters -->
-                <form method="GET" class="flex flex-wrap gap-2 items-center ml-auto">
+                <form method="GET" id="ledgerFilterForm" class="flex flex-wrap gap-2 items-center ml-auto">
                     <select name="type" onchange="this.form.submit()"
                         class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 h-10 text-white text-xs focus:outline-none focus:border-mb-accent">
                         <option value="">All Types</option>
@@ -723,6 +724,11 @@ require_once __DIR__ . '/../includes/header.php';
 
 <script>
     // ── Accounts view toggle (Monthly / All-time) ──────────────────────────
+    // Monthly period dates from PHP
+    var _monthlyFrom = '<?= e($accMPS) ?>';
+    var _monthlyTo   = '<?= e($accMPE) ?>';
+    var _isInitialLoad = true;
+
     function switchAccView(v) {
         var isMonthly = v === 'monthly';
 
@@ -747,9 +753,41 @@ require_once __DIR__ . '/../includes/header.php';
             btnA.className = 'text-xs px-3 py-1 rounded-full transition-colors font-medium bg-mb-accent text-white';
             btnM.className = 'text-xs px-3 py-1 rounded-full transition-colors font-medium text-mb-subtle hover:text-white';
         }
+
+        // Update ledger date filters and resubmit (skip on initial page load)
+        if (!_isInitialLoad) {
+            var form = document.getElementById('ledgerFilterForm');
+            if (form) {
+                var dateFrom = form.querySelector('input[name="date_from"]');
+                var dateTo   = form.querySelector('input[name="date_to"]');
+                if (dateFrom && dateTo) {
+                    if (isMonthly) {
+                        dateFrom.value = _monthlyFrom;
+                        dateTo.value   = _monthlyTo;
+                    } else {
+                        dateFrom.value = '';
+                        dateTo.value   = '';
+                    }
+                    form.submit();
+                    return;
+                }
+            }
+        }
     }
-    // Default: Monthly on page load
-    switchAccView('monthly');
+
+    // Detect current view from URL dates
+    (function() {
+        var params = new URLSearchParams(window.location.search);
+        var df = params.get('date_from') || '';
+        var dt = params.get('date_to') || '';
+        // If both dates are empty, we're in all-time mode
+        if (df === '' && dt === '' && params.has('date_from')) {
+            switchAccView('alltime');
+        } else {
+            switchAccView('monthly');
+        }
+        _isInitialLoad = false;
+    })();
 
     function toggleEntryBankField() {
         const modeEl = document.getElementById('entryPaymentMode');

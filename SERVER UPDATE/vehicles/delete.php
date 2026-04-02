@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/activity_log.php';
 if (!auth_has_perm('add_vehicles')) {
     flash('error', 'You do not have permission to delete vehicles.');
     redirect('index.php');
@@ -39,5 +40,6 @@ foreach ($docs->fetchAll() as $doc) {
 
 $pdo->prepare('DELETE FROM vehicles WHERE id = ?')->execute([$id]);
 app_log('ACTION', "Deleted vehicle: {$vehicle['brand']} {$vehicle['model']} (ID: $id)");
+log_activity($pdo, 'delete_vehicle', 'vehicle', $id, "Deleted vehicle {$vehicle['brand']} {$vehicle['model']} ({$vehicle['license_plate']})");
 flash('success', "{$vehicle['brand']} {$vehicle['model']} has been removed from the fleet.");
 redirect('index.php');
