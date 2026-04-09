@@ -96,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $postedAt,
                 $userId > 0 ? $userId : null,
             ]);
+            $creditPaymentEntryId = (int) $pdo->lastInsertId();
 
             // Add received funds to cash/bank stream.
             $insertStmt->execute([
@@ -117,6 +118,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ->execute([$amount, $resolvedBankAccountId]);
             }
 
+            // NEW: Create payment allocation linking payment to specific credit income entry
+            $creditIncomeEntryId = (int) ($_POST['credit_income_entry_id'] ?? 0);
+            if ($creditIncomeEntryId > 0) {
+                // Verify the entry exists and is a valid credit income entry
+                $entryCheck = $pdo->prepare("SELECT id, amount FROM ledger_entries 
+                    WHERE id = ? AND payment_mode = 'credit' AND txn_type = 'income' AND voided_at IS NULL LIMIT 1");
+                $entryCheck->execute([$creditIncomeEntryId]);
+                $incomeEntry = $entryCheck->fetch();
+                
+                if ($incomeEntry) {
+                    // Calculate how much of this entry is already paid
+                    $allocatedStmt = $pdo->prepare("SELECT COALESCE(SUM(allocated_amount), 0) 
+                        FROM credit_payment_allocations WHERE credit_income_entry_id = ?");
+                    $allocatedStmt->execute([$creditIncomeEntryId]);
+                    $alreadyAllocated = (float) $allocatedStmt->fetchColumn();
+                    
+                    $entryAmount = (float) $incomeEntry['amount'];
+                    $remainingUnpaid = $entryAmount - $alreadyAllocated;
+                    
+                    // Allocate to this entry (up to the remaining unpaid amount)
+                    $allocateToThisEntry = min($amount, $remainingUnpaid);
+                    
+                    if ($allocateToThisEntry > 0) {
+                        $pdo->prepare("INSERT INTO credit_payment_allocations 
+                            (credit_income_entry_id, credit_payment_entry_id, allocated_amount) 
+                            VALUES (?, ?, ?)")
+                            ->execute([$creditIncomeEntryId, $creditPaymentEntryId, $allocateToThisEntry]);
+                    }
+                    
+                    // If payment exceeds this entry, allocate remainder to other unpaid entries (FIFO)
+                    $remainingPayment = $amount - $allocateToThisEntry;
+                    if ($remainingPayment > 0.001) {
+                        // Get other unpaid credit income entries (FIFO order)
+                        $unpaidEntries = $pdo->prepare("
+                            SELECT le.id, le.amount, COALESCE(SUM(cpa.allocated_amount), 0) as allocated
+                            FROM ledger_entries le
+                            LEFT JOIN credit_payment_allocations cpa ON cpa.credit_income_entry_id = le.id
+                            WHERE le.payment_mode = 'credit' 
+                              AND le.txn_type = 'income' 
+                              AND le.voided_at IS NULL
+                              AND le.id != ?
+                            GROUP BY le.id, le.amount, le.posted_at
+                            HAVING (le.amount - COALESCE(SUM(cpa.allocated_amount), 0)) > 0.001
+                            ORDER BY le.posted_at ASC, le.id ASC
+                        ");
+                        $unpaidEntries->execute([$creditIncomeEntryId]);
+                        
+                        while ($unpaidEntry = $unpaidEntries->fetch()) {
+                            if ($remainingPayment <= 0.001) break;
+                            
+                            $unpaidAmount = (float) $unpaidEntry['amount'] - (float) $unpaidEntry['allocated'];
+                            $allocateAmount = min($remainingPayment, $unpaidAmount);
+                            
+                            $pdo->prepare("INSERT INTO credit_payment_allocations 
+                                (credit_income_entry_id, credit_payment_entry_id, allocated_amount) 
+                                VALUES (?, ?, ?)")
+                                ->execute([$unpaidEntry['id'], $creditPaymentEntryId, $allocateAmount]);
+                            
+                            $remainingPayment -= $allocateAmount;
+                        }
+                    }
+                }
+            }
+
             $pdo->commit();
             app_log('ACTION', "Ledger: credit payment settled amount=$amount mode=$receiveMode user_id=$userId");
             flash('success', 'Payment added successfully.');
@@ -135,10 +200,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$creditIncome  = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='income' AND voided_at IS NULL")->fetchColumn();
-$creditExpense = (float) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='credit' AND txn_type='expense' AND voided_at IS NULL")->fetchColumn();
-$creditBalance = $creditIncome - $creditExpense;
-$creditClients = (int) $pdo->query("SELECT COUNT(DISTINCT c.id) FROM ledger_entries le JOIN reservations r ON le.source_type='reservation' AND le.source_id=r.id JOIN clients c ON c.id=r.client_id WHERE le.payment_mode='credit' AND le.voided_at IS NULL")->fetchColumn();
+// Calculate outstanding credit (unpaid credit income only)
+$creditBalance = (float) $pdo->query("
+    SELECT COALESCE(SUM(le.amount - COALESCE(paid.allocated, 0)), 0)
+    FROM ledger_entries le
+    LEFT JOIN (
+        SELECT credit_income_entry_id, SUM(allocated_amount) as allocated
+        FROM credit_payment_allocations
+        GROUP BY credit_income_entry_id
+    ) paid ON paid.credit_income_entry_id = le.id
+    WHERE le.payment_mode = 'credit' 
+      AND le.txn_type = 'income' 
+      AND le.voided_at IS NULL
+      AND (le.amount - COALESCE(paid.allocated, 0)) > 0.001
+")->fetchColumn();
+// Count clients with unpaid credit income
+$creditClients = (int) $pdo->query("
+    SELECT COUNT(DISTINCT c.id)
+    FROM ledger_entries le
+    JOIN reservations r ON le.source_type='reservation' AND le.source_id=r.id
+    JOIN clients c ON c.id=r.client_id
+    LEFT JOIN (
+        SELECT credit_income_entry_id, SUM(allocated_amount) as allocated
+        FROM credit_payment_allocations
+        GROUP BY credit_income_entry_id
+    ) paid ON paid.credit_income_entry_id = le.id
+    WHERE le.payment_mode='credit' 
+      AND le.txn_type='income'
+      AND le.voided_at IS NULL
+      AND (le.amount - COALESCE(paid.allocated, 0)) > 0.001
+")->fetchColumn();
 $creditBalanceLimit = max(0, $creditBalance);
 $canAddPayment = $creditBalanceLimit > 0;
 
@@ -180,22 +271,16 @@ require_once __DIR__ . '/../includes/header.php';
         Back to Accounts
     </a>
 
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
-            <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">Credit Income</p>
-            <p class="text-xl font-light text-amber-400">$<?= number_format($creditIncome, 2) ?></p>
-        </div>
-        <div class="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
-            <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">Credit Expenses</p>
-            <p class="text-xl font-light text-red-400">$<?= number_format($creditExpense, 2) ?></p>
-        </div>
-        <div class="bg-mb-accent/5 border border-mb-accent/20 rounded-xl p-4">
-            <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">Net Credit</p>
-            <p class="text-xl font-light <?= $creditBalance >= 0 ? 'text-amber-400' : 'text-red-400' ?>">$<?= number_format($creditBalance, 2) ?></p>
+            <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">Outstanding Credit</p>
+            <p class="text-2xl font-light <?= $creditBalance >= 0 ? 'text-amber-400' : 'text-red-400' ?>">$<?= number_format($creditBalance, 2) ?></p>
+            <p class="text-[10px] text-mb-subtle mt-1">Amount to collect back</p>
         </div>
         <div class="bg-purple-500/5 border border-purple-500/20 rounded-xl p-4">
             <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">Clients on Credit</p>
-            <p class="text-xl font-light text-purple-400"><?= $creditClients ?></p>
+            <p class="text-2xl font-light text-purple-400"><?= $creditClients ?></p>
+            <p class="text-[10px] text-mb-subtle mt-1">Unique clients with credit</p>
         </div>
     </div>
 
@@ -249,8 +334,35 @@ require_once __DIR__ . '/../includes/header.php';
                             $isIncome = $row['txn_type'] === 'income';
                             $isVoided = !empty($row['voided_at']);
                             $rowAmount = (float) $row['amount'];
-                            $prefillAmount = min($creditBalanceLimit, $rowAmount);
-                            $canRowSettle = $canAddPayment && $isIncome && $prefillAmount > 0 && !$isVoided;
+                            $entryId = (int) $row['id'];
+                            
+                            // NEW: Calculate allocated amount for this entry
+                            $allocatedAmount = 0;
+                            $remainingUnpaid = $rowAmount;
+                            $isFullyPaid = false;
+                            $isPartiallyPaid = false;
+                            
+                            if ($isIncome && !$isVoided) {
+                                $allocatedStmt = $pdo->prepare("
+                                    SELECT COALESCE(SUM(allocated_amount), 0) 
+                                    FROM credit_payment_allocations 
+                                    WHERE credit_income_entry_id = ?
+                                ");
+                                $allocatedStmt->execute([$entryId]);
+                                $allocatedAmount = (float) $allocatedStmt->fetchColumn();
+                                
+                                $remainingUnpaid = max(0, $rowAmount - $allocatedAmount);
+                                $isFullyPaid = $allocatedAmount >= $rowAmount && $allocatedAmount > 0;
+                                $isPartiallyPaid = $allocatedAmount > 0 && $allocatedAmount < $rowAmount;
+                            }
+                            
+                            // Skip fully paid credit income entries
+                            if ($isFullyPaid) {
+                                continue;
+                            }
+                            
+                            $prefillAmount = min($creditBalanceLimit, $remainingUnpaid);
+                            $canRowSettle = $canAddPayment && $isIncome && $remainingUnpaid > 0.001 && !$isVoided;
                             $amtColor = $isIncome ? 'text-amber-400' : 'text-red-400';
                             $typeBg   = $isIncome ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400';
                     ?>
@@ -275,13 +387,28 @@ require_once __DIR__ . '/../includes/header.php';
                                     </div>
                                 <?php endif; ?>
                             </td>
-                            <td class="px-6 py-3 text-right <?= $amtColor ?> font-medium whitespace-nowrap<?= $isVoided ? ' line-through' : '' ?>"><?= $isIncome ? '+' : '-' ?>$<?= number_format($rowAmount, 2) ?></td>
+                            <td class="px-6 py-3 text-right">
+                                <div class="flex flex-col items-end gap-1">
+                                    <span class="<?= $amtColor ?> font-medium whitespace-nowrap<?= $isVoided ? ' line-through' : '' ?>">
+                                        <?= $isIncome ? '+' : '-' ?>$<?= number_format($rowAmount, 2) ?>
+                                    </span>
+                                    <?php if ($isPartiallyPaid): ?>
+                                        <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                                            Paid: $<?= number_format($allocatedAmount, 2) ?> / $<?= number_format($rowAmount, 2) ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
                             <td class="px-6 py-3 text-right whitespace-nowrap">
                                 <?php if ($canRowSettle): ?>
                                     <button type="button"
-                                        onclick="openCreditPaymentModal(<?= json_encode(round($prefillAmount, 2)) ?>)"
+                                        onclick="openCreditPaymentModal(<?= json_encode(round($prefillAmount, 2)) ?>, <?= $entryId ?>)"
                                         class="text-xs px-3 py-1.5 rounded-full border bg-mb-accent/15 text-mb-accent border-mb-accent/30 hover:bg-mb-accent/25 transition-colors">
-                                        Add Payment
+                                        <?php if ($isPartiallyPaid): ?>
+                                            Pay Remaining ($<?= number_format($remainingUnpaid, 2) ?>)
+                                        <?php else: ?>
+                                            Add Payment
+                                        <?php endif; ?>
                                     </button>
                                 <?php else: ?>
                                     <span class="text-mb-subtle">&mdash;</span>
@@ -316,6 +443,7 @@ echo render_pagination($pg, $paginationParams);
 
         <form method="POST" class="space-y-4" id="creditPaymentForm">
             <input type="hidden" name="action" value="add_payment">
+            <input type="hidden" name="credit_income_entry_id" id="creditPaymentEntryId" value="">
             <input type="hidden" id="creditPaymentMax" value="<?= number_format($creditBalanceLimit, 2, '.', '') ?>">
 
             <div>
@@ -412,17 +540,21 @@ function validateCreditPaymentAmount() {
     }
 }
 
-function openCreditPaymentModal(prefillAmount) {
+function openCreditPaymentModal(prefillAmount, entryId) {
     const modal = document.getElementById('creditPaymentModal');
     const modeEl = document.getElementById('creditPaymentMode');
     const bankEl = document.getElementById('creditPaymentBankAccount');
     const amountEl = document.getElementById('creditPaymentAmount');
     const maxEl = document.getElementById('creditPaymentMax');
+    const entryIdField = document.getElementById('creditPaymentEntryId');
     const maxAmount = maxEl ? parseFloat(maxEl.value || '0') : 0;
     if (!modal || maxAmount <= 0) return;
 
     if (modeEl) modeEl.value = 'cash';
     if (bankEl) bankEl.value = '';
+    if (entryIdField) {
+        entryIdField.value = entryId || '';
+    }
     if (amountEl) {
         const parsedPrefill = parseFloat(prefillAmount);
         if (!Number.isNaN(parsedPrefill) && parsedPrefill > 0) {

@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/ledger_helpers.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
 require_once __DIR__ . '/../includes/notifications.php';
+require_once __DIR__ . '/../includes/voucher_helpers.php';
 $pdo = db();
 auth_require_admin();
 
@@ -10,11 +11,13 @@ $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
 if (!$id) { flash('error','Invalid reservation.'); redirect('index.php'); }
 
 // Load reservation with joined info
-$rq = $pdo->prepare("SELECT r.*, c.name AS client_name, v.brand, v.model, v.license_plate, v.id AS vid FROM reservations r JOIN clients c ON c.id=r.client_id JOIN vehicles v ON v.id=r.vehicle_id WHERE r.id=?");
+$rq = $pdo->prepare("SELECT r.*, c.name AS client_name, c.id AS cid, v.brand, v.model, v.license_plate, v.id AS vid FROM reservations r JOIN clients c ON c.id=r.client_id JOIN vehicles v ON v.id=r.vehicle_id WHERE r.id=?");
 $rq->execute([$id]);
 $r = $rq->fetch();
 if (!$r) { flash('error','Reservation not found.'); redirect('index.php'); }
-if ($r['status'] !== 'active') { flash('error','Only active reservations can be cancelled.'); redirect("show.php?id=$id"); }
+$cancelableStatuses = ['pending', 'confirmed', 'active'];
+if (!in_array($r['status'], $cancelableStatuses, true)) { flash('error','This reservation cannot be cancelled.'); redirect("show.php?id=$id"); }
+$isPreDelivery = in_array($r['status'], ['pending', 'confirmed'], true);
 
 // Runtime migration: add cancellation columns if missing
 try {
@@ -33,17 +36,30 @@ try {
     ]);
 }
 
-// Collect what was taken from the customer at delivery
+// Collect what was taken from the customer
 $deliveryPaid   = (float)($r['delivery_paid_amount'] ?? 0);
 $deliveryMethod = $r['delivery_payment_method'] ?? null;
 $advancePaid    = (float)($r['advance_paid'] ?? 0);
+$advanceMethod  = $r['advance_payment_method'] ?? null;
+$advanceBankId  = !empty($r['advance_bank_account_id']) ? (int)$r['advance_bank_account_id'] : null;
 $deliveryPrepaid = (float)($r['delivery_charge_prepaid'] ?? 0);
 $extensionPaid = (float)($r['extension_paid_amount'] ?? 0);
-$maxRefund = $deliveryPaid + $advancePaid + $deliveryPrepaid + $extensionPaid;
-// Fetch bank_account_id from ledger_entries (not stored directly on reservation)
-$ledBankRow = $pdo->prepare("SELECT bank_account_id FROM ledger_entries WHERE source_type='reservation' AND source_id=? AND source_event='delivery' AND bank_account_id IS NOT NULL ORDER BY id DESC LIMIT 1");
-$ledBankRow->execute([$id]);
-$deliveryBankId = $ledBankRow->fetchColumn() ?: null;
+$voucherApplied = (float)($r['voucher_applied'] ?? 0);
+
+if ($isPreDelivery) {
+    // Before delivery: only advance + delivery prepaid could have been collected
+    $maxRefund = $advancePaid + $deliveryPrepaid;
+    // Use advance payment method for refund since delivery hasn't happened
+    $refundMethod = $advanceMethod ?? 'cash';
+    $refundBankId = $advanceBankId;
+} else {
+    $maxRefund = $deliveryPaid + $advancePaid + $deliveryPrepaid + $extensionPaid;
+    // Fetch bank_account_id from ledger_entries (not stored directly on reservation)
+    $ledBankRow = $pdo->prepare("SELECT bank_account_id FROM ledger_entries WHERE source_type='reservation' AND source_id=? AND source_event='delivery' AND bank_account_id IS NOT NULL ORDER BY id DESC LIMIT 1");
+    $ledBankRow->execute([$id]);
+    $refundBankId = $ledBankRow->fetchColumn() ?: null;
+    $refundMethod = $deliveryMethod ?? 'cash';
+}
 
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -70,29 +86,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                            WHERE id=? 
                            AND NOT EXISTS (
                                SELECT 1 FROM reservations 
-                               WHERE vehicle_id = ? AND status = 'active' AND id != ?
+                               WHERE vehicle_id = ? AND status IN ('active','confirmed') AND id != ?
                            )")->execute([$r['vid'], $r['vid'], $id]);
 
             // 3. Post refund as expense in ledger (reverses the income) — only if refund > 0
             if ($refund > 0) {
-                // Resolve original bank account
                 $bankId = null;
-                if ($deliveryMethod === 'account' && $deliveryBankId) {
-                    $bankId = (int)$deliveryBankId;
+                if ($refundMethod === 'account' && $refundBankId) {
+                    $bankId = (int)$refundBankId;
                 }
-                // If cash, no bank account to adjust; for account payments reduce bank balance
                 $now = app_now_sql();
                 $pdo->prepare("INSERT INTO ledger_entries (txn_type,category,description,amount,payment_mode,bank_account_id,source_type,source_id,source_event,posted_at,created_by) VALUES ('expense','Reservation Cancellation Refund',?,?,?,?,'reservation',?,'cancellation',?,?)")
-                    ->execute(["Refund — Reservation #$id cancelled. Reason: $reason", $refund, $deliveryMethod, $bankId, $id, $now, $admin['id']]);
-                // Adjust bank balance if payment was account-based
+                    ->execute(["Refund — Reservation #$id cancelled. Reason: $reason", $refund, $refundMethod, $bankId, $id, $now, $admin['id']]);
                 if ($bankId) {
                     $pdo->prepare("UPDATE bank_accounts SET balance = balance - ? WHERE id=?")->execute([$refund, $bankId]);
                 }
             }
 
-            // 4. Log activity
+            // 4. Restore voucher balance if voucher was used on this booking
+            if ($voucherApplied > 0 && !empty($r['cid'])) {
+                voucher_add_credit($pdo, (int)$r['cid'], $voucherApplied, $id, 'Voucher restored — reservation #' . $id . ' cancelled.');
+            }
+
+            // 5. Log activity
             require_once __DIR__ . '/../includes/activity_log.php';
-            log_activity($pdo, 'cancellation', 'reservation', $id, "Cancelled reservation #{$id} — {$r['client_name']}  {$r['brand']} {$r['model']} ({$r['license_plate']}). Refund: \$$refund. Reason: $reason.");
+            $voucherNote = $voucherApplied > 0 ? " Voucher \${$voucherApplied} restored." : '';
+            log_activity($pdo, 'cancellation', 'reservation', $id, "Cancelled reservation #{$id} — {$r['client_name']}  {$r['brand']} {$r['model']} ({$r['license_plate']}). Refund: \$$refund.{$voucherNote} Reason: $reason.");
 
             $pdo->commit();
             app_log('ACTION', "Cancelled reservation #$id. Refund: $refund.");
@@ -101,7 +120,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $vehicleName = $r['brand'] . ' ' . $r['model'];
             notif_create_reservation_event($pdo, $id, 'cancelled', $r['client_name'], $vehicleName);
 
-            flash('success', "Reservation #{$id} cancelled. Refund amount: \$" . number_format($refund, 2) . '.');
+            $msg = "Reservation #{$id} cancelled. Refund amount: \$" . number_format($refund, 2) . '.';
+            if ($voucherApplied > 0) {
+                $msg .= ' Voucher balance of $' . number_format($voucherApplied, 2) . ' restored to client.';
+            }
+            flash('success', $msg);
             redirect("show.php?id=$id");
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
@@ -128,8 +151,8 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-5 flex gap-4">
         <div class="text-red-400 mt-0.5"></div>
         <div>
-            <p class="text-red-300 font-medium">Cancel Active Reservation</p>
-            <p class="text-red-400/70 text-sm mt-1">This will mark the reservation as cancelled, free the vehicle, and post a refund entry to the ledger. This action cannot be undone.</p>
+            <p class="text-red-300 font-medium">Cancel Reservation</p>
+            <p class="text-red-400/70 text-sm mt-1">This will mark the reservation as cancelled, free the vehicle, reverse any advance income, restore any voucher used, and post a refund entry to the ledger. This action cannot be undone.</p>
         </div>
     </div>
 
@@ -147,7 +170,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div><p class="text-mb-subtle text-xs uppercase mb-1">Client</p><p class="text-white"><?= e($r['client_name']) ?></p></div>
             <div><p class="text-mb-subtle text-xs uppercase mb-1">Vehicle</p><p class="text-white"><?= e($r['brand'].' '.$r['model']) ?></p><p class="text-mb-subtle text-xs"><?= e($r['license_plate']) ?></p></div>
             <div><p class="text-mb-subtle text-xs uppercase mb-1">Period</p><p class="text-white"><?= date('d M Y', strtotime($r['start_date'])) ?>  <?= date('d M Y', strtotime($r['end_date'])) ?></p></div>
-            <div><p class="text-mb-subtle text-xs uppercase mb-1">Status</p><span class="text-green-400 bg-green-500/10 border border-green-500/30 px-2 py-0.5 rounded-full text-xs">Active</span></div>
+            <div><p class="text-mb-subtle text-xs uppercase mb-1">Status</p><span class="<?= $isPreDelivery ? 'text-sky-400 bg-sky-500/10 border-sky-500/30' : 'text-green-400 bg-green-500/10 border-green-500/30' ?> px-2 py-0.5 rounded-full text-xs border capitalize"><?= e($r['status']) ?></span></div>
         </div>
 
         <!-- Amount collected so far -->
@@ -165,15 +188,15 @@ require_once __DIR__ . '/../includes/header.php';
             $delDisc = $delDiscType === 'percent' ? round($delBase * min($delDiscVal,100)/100,2) : ($delDiscType==='amount'?min($delDiscVal,$delBase):0);
             $collectedAtDelivery = max(0, $delBase - $delDisc);
             ?>
-            <?php if ($voucherAmt > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Voucher Used</span><span class="text-green-400">-$<?= number_format($voucherAmt,2) ?></span></div><?php endif; ?>
+            <?php if ($voucherApplied > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Voucher Used</span><span class="text-green-400">-$<?= number_format($voucherApplied,2) ?></span><span class="text-green-400/60 text-xs">(will be restored)</span></div><?php endif; ?>
             <?php if ($advancePaid > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Advance Collected</span><span class="text-purple-300">+$<?= number_format($advancePaid,2) ?></span></div><?php endif; ?>
             <?php if ($deliveryPrepaid > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Delivery Charge Collected at Booking</span><span class="text-blue-300">+$<?= number_format($deliveryPrepaid,2) ?></span></div><?php endif; ?>
-            <?php if ($extensionPaid > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Extension Collected (Grace)</span><span class="text-sky-300">+$<?= number_format($extensionPaid,2) ?></span></div><?php endif; ?>
-            <?php if ($delCharge > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Delivery Charge</span><span class="text-white">+$<?= number_format($delCharge,2) ?></span></div><?php endif; ?>
-            <?php if ($delDisc > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Delivery Discount</span><span class="text-green-400">-$<?= number_format($delDisc,2) ?></span></div><?php endif; ?>
+            <?php if (!$isPreDelivery && $extensionPaid > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Extension Collected (Grace)</span><span class="text-sky-300">+$<?= number_format($extensionPaid,2) ?></span></div><?php endif; ?>
+            <?php if (!$isPreDelivery && $delCharge > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Delivery Charge</span><span class="text-white">+$<?= number_format($delCharge,2) ?></span></div><?php endif; ?>
+            <?php if (!$isPreDelivery && $delDisc > 0): ?><div class="flex justify-between text-sm"><span class="text-mb-subtle">Delivery Discount</span><span class="text-green-400">-$<?= number_format($delDisc,2) ?></span></div><?php endif; ?>
             <div class="flex justify-between items-center bg-mb-black/40 rounded-lg px-4 py-3 border border-mb-subtle/20">
-                <span class="text-white font-medium text-sm"> Total Collected at Delivery</span>
-                <span class="text-mb-accent font-bold text-xl">$<?= number_format($deliveryPaid, 2) ?></span>
+                <span class="text-white font-medium text-sm"><?= $isPreDelivery ? '💰 Total Collected (Advance + Prepaid)' : '💰 Total Collected at Delivery' ?></span>
+                <span class="text-mb-accent font-bold text-xl">$<?= $isPreDelivery ? number_format($maxRefund, 2) : number_format($deliveryPaid, 2) ?></span>
             </div>
             <?php if ($maxRefund > 0): ?>
                 <div class="flex justify-between items-center bg-mb-black/30 rounded-lg px-4 py-2 border border-mb-subtle/10">

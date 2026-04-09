@@ -7,6 +7,7 @@ if (!auth_has_perm('add_reservations')) {
 require_once __DIR__ . '/../includes/reservation_payment_helpers.php';
 require_once __DIR__ . '/../includes/ledger_helpers.php';
 require_once __DIR__ . '/../includes/activity_log.php';
+require_once __DIR__ . '/../includes/voucher_helpers.php';
 $id = (int) ($_GET['id'] ?? 0);
 $pdo = db();
 reservation_payment_ensure_schema($pdo);
@@ -92,16 +93,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors['client_id'] = 'Client is blacklisted.';
     }
 
-    // Advance validation
+    // Advance validation - allow excess on edit, will convert to voucher
+    $remainingAfterVoucher = max(0, $totalPrice - $voucherApplied);
+    $excessAdvance = 0;
+    
     if ($advancePaid > 0) {
-        $remainingAfterVoucher = max(0, $totalPrice - $voucherApplied);
+        // Check if advance exceeds new total - convert excess to voucher
         if ($advancePaid > $remainingAfterVoucher) {
-            $errors['advance_paid'] = 'Advance cannot exceed amount after voucher ($' . number_format($remainingAfterVoucher, 2) . ').';
+            $excessAdvance = $advancePaid - $remainingAfterVoucher;
+            // Adjust advance to match total (excess will be converted to voucher)
+            $advancePaid = $remainingAfterVoucher;
         }
-        if (!isset($errors['advance_paid']) && $advanceMethod === null) {
+        
+        if ($advanceMethod === null) {
             $errors['advance_payment_method'] = 'Please select how the advance was received.';
         }
-        if (!isset($errors['advance_paid']) && $advanceMethod === 'account') {
+        if (!isset($errors['advance_payment_method']) && $advanceMethod === 'account') {
             if ($advanceBankId === null) {
                 $errors['advance_bank_account_id'] = 'Please select the bank account for the advance.';
             }
@@ -191,9 +198,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
 
+        // Convert excess advance to voucher if any
+        if ($excessAdvance > 0) {
+            voucher_ensure_schema($pdo);
+            voucher_add_credit($pdo, $clientId, $excessAdvance, $id, "Excess advance from reservation #$id vehicle change");
+            app_log('ACTION', "Converted excess advance of \${$excessAdvance} to voucher for client ID {$clientId}");
+        }
+
         app_log('ACTION', "Updated reservation (ID: $id)");
         log_activity($pdo, 'edit_reservation', 'reservation', $id, "Edited reservation #$id — \$$totalPrice");
-        flash('success', 'Reservation updated.');
+        
+        if ($excessAdvance > 0) {
+            flash('success', 'Reservation updated. Excess advance of $' . number_format($excessAdvance, 2) . ' converted to voucher credit for client.');
+        } else {
+            flash('success', 'Reservation updated.');
+        }
         redirect("show.php?id=$id");
     }
     $r = array_merge($r, $_POST);
@@ -241,6 +260,23 @@ require_once __DIR__ . '/../includes/header.php';
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
+
+    <!-- Voucher Conversion Warning (shown via JS when advance > total) -->
+    <div id="voucherWarning" class="hidden bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+        <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div class="flex-1 text-sm">
+                <p class="text-amber-300 font-medium mb-2">Advance Exceeds New Total Price</p>
+                <div class="text-amber-200/80 space-y-1">
+                    <p>• Original Advance: <span id="origAdvance" class="font-mono">$0.00</span></p>
+                    <p>• New Total Price: <span id="newTotal" class="font-mono">$0.00</span></p>
+                    <p class="text-amber-300 font-medium mt-2">→ Excess of <span id="excessAmount" class="font-mono">$0.00</span> will be converted to voucher credit for this client</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <form method="POST" class="space-y-6" id="resForm">
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-5">
@@ -635,6 +671,35 @@ function toggleDeliveryQuotedBankField() {
 }
 document.getElementById('deliveryChargeQuoted')?.addEventListener('input', updateDeliveryQuotedSection);
 document.querySelectorAll('input[name="delivery_quoted_payment_method"]').forEach(r => r.addEventListener('change', toggleDeliveryQuotedBankField));
+
+// Voucher conversion warning
+function checkVoucherConversion() {
+    const advInput = document.getElementById('advancePaid');
+    const totalInput = document.getElementById('totalPrice');
+    const warning = document.getElementById('voucherWarning');
+    
+    if (!advInput || !totalInput || !warning) return;
+    
+    const advance = parseFloat(advInput.value || '0');
+    const total = parseFloat(totalInput.value || '0');
+    
+    if (advance > total && total > 0) {
+        const excess = advance - total;
+        document.getElementById('origAdvance').textContent = '$' + advance.toFixed(2);
+        document.getElementById('newTotal').textContent = '$' + total.toFixed(2);
+        document.getElementById('excessAmount').textContent = '$' + excess.toFixed(2);
+        warning.classList.remove('hidden');
+    } else {
+        warning.classList.add('hidden');
+    }
+}
+
+// Check on page load and when values change
+checkVoucherConversion();
+document.getElementById('advancePaid')?.addEventListener('input', checkVoucherConversion);
+document.getElementById('totalPrice')?.addEventListener('input', checkVoucherConversion);
+vehicleSelect?.addEventListener('change', () => setTimeout(checkVoucherConversion, 100));
+
 </script>
 JS;
 require_once __DIR__ . '/../includes/footer.php';

@@ -28,6 +28,29 @@ $iStmt = $pdo->prepare("SELECT * FROM vehicle_inspections WHERE reservation_id=?
 $iStmt->execute([$id]);
 $delivery = $iStmt->fetch();
 
+// Fetch delivery inspection photos
+$deliveryPhotos = [];
+$scratchPhotos = [];
+if ($delivery) {
+    $photoStmt = $pdo->prepare("SELECT * FROM inspection_photos WHERE inspection_id=? ORDER BY view_name");
+    $photoStmt->execute([$delivery['id']]);
+    $deliveryPhotos = $photoStmt->fetchAll();
+    
+    $scratchStmt = $pdo->prepare("SELECT * FROM reservation_scratch_photos WHERE reservation_id=? AND event_type='delivery' ORDER BY slot_index");
+    $scratchStmt->execute([$id]);
+    $scratchPhotos = $scratchStmt->fetchAll();
+}
+
+// Fetch permanent scratches for this vehicle
+$permanentScratches = [];
+try {
+    $psStmt = $pdo->prepare('SELECT * FROM vehicle_permanent_scratches WHERE vehicle_id = ? ORDER BY created_at ASC');
+    $psStmt->execute([$r['vehicle_id']]);
+    $permanentScratches = $psStmt->fetchAll();
+} catch (Throwable $e) {
+    app_log('ERROR', 'Failed to fetch permanent scratches for vehicle ' . $r['vehicle_id'] . ': ' . $e->getMessage());
+}
+
 // Fetch predefined damage costs
 $damageItems = $pdo->query("SELECT * FROM damage_costs ORDER BY item_name ASC")->fetchAll();
 
@@ -442,6 +465,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                WHERE vehicle_id = ? AND status = 'active' AND id != ?
                            )")->execute([$r['vehicle_id'], $r['vehicle_id'], $id]);
 
+            // Create challan record if challan amount > 0
+            if ($chellanAmt > 0) {
+                $chellanDueDate = trim($_POST['chellan_due_date'] ?? '');
+                $chellanDueDateValue = $chellanDueDate !== '' ? $chellanDueDate : null;
+                $chellanTitle = 'Traffic Challan - Reservation #' . $id;
+                
+                $pdo->prepare('INSERT INTO vehicle_challans (vehicle_id, client_id, reservation_id, title, amount, due_date, status, notes) VALUES (?,?,?,?,?,?,?,?)')
+                    ->execute([
+                        $r['vehicle_id'],
+                        $r['client_id'],
+                        $id,
+                        $chellanTitle,
+                        $chellanAmt,
+                        $chellanDueDateValue,
+                        'pending',
+                        'Created during vehicle return'
+                    ]);
+            }
+
             $pdo->prepare("UPDATE clients SET rating=?, rating_review=? WHERE id=?")->execute([$clientRating, $clientRatingReview, $r['client_id']]);
             // Save per-reservation review history (history preserved per return)
             $pdo->prepare("
@@ -608,6 +650,175 @@ require_once __DIR__ . '/../includes/header.php';
                 <p>&bull; <?= e($e) ?></p><?php endforeach; ?>
         </div>
     <?php endif; ?>
+
+    <!-- Delivery Inspection Preview Section -->
+    <div class="bg-mb-surface border-2 border-blue-500/30 rounded-xl overflow-hidden" id="deliveryPreviewContainer">
+        <button type="button" onclick="toggleDeliveryPreview()" class="w-full flex items-center justify-between px-6 py-4 hover:bg-mb-black/30 transition-colors">
+            <div class="flex items-center gap-3">
+                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <h3 class="text-white font-light text-lg">Delivery Inspection Reference</h3>
+            </div>
+            <svg id="deliveryPreviewIcon" class="w-5 h-5 text-mb-subtle transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        
+        <!-- Collapsed Summary View -->
+        <div id="deliveryPreviewSummary" class="hidden px-6 py-3 border-t border-mb-subtle/10 bg-mb-black/20">
+            <div class="flex gap-6 text-sm">
+                <div>
+                    <span class="text-mb-subtle">Location:</span>
+                    <span class="text-white ml-2"><?= !empty($r['delivery_location']) ? e($r['delivery_location']) : 'Not recorded' ?></span>
+                </div>
+                <?php if ($delivery): ?>
+                    <div>
+                        <span class="text-mb-subtle">Mileage:</span>
+                        <span class="text-white ml-2"><?= number_format($delivery['mileage']) ?> km</span>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        
+        <!-- Full Content View -->
+        <div id="deliveryPreviewContent" class="px-6 py-6 space-y-6 border-t border-mb-subtle/10">
+            <?php if (!$delivery): ?>
+                <div class="text-center py-8 text-mb-subtle italic">
+                    <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <p>No delivery inspection data available for this reservation</p>
+                </div>
+            <?php else: ?>
+                <!-- Delivery Metadata -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-mb-black/30 rounded-lg p-4">
+                        <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">Delivery Location</p>
+                        <p class="text-white"><?= !empty($r['delivery_location']) ? e($r['delivery_location']) : '<span class="text-mb-subtle italic">Location not recorded</span>' ?></p>
+                    </div>
+                    <div class="bg-mb-black/30 rounded-lg p-4">
+                        <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">Mileage at Delivery</p>
+                        <p class="text-white"><?= number_format($delivery['mileage']) ?> km</p>
+                    </div>
+                    <div class="bg-mb-black/30 rounded-lg p-4">
+                        <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">Fuel Level at Delivery</p>
+                        <p class="text-white"><?= (int)$delivery['fuel_level'] ?>%</p>
+                    </div>
+                    <?php if (!empty($delivery['notes'])): ?>
+                        <div class="bg-mb-black/30 rounded-lg p-4 md:col-span-2">
+                            <p class="text-xs text-mb-subtle uppercase tracking-wider mb-1">Inspection Notes</p>
+                            <p class="text-white"><?= nl2br(e($delivery['notes'])) ?></p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                
+                <!-- Photos Section -->
+                <?php
+                // Organize photos by category
+                $standardViews = ['front', 'back', 'left', 'right', 'odometer', 'with_customer'];
+                $standardPhotos = array_filter($deliveryPhotos, function($photo) use ($standardViews) {
+                    return in_array($photo['view_name'], $standardViews);
+                });
+                $interiorPhotos = array_filter($deliveryPhotos, function($photo) {
+                    return strpos($photo['view_name'], 'interior_') === 0;
+                });
+                $hasPhotos = !empty($standardPhotos) || !empty($interiorPhotos) || !empty($scratchPhotos);
+                ?>
+                
+                <?php if (!$hasPhotos): ?>
+                    <div class="text-center py-6 text-mb-subtle italic bg-mb-black/20 rounded-lg">
+                        <svg class="w-10 h-10 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <p>No photos available</p>
+                    </div>
+                <?php else: ?>
+                    
+                    <!-- Standard View Photos -->
+                    <?php if (!empty($standardPhotos)): ?>
+                        <div>
+                            <h4 class="text-sm text-mb-silver font-medium mb-3 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                Standard Views
+                            </h4>
+                            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                <?php foreach ($standardPhotos as $photo): ?>
+                                    <?php if (file_exists(__DIR__ . '/../' . $photo['file_path'])): ?>
+                                        <div class="relative group cursor-pointer" onclick="openPhotoModal('../<?= e($photo['file_path']) ?>', '<?= e(ucfirst(str_replace('_', ' ', $photo['view_name']))) ?>')">
+                                            <img src="../<?= e($photo['file_path']) ?>" alt="<?= e($photo['view_name']) ?>" class="w-full h-32 object-cover rounded-lg border border-mb-subtle/20 group-hover:border-mb-accent/50 transition-colors">
+                                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors rounded-lg flex items-center justify-center">
+                                                <svg class="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"/>
+                                                </svg>
+                                            </div>
+                                            <p class="text-xs text-mb-subtle mt-1 text-center capitalize"><?= e(str_replace('_', ' ', $photo['view_name'])) ?></p>
+                                        </div>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <!-- Interior Photos -->
+                    <?php if (!empty($interiorPhotos)): ?>
+                        <div>
+                            <h4 class="text-sm text-mb-silver font-medium mb-3 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                                </svg>
+                                Interior Photos
+                            </h4>
+                            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                                <?php foreach ($interiorPhotos as $photo): ?>
+                                    <?php if (file_exists(__DIR__ . '/../' . $photo['file_path'])): ?>
+                                        <div class="relative group cursor-pointer" onclick="openPhotoModal('../<?= e($photo['file_path']) ?>', 'Interior Photo')">
+                                            <img src="../<?= e($photo['file_path']) ?>" alt="Interior" class="w-full h-24 object-cover rounded-lg border border-mb-subtle/20 group-hover:border-mb-accent/50 transition-colors">
+                                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors rounded-lg flex items-center justify-center">
+                                                <svg class="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"/>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <!-- Scratch/Damage Photos -->
+                    <?php if (!empty($scratchPhotos)): ?>
+                        <div>
+                            <h4 class="text-sm text-mb-silver font-medium mb-3 flex items-center gap-2">
+                                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                                Scratch/Damage Photos
+                            </h4>
+                            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                                <?php foreach ($scratchPhotos as $photo): ?>
+                                    <?php if (file_exists(__DIR__ . '/../' . $photo['file_path'])): ?>
+                                        <div class="relative group cursor-pointer" onclick="openPhotoModal('../<?= e($photo['file_path']) ?>', 'Scratch/Damage Photo')">
+                                            <img src="../<?= e($photo['file_path']) ?>" alt="Scratch" class="w-full h-24 object-cover rounded-lg border-2 border-amber-500/30 group-hover:border-amber-500/60 transition-colors">
+                                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors rounded-lg flex items-center justify-center">
+                                                <svg class="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"/>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                    
+                <?php endif; ?>
+                
+            <?php endif; ?>
+        </div>
+    </div>
 
     <form method="POST" enctype="multipart/form-data" class="space-y-8" id="returnForm">
         <input type="hidden" name="client_rating" id="clientRatingInput"
@@ -850,6 +1061,14 @@ require_once __DIR__ . '/../includes/header.php';
                             class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-red-500/50 transition-colors">
                         <p class="text-xs text-mb-subtle mt-1">Traffic fines / challans issued during the rental period.
                         </p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm text-mb-silver mb-2">Chellan Due Date <span class="text-mb-subtle font-normal">(optional)</span></label>
+                        <input type="date" name="chellan_due_date" id="chellanDueDate"
+                            value="<?= e($_POST['chellan_due_date'] ?? '') ?>"
+                            class="w-full bg-mb-surface border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-red-500/50 transition-colors">
+                        <p class="text-xs text-mb-subtle mt-1">When the traffic fine must be paid by.</p>
                     </div>
 
                     <div>
@@ -1273,6 +1492,55 @@ require_once __DIR__ . '/../includes/header.php';
             <h3 class="text-white font-light border-l-2 border-orange-500 pl-3 mb-4">
                 Scratch / Damage Photos <span class="text-mb-subtle text-xs font-normal">(optional, max 15)</span>
             </h3>
+            
+            <?php if (!empty($permanentScratches)): ?>
+                <!-- Permanent Scratches (Read-Only) -->
+                <div class="mb-6 pb-6 border-b border-mb-subtle/20">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-medium">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                            Permanent Scratches (Pre-existing)
+                        </span>
+                        <span class="text-xs text-mb-subtle">These scratches are documented on the vehicle and cannot be modified here.</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <?php foreach ($permanentScratches as $ps): ?>
+                            <div class="bg-mb-black/30 rounded-lg border border-blue-500/20 p-3 opacity-90">
+                                <div class="aspect-video bg-mb-black/50 rounded-lg overflow-hidden mb-2">
+                                    <?php if (!empty($ps['file_path']) && file_exists(__DIR__ . '/../' . $ps['file_path'])): ?>
+                                        <img src="<?= e($root . $ps['file_path']) ?>" 
+                                             alt="Permanent scratch" 
+                                             class="w-full h-full object-cover">
+                                    <?php else: ?>
+                                        <div class="w-full h-full flex items-center justify-center text-mb-subtle text-xs">
+                                            Photo not found
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 flex-shrink-0 mt-0.5">
+                                        PERMANENT
+                                    </span>
+                                    <p class="text-xs text-mb-silver leading-relaxed flex-1">
+                                        <?= e($ps['description']) ?>
+                                    </p>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+            
+            <!-- New Scratches (This Reservation) -->
+            <?php if (!empty($permanentScratches)): ?>
+                <h4 class="text-white font-light text-sm mb-3 flex items-center gap-2">
+                    <span class="inline-block w-1 h-4 bg-orange-500 rounded-full"></span>
+                    New Scratches (This Reservation)
+                </h4>
+            <?php endif; ?>
+            
             <?php if (!empty($errors['scratch_photos'])): ?>
                 <p class="text-red-400 text-xs mb-3"><?= e($errors['scratch_photos']) ?></p>
             <?php endif; ?>
@@ -2003,6 +2271,85 @@ updateDepositSummary();
 if (document.getElementById("mileage")) {
     calculateKmDriven();
 }
+
+// Delivery Preview Toggle Functions
+function toggleDeliveryPreview() {
+    const content = document.getElementById(\'deliveryPreviewContent\');
+    const summary = document.getElementById(\'deliveryPreviewSummary\');
+    const icon = document.getElementById(\'deliveryPreviewIcon\');
+    
+    if (content && summary && icon) {
+        const isHidden = content.classList.contains(\'hidden\');
+        
+        if (isHidden) {
+            content.classList.remove(\'hidden\');
+            summary.classList.add(\'hidden\');
+            icon.classList.add(\'rotate-180\');
+        } else {
+            content.classList.add(\'hidden\');
+            summary.classList.remove(\'hidden\');
+            icon.classList.remove(\'rotate-180\');
+        }
+    }
+}
+
+// Photo Modal Functions
+function openPhotoModal(imageSrc, title) {
+    // Create modal if it doesn\'t exist
+    let modal = document.getElementById(\'photoModal\');
+    if (!modal) {
+        modal = document.createElement(\'div\');
+        modal.id = \'photoModal\';
+        modal.className = \'fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 hidden\';
+        modal.innerHTML = `
+            <div class="relative max-w-5xl max-h-[90vh] w-full">
+                <button onclick="closePhotoModal()" class="absolute -top-12 right-0 text-white hover:text-mb-accent transition-colors">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+                <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
+                    <div class="px-6 py-4 border-b border-mb-subtle/10">
+                        <h3 id="photoModalTitle" class="text-white font-light"></h3>
+                    </div>
+                    <div class="p-4 flex items-center justify-center bg-mb-black">
+                        <img id="photoModalImage" src="" alt="" class="max-w-full max-h-[70vh] object-contain rounded-lg">
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Close on click outside
+        modal.addEventListener(\'click\', function(e) {
+            if (e.target === modal) {
+                closePhotoModal();
+            }
+        });
+    }
+    
+    // Update modal content
+    document.getElementById(\'photoModalImage\').src = imageSrc;
+    document.getElementById(\'photoModalTitle\').textContent = title;
+    modal.classList.remove(\'hidden\');
+    document.body.style.overflow = \'hidden\';
+}
+
+function closePhotoModal() {
+    const modal = document.getElementById(\'photoModal\');
+    if (modal) {
+        modal.classList.add(\'hidden\');
+        document.body.style.overflow = \'\';
+    }
+}
+
+// Close modal on Escape key
+document.addEventListener(\'keydown\', function(e) {
+    if (e.key === \'Escape\') {
+        closePhotoModal();
+    }
+});
+
 </script>';
 require_once __DIR__ . '/../includes/footer.php';
 ?>

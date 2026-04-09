@@ -26,6 +26,29 @@ if (isset($_COOKIE['remember_token'])) {
     clear_remember_cookie();
 }
 
+// Track logout for online/offline status
+if (isset($_SESSION['user']['id'])) {
+    try {
+        $pdo = db();
+        $logoutStmt = $pdo->prepare("
+            UPDATE users 
+            SET is_online = 0, 
+                last_logout_at = NOW(), 
+                session_id = NULL 
+            WHERE id = ?
+        ");
+        $logoutStmt->execute([$_SESSION['user']['id']]);
+    } catch (Exception $e) {
+        // Log but don't block logout
+        if (function_exists('app_log')) {
+            app_log('ERROR', 'Failed to update logout tracking', [
+                'user_id' => $_SESSION['user']['id'],
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+}
+
 if (function_exists('app_log')) {
     app_log('ACTION', 'User logged out');
 }

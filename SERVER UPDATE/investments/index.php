@@ -6,12 +6,10 @@ require_once __DIR__ . '/../includes/investment_helpers.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
 
 $pdo = db();
-$perPage = max(12, get_per_page($pdo));
-$page = max(1, (int) ($_GET['page'] ?? 1));
 ledger_ensure_schema($pdo);
 investment_ensure_schema($pdo);
 
-// Fetch all EMIs with paid count
+// Fetch all EMIs with paid count (no pagination)
 $listSql = "SELECT
                 i.*,
                 COUNT(s.id) AS total_emis,
@@ -29,9 +27,8 @@ $listSql = "SELECT
                 /* Within non-completed: earliest date first (overdue will naturally be first) */
                 MIN(CASE WHEN s.status='pending' THEN s.due_date END) ASC
 ";
-$countSql = "SELECT COUNT(*) FROM emi_investments";
-$pgInvest = paginate_query($pdo, $listSql, $countSql, [], $page, $perPage);
-$investments = $pgInvest['rows'];
+$stmt = $pdo->query($listSql);
+$investments = $stmt->fetchAll();
 
 $pageTitle = 'EMI Management';
 require_once __DIR__ . '/../includes/header.php';
@@ -169,7 +166,4 @@ require_once __DIR__ . '/../includes/header.php';
     <?php endif; ?>
 </div>
 
-<?php
-echo render_pagination($pgInvest, []);
-?>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

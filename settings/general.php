@@ -69,6 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     settings_set($pdo, 'delivery_charge_default', (string) $deliveryChargeDefault);
     $returnPickupChargeDefault = max(0, (float) ($_POST['return_pickup_charge_default'] ?? 0));
     settings_set($pdo, 'return_pickup_charge_default', (string) $returnPickupChargeDefault);
+    $upcomingDeliveryAlertDays = max(1, min(30, (int) ($_POST['upcoming_delivery_alert_days'] ?? 3)));
+    settings_set($pdo, 'upcoming_delivery_alert_days', (string) $upcomingDeliveryAlertDays);
     $leadIncentivePerLead = max(0, (float) ($_POST['lead_incentive_per_lead'] ?? 0));
     settings_set($pdo, 'lead_incentive_per_lead', (string) $leadIncentivePerLead);
     $perPage = max(5, min(200, (int) ($_POST['per_page'] ?? 25)));
@@ -186,6 +188,12 @@ require_once __DIR__ . '/../includes/header.php';
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg pl-8 pr-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm" placeholder="0.00">
                 </div>
                 <p class="text-xs text-mb-subtle mt-1">Prefilled in return screen as Return Pickup Charge, still editable per reservation.</p>
+            </div>
+            <div>
+                <label class="block text-sm text-mb-silver mb-2">Upcoming Delivery Alert Threshold (Days)</label>
+                <input type="number" name="upcoming_delivery_alert_days" value="<?= (int) settings_get($pdo, 'upcoming_delivery_alert_days', '3') ?>" min="1" max="30" step="1" required
+                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm" placeholder="3">
+                <p class="text-xs text-mb-subtle mt-1">Alert will trigger when a confirmed reservation is due for delivery within this many days.</p>
             </div>
             <div class="pt-2 border-t border-mb-subtle/10">
                 <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Security Deposit</h3>

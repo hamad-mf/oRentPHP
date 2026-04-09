@@ -441,7 +441,7 @@ $_notifs = notif_all($pdo);
                     <svg class="w-4 h-4 opacity-50 sidebar-chevron ' . ($vActive ? 'expanded' : '') . '" id="chevron-vehicles" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                 </div>';
                 echo '<div id="submenu-vehicles" class="ml-11 mt-1 pl-3 border-l border-mb-subtle/30 space-y-1 sidebar-submenu ' . ($vActive ? 'open' : '') . '">';
-                echo '<a href="' . $root . 'vehicles/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'vehicles' && !in_array($currentPage, ['availability.php', 'requests.php', 'challans.php', 'create_challan.php', 'edit_challan.php', 'job_card.php']) ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle List</a>';
+                echo '<a href="' . $root . 'vehicles/index.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentDir === 'vehicles' && !in_array($currentPage, ['availability.php', 'requests.php', 'challans.php', 'create_challan.php', 'edit_challan.php', 'job_card.php', 'permanent_scratches.php']) ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle List</a>';
                 if ($canVehiclesAvailability) {
                     echo '<a href="' . $root . 'vehicles/availability.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'availability.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Vehicle Availability</a>';
                 }
@@ -451,6 +451,7 @@ $_notifs = notif_all($pdo);
                 if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
                     echo '<a href="' . $root . 'vehicles/challans.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'challans.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Challans</a>';
                     echo '<a href="' . $root . 'vehicles/job_card.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'job_card.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Job Card</a>';
+                    echo '<a href="' . $root . 'vehicles/permanent_scratches.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'permanent_scratches.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Permanent Scratches</a>';
                 }
                 echo '</div>';
             }

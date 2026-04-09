@@ -142,11 +142,11 @@ if ($isAdmin) {
         if($istD>=15){
             $mPS=sprintf('%04d-%02d-15',$istYr,$istMn);
             $nMn=$istMn===12?1:$istMn+1;$nYr=$istMn===12?$istYr+1:$istYr;
-            $mPE=sprintf('%04d-%02d-15',$nYr,$nMn);
+            $mPE=sprintf('%04d-%02d-14',$nYr,$nMn);
         }else{
             $pm=$istMn===1?12:$istMn-1;$py=$istMn===1?$istYr-1:$istYr;
             $mPS=sprintf('%04d-%02d-15',$py,$pm);
-            $mPE=sprintf('%04d-%02d-15',$istYr,$istMn);
+            $mPE=sprintf('%04d-%02d-14',$istYr,$istMn);
         }
         $accPeriodLabel=date('d M',strtotime($mPS)).' – '.date('d M',strtotime($mPE));
         // Bank (AC) monthly net = income - expense via payment_mode='account'
@@ -405,6 +405,124 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
                             <?php else: ?>
                                 <span class="text-purple-400/60 text-xs"><?= $daysLeft ?>d</span>
                             <?php endif; ?>
+                        </div>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </section>
+    <?php endif; ?>
+
+    <?php
+    // Upcoming Delivery Alerts
+    /**
+     * Get upcoming delivery alerts for confirmed reservations
+     * 
+     * @param PDO $pdo Database connection
+     * @param int $thresholdDays Number of days to look ahead
+     * @return array Array of reservation records with delivery details
+     */
+    function get_upcoming_delivery_alerts(PDO $pdo, int $thresholdDays): array
+    {
+        try {
+            $today = date('Y-m-d');
+            $futureDate = date('Y-m-d', strtotime("+{$thresholdDays} days"));
+            
+            $stmt = $pdo->prepare("
+                SELECT r.id, r.start_date,
+                       COALESCE(c.name, 'Unknown Client') AS client_name,
+                       COALESCE(v.brand, 'Unknown') AS brand,
+                       COALESCE(v.model, 'Vehicle') AS model,
+                       COALESCE(v.license_plate, '') AS license_plate
+                FROM reservations r
+                LEFT JOIN clients c ON r.client_id = c.id
+                LEFT JOIN vehicles v ON r.vehicle_id = v.id
+                WHERE r.status = 'confirmed'
+                  AND r.start_date IS NOT NULL
+                  AND DATE(r.start_date) BETWEEN ? AND ?
+                ORDER BY r.start_date ASC
+                LIMIT 10
+            ");
+            
+            $stmt->execute([$today, $futureDate]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            app_log('ERROR', 'Dashboard: upcoming delivery alerts query failed - ' . $e->getMessage(), [
+                'file' => $e->getFile() . ':' . $e->getLine(),
+                'screen' => 'index.php',
+                'threshold_days' => $thresholdDays,
+            ]);
+            return [];
+        }
+    }
+
+    /**
+     * Calculate urgency level and badge text for a delivery date
+     * 
+     * @param string $deliveryDate The start_date of the reservation
+     * @return array ['level' => string, 'text' => string, 'class' => string]
+     */
+    function calculate_delivery_urgency(string $deliveryDate): array
+    {
+        $today = date('Y-m-d');
+        $deliveryDay = date('Y-m-d', strtotime($deliveryDate));
+        $daysUntil = (int) floor((strtotime($deliveryDay) - strtotime($today)) / 86400);
+        
+        if ($daysUntil === 0) {
+            return [
+                'level' => 'critical',
+                'text' => 'Due Today',
+                'class' => 'bg-red-500/15 text-red-400 border-red-500/30 animate-pulse'
+            ];
+        } elseif ($daysUntil === 1) {
+            return [
+                'level' => 'high',
+                'text' => 'Tomorrow',
+                'class' => 'bg-orange-500/15 text-orange-400 border-orange-500/30'
+            ];
+        } else {
+            return [
+                'level' => 'normal',
+                'text' => "In {$daysUntil} days",
+                'class' => 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+            ];
+        }
+    }
+
+    $deliveryAlertThreshold = (int) settings_get($pdo, 'upcoming_delivery_alert_days', '3');
+    $upcomingDeliveries = get_upcoming_delivery_alerts($pdo, $deliveryAlertThreshold);
+    $deliveryAlertCount = count($upcomingDeliveries);
+
+    if ($deliveryAlertCount > 0):
+    ?>
+    <section>
+        <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg px-4 py-3">
+            <div class="flex items-center gap-3 mb-2">
+                <span class="text-blue-400 text-xs font-semibold uppercase tracking-wider">🚗 Upcoming Deliveries</span>
+                <span class="bg-blue-500/20 text-blue-400 text-xs font-bold px-2 py-0.5 rounded-full"><?= $deliveryAlertCount ?></span>
+                <span class="text-blue-400/60 text-xs">due within <?= $deliveryAlertThreshold ?> day<?= $deliveryAlertThreshold !== 1 ? 's' : '' ?></span>
+            </div>
+            <div class="space-y-1.5 max-h-40 overflow-y-auto">
+                <?php foreach ($upcomingDeliveries as $delivery):
+                    $urgency = calculate_delivery_urgency($delivery['start_date']);
+                    $formattedDate = date('d M, h:i A', strtotime($delivery['start_date']));
+                ?>
+                    <a href="reservations/show.php?id=<?= $delivery['id'] ?>"
+                       class="flex items-center justify-between bg-mb-surface/40 border border-blue-500/15 rounded px-3 py-1.5 hover:border-blue-500/35 transition-colors">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <svg class="w-4 h-4 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                            </svg>
+                            <span class="text-white text-xs font-medium whitespace-nowrap">Res #<?= $delivery['id'] ?></span>
+                            <span class="text-mb-subtle text-xs truncate"><?= e($delivery['client_name']) ?></span>
+                            <span class="text-mb-subtle/60 text-xs hidden sm:inline">&bull;</span>
+                            <span class="text-mb-subtle text-xs truncate hidden sm:inline"><?= e($delivery['brand']) ?> <?= e($delivery['model']) ?></span>
+                        </div>
+                        <div class="flex items-center gap-3 flex-shrink-0 ml-3">
+                            <span class="text-mb-silver text-xs whitespace-nowrap"><?= $formattedDate ?></span>
+                            <span class="px-2 py-0.5 rounded text-xs border <?= $urgency['class'] ?> whitespace-nowrap">
+                                <?= $urgency['text'] ?>
+                            </span>
                         </div>
                     </a>
                 <?php endforeach; ?>

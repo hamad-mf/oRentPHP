@@ -99,15 +99,20 @@ require_once __DIR__ . '/../includes/header.php';
 
     <!-- Date Filter -->
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5">
-        <form method="get" class="flex flex-wrap items-end gap-4">
+        <form method="get" class="flex flex-wrap items-end gap-4" id="availabilityForm">
             <div>
                 <label class="block text-sm text-mb-subtle mb-2">Start Date</label>
-                <input type="date" name="start_date" value="<?= e($startDate) ?>"
+                <input type="date" name="start_date" id="startDate" value="<?= e($startDate) ?>"
                     class="bg-mb-black border border-mb-subtle/30 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-mb-accent">
             </div>
             <div>
+                <label class="block text-sm text-mb-subtle mb-2">Number of Days</label>
+                <input type="number" id="numDays" min="1" value="1" placeholder="1"
+                    class="bg-mb-black border border-mb-subtle/30 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-mb-accent w-32">
+            </div>
+            <div>
                 <label class="block text-sm text-mb-subtle mb-2">End Date</label>
-                <input type="date" name="end_date" value="<?= e($endDate) ?>"
+                <input type="date" name="end_date" id="endDate" value="<?= e($endDate) ?>"
                     class="bg-mb-black border border-mb-subtle/30 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-mb-accent">
             </div>
             <button type="submit"
@@ -119,6 +124,69 @@ require_once __DIR__ . '/../includes/header.php';
             </a>
         </form>
     </div>
+
+    <script>
+    const startDateInput = document.getElementById('startDate');
+    const numDaysInput = document.getElementById('numDays');
+    const endDateInput = document.getElementById('endDate');
+
+    function calculateEndDate() {
+        const startDate = startDateInput.value;
+        const numDays = parseInt(numDaysInput.value) || 1;
+        
+        if (!startDate) return;
+        
+        const start = new Date(startDate);
+        const end = new Date(start);
+        end.setDate(end.getDate() + numDays - 1); // -1 because same day = 1 day
+        
+        const year = end.getFullYear();
+        const month = String(end.getMonth() + 1).padStart(2, '0');
+        const day = String(end.getDate()).padStart(2, '0');
+        
+        endDateInput.value = `${year}-${month}-${day}`;
+    }
+
+    function calculateNumDays() {
+        const startDate = startDateInput.value;
+        const endDate = endDateInput.value;
+        
+        if (!startDate || !endDate) return;
+        
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        if (end < start) {
+            // If end date is before start, adjust start date
+            startDateInput.value = endDate;
+            numDaysInput.value = 1;
+            return;
+        }
+        
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        numDaysInput.value = diffDays;
+    }
+
+    // Calculate on page load if start date exists
+    if (startDateInput.value && endDateInput.value) {
+        calculateNumDays();
+    } else {
+        calculateEndDate();
+    }
+
+    startDateInput.addEventListener('change', () => {
+        calculateEndDate();
+    });
+    
+    numDaysInput.addEventListener('input', () => {
+        calculateEndDate();
+    });
+    
+    endDateInput.addEventListener('change', () => {
+        calculateNumDays();
+    });
+    </script>
 
     <!-- Available Count -->
     <div class="inline-flex items-center gap-3 bg-green-500/10 border border-green-500/30 rounded-xl px-5 py-4">

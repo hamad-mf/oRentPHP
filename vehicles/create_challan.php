@@ -43,12 +43,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $newId = $pdo->lastInsertId();
         app_log('ACTION', "Created challan (ID: $newId) for vehicle ID: $vehicleId");
         flash('success', 'Challan added successfully.');
-        redirect('challans.php');
+        
+        // Redirect back to vehicle details if we came from there
+        $redirectVehicleId = (int)($_GET['vehicle_id'] ?? 0);
+        if ($redirectVehicleId > 0) {
+            redirect("show.php?id=$vehicleId");
+        } else {
+            redirect('challans.php');
+        }
     }
 }
 
 $vehicles = $pdo->query("SELECT id, brand, model, license_plate FROM vehicles WHERE status != 'sold' ORDER BY brand, model")->fetchAll();
 $clients  = $pdo->query("SELECT id, name, phone FROM clients WHERE is_blacklisted = 0 ORDER BY name")->fetchAll();
+
+// Pre-fill vehicle_id from URL parameter if provided
+$preselectedVehicleId = (int)($_GET['vehicle_id'] ?? 0);
+if ($preselectedVehicleId > 0 && empty($old)) {
+    $old['vehicle_id'] = $preselectedVehicleId;
+}
 
 $pageTitle = 'Add Challan';
 require_once __DIR__ . '/../includes/header.php';

@@ -53,6 +53,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'permissions' => $permissions,
             ];
 
+            // Track login session for online/offline status
+            try {
+                $sessionUpdateStmt = $pdo->prepare("
+                    UPDATE users 
+                    SET is_online = 1, 
+                        last_login_at = NOW(), 
+                        session_id = ? 
+                    WHERE id = ?
+                ");
+                $sessionUpdateStmt->execute([session_id(), $user['id']]);
+            } catch (Exception $e) {
+                // Log but don't block login
+                app_log('ERROR', 'Failed to update session tracking', [
+                    'user_id' => $user['id'],
+                    'error' => $e->getMessage()
+                ]);
+            }
+
             app_log('ACTION', "Login successful: $username (role: {$user['role']})");
             
             // Process "Remember Me" checkbox
