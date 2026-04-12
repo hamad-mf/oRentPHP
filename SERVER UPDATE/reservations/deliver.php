@@ -20,6 +20,16 @@ if (!$r || $r['status'] !== 'confirmed') {
     redirect('index.php');
 }
 
+// Fetch permanent scratches for this vehicle
+$permanentScratches = [];
+try {
+    $psStmt = $pdo->prepare('SELECT * FROM vehicle_permanent_scratches WHERE vehicle_id = ? ORDER BY created_at ASC');
+    $psStmt->execute([$r['vehicle_id']]);
+    $permanentScratches = $psStmt->fetchAll();
+} catch (Throwable $e) {
+    app_log('ERROR', 'Failed to fetch permanent scratches for vehicle ' . $r['vehicle_id'] . ': ' . $e->getMessage());
+}
+
 // Deposit Migration/Schema Check
 try {
     $hasDepositCol = (int) $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'reservations' AND COLUMN_NAME = 'deposit_amount'")->fetchColumn();
@@ -825,6 +835,55 @@ require_once __DIR__ . '/../includes/header.php';
             <h3 class="text-white font-light border-l-2 border-orange-500 pl-3 mb-4">
                 Scratch / Damage Photos <span class="text-mb-subtle text-xs font-normal">(optional, max 15)</span>
             </h3>
+            
+            <?php if (!empty($permanentScratches)): ?>
+                <!-- Permanent Scratches (Read-Only) -->
+                <div class="mb-6 pb-6 border-b border-mb-subtle/20">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-medium">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                            Permanent Scratches (Pre-existing)
+                        </span>
+                        <span class="text-xs text-mb-subtle">These scratches are documented on the vehicle and cannot be modified here.</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <?php foreach ($permanentScratches as $ps): ?>
+                            <div class="bg-mb-black/30 rounded-lg border border-blue-500/20 p-3 opacity-90">
+                                <div class="aspect-video bg-mb-black/50 rounded-lg overflow-hidden mb-2">
+                                    <?php if (!empty($ps['file_path']) && file_exists(__DIR__ . '/../' . $ps['file_path'])): ?>
+                                        <img src="<?= e($root . $ps['file_path']) ?>" 
+                                             alt="Permanent scratch" 
+                                             class="w-full h-full object-cover">
+                                    <?php else: ?>
+                                        <div class="w-full h-full flex items-center justify-center text-mb-subtle text-xs">
+                                            Photo not found
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 flex-shrink-0 mt-0.5">
+                                        PERMANENT
+                                    </span>
+                                    <p class="text-xs text-mb-silver leading-relaxed flex-1">
+                                        <?= e($ps['description']) ?>
+                                    </p>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+            
+            <!-- New Scratches (This Reservation) -->
+            <?php if (!empty($permanentScratches)): ?>
+                <h4 class="text-white font-light text-sm mb-3 flex items-center gap-2">
+                    <span class="inline-block w-1 h-4 bg-orange-500 rounded-full"></span>
+                    New Scratches (This Reservation)
+                </h4>
+            <?php endif; ?>
+            
             <?php if (!empty($errors['scratch_photos'])): ?>
                 <p class="text-red-400 text-xs mb-3"><?= e($errors['scratch_photos']) ?></p>
             <?php endif; ?>

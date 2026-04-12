@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($status === 'uncontacted') {
         $status = 'new';
     }
-    $allowedInitialStatuses = ['new', 'contacted', 'future'];
+    $allowedInitialStatuses = ['new', 'contacted', 'interested', 'future'];
 
     if (!$name)
         $errors['name'] = 'Name is required.';
@@ -279,6 +279,8 @@ require_once __DIR__ . '/../includes/header.php';
                             (Uncontacted)</option>
                         <option value="contacted" <?= ($_POST['status'] ?? '') === 'contacted' ? 'selected' : '' ?>>
                             Contacted</option>
+                        <option value="interested" <?= ($_POST['status'] ?? '') === 'interested' ? 'selected' : '' ?>>
+                            Interested</option>
                         <option value="future" <?= ($_POST['status'] ?? '') === 'future' ? 'selected' : '' ?>>Book Later
                         </option>
                     </select>

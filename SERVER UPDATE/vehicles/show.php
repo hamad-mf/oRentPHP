@@ -461,6 +461,15 @@ if (($v['status'] ?? '') === 'maintenance') {
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
         <div class="px-6 py-4 border-b border-mb-subtle/10 flex items-center justify-between">
             <h3 class="text-white font-light">Challans <span class="text-mb-subtle text-sm ml-2"><?= count($vehicleChallans) ?> records</span></h3>
+            <?php if (auth_has_perm('add_vehicles')): ?>
+                <a href="create_challan.php?vehicle_id=<?= (int)$id ?>"
+                    class="text-xs text-mb-accent hover:text-white border border-mb-accent/30 hover:border-mb-accent px-3 py-1.5 rounded-full transition-colors inline-flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Challan
+                </a>
+            <?php endif; ?>
         </div>
         <?php if (empty($vehicleChallans)): ?>
             <p class="py-10 text-center text-mb-subtle text-sm italic">No challans recorded for this vehicle.</p>
@@ -709,63 +718,76 @@ if (($v['status'] ?? '') === 'maintenance') {
 
             <!-- Challan Info -->
             <div class="bg-mb-black/40 border border-mb-subtle/20 rounded-xl p-4">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <p class="text-white text-sm font-medium" id="payment_challan_title">Challan Title</p>
-                        <p class="text-mb-subtle text-xs mt-1">Due: <span id="payment_challan_due">-</span></p>
-                    </div>
+                <p class="text-white text-sm font-medium" id="payment_challan_title">Challan Title</p>
+                <div class="flex justify-between items-center mt-2">
+                    <p class="text-mb-subtle text-xs">Due: <span id="payment_challan_due">-</span></p>
                     <p class="text-red-400 text-lg font-medium" id="payment_challan_amount">$0.00</p>
                 </div>
             </div>
 
-            <!-- Payment Method — 4 options, 2×2 grid -->
+            <!-- Paid By -->
             <div>
-                <label class="block text-sm text-mb-silver mb-2">Payment Method</label>
+                <label class="block text-sm text-mb-silver mb-2">Paid By</label>
                 <div class="grid grid-cols-2 gap-3">
                     <label class="relative cursor-pointer">
-                        <input type="radio" name="payment_mode" value="customer_paid" class="peer sr-only" required>
-                        <div class="bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-center text-sm text-mb-silver peer-checked:border-mb-accent peer-checked:text-white peer-checked:bg-mb-accent/10 transition-all">
-                            Customer Paid
-                        </div>
+                        <input type="radio" name="paid_by" value="company" class="peer sr-only" required>
+                        <div class="bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-center text-sm text-mb-silver peer-checked:border-mb-accent peer-checked:text-white peer-checked:bg-mb-accent/10 transition-all">Company</div>
                     </label>
                     <label class="relative cursor-pointer">
-                        <input type="radio" name="payment_mode" value="cash" class="peer sr-only">
-                        <div class="bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-center text-sm text-mb-silver peer-checked:border-mb-accent peer-checked:text-white peer-checked:bg-mb-accent/10 transition-all">
-                            Cash
-                        </div>
-                    </label>
-                    <label class="relative cursor-pointer">
-                        <input type="radio" name="payment_mode" value="account" class="peer sr-only">
-                        <div class="bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-center text-sm text-mb-silver peer-checked:border-mb-accent peer-checked:text-white peer-checked:bg-mb-accent/10 transition-all">
-                            Bank
-                        </div>
-                    </label>
-                    <label class="relative cursor-pointer">
-                        <input type="radio" name="payment_mode" value="credit" class="peer sr-only">
-                        <div class="bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-center text-sm text-mb-silver peer-checked:border-mb-accent peer-checked:text-white peer-checked:bg-mb-accent/10 transition-all">
-                            Credit
-                        </div>
+                        <input type="radio" name="paid_by" value="customer" class="peer sr-only">
+                        <div class="bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-center text-sm text-mb-silver peer-checked:border-mb-accent peer-checked:text-white peer-checked:bg-mb-accent/10 transition-all">Customer</div>
                     </label>
                 </div>
             </div>
 
-            <!-- Bank Account (only for Bank mode) -->
-            <div id="bankAccountWrapper" class="hidden">
-                <label class="block text-sm text-mb-silver mb-2">Select Bank Account</label>
-                <select name="bank_account_id" id="bank_account_select"
-                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
-                    <option value="">Select account...</option>
-                    <?php foreach ($bankAccounts as $bank): ?>
-                        <option value="<?= (int)$bank['id'] ?>"><?= e($bank['name']) ?><?= !empty($bank['bank_name']) ? ' (' . e($bank['bank_name']) . ')' : '' ?></option>
-                    <?php endforeach; ?>
-                </select>
+            <!-- Company Section -->
+            <div id="companyPaymentSection" class="space-y-3">
+                <div>
+                    <label class="block text-sm text-mb-silver mb-2">Payment Method</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="payment_mode" value="cash" class="peer sr-only">
+                            <div class="bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-center text-sm text-mb-silver peer-checked:border-mb-accent peer-checked:text-white peer-checked:bg-mb-accent/10 transition-all">Cash</div>
+                        </label>
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="payment_mode" value="account" class="peer sr-only">
+                            <div class="bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-center text-sm text-mb-silver peer-checked:border-mb-accent peer-checked:text-white peer-checked:bg-mb-accent/10 transition-all">Bank</div>
+                        </label>
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="payment_mode" value="credit" class="peer sr-only">
+                            <div class="bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-center text-sm text-mb-silver peer-checked:border-mb-accent peer-checked:text-white peer-checked:bg-mb-accent/10 transition-all">Credit</div>
+                        </label>
+                    </div>
+                </div>
+                <div id="bankAccountWrapper" class="hidden">
+                    <label class="block text-sm text-mb-silver mb-2">Bank Account</label>
+                    <select name="bank_account_id" id="bank_account_select"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                        <option value="">Select account...</option>
+                        <?php foreach ($bankAccounts as $bank): ?>
+                            <option value="<?= (int)$bank['id'] ?>"><?= e($bank['name']) ?><?= !empty($bank['bank_name']) ? ' (' . e($bank['bank_name']) . ')' : '' ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-mb-silver mb-2">Payment Date</label>
+                    <input type="date" name="payment_date" id="payment_date_input" value="<?= date('Y-m-d') ?>"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                </div>
             </div>
 
-            <!-- Payment Date (hidden for Customer Paid) -->
-            <div id="paymentDateWrapper">
-                <label class="block text-sm text-mb-silver mb-2">Payment Date</label>
-                <input type="date" name="payment_date" id="payment_date_input" value="<?= date('Y-m-d') ?>"
-                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
+            <!-- Customer Section -->
+            <div id="customerPaymentSection" class="hidden space-y-3">
+                <div>
+                    <label class="block text-sm text-mb-silver mb-2">Date Paid by Customer</label>
+                    <input type="date" name="customer_paid_date" value="<?= date('Y-m-d') ?>"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm text-mb-silver mb-2">Notes <span class="text-mb-subtle font-normal">(optional)</span></label>
+                    <input type="text" name="customer_notes" placeholder="e.g., Collected via UPI"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white placeholder-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                </div>
             </div>
 
             <div class="flex items-center justify-end gap-3 pt-2">
@@ -798,8 +820,9 @@ function openChallanPaymentModal(challanId, title, amount, dueDate) {
     document.getElementById('payment_challan_title').textContent = title;
     document.getElementById('payment_challan_amount').textContent = '$' + parseFloat(amount).toFixed(2);
     document.getElementById('payment_challan_due').textContent = dueDate || 'No due date';
+    document.getElementById('companyPaymentSection').classList.remove('hidden');
+    document.getElementById('customerPaymentSection').classList.add('hidden');
     document.getElementById('bankAccountWrapper').classList.add('hidden');
-    document.getElementById('paymentDateWrapper').classList.remove('hidden');
     const bankSelect = document.getElementById('bank_account_select');
     if (bankSelect) { bankSelect.required = false; bankSelect.value = ''; }
     document.getElementById('challanPaymentModal').classList.remove('hidden');
@@ -809,27 +832,22 @@ function closeChallanPaymentModal() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    const radios = document.querySelectorAll('#challanPaymentForm input[name="payment_mode"]');
-    const bankWrapper = document.getElementById('bankAccountWrapper');
-    const bankSelect = document.getElementById('bank_account_select');
-    const dateWrapper = document.getElementById('paymentDateWrapper');
-
-    radios.forEach(function (radio) {
-        radio.addEventListener('change', function () {
-            // Bank account dropdown
-            if (this.value === 'account') {
-                bankWrapper.classList.remove('hidden');
-                if (bankSelect) bankSelect.required = true;
-            } else {
-                bankWrapper.classList.add('hidden');
-                if (bankSelect) { bankSelect.required = false; bankSelect.value = ''; }
-            }
-            // Hide date field for Customer Paid — it's irrelevant
-            if (this.value === 'customer_paid') {
-                dateWrapper.classList.add('hidden');
-            } else {
-                dateWrapper.classList.remove('hidden');
-            }
+    // Paid By toggle
+    document.querySelectorAll('#challanPaymentForm input[name="paid_by"]').forEach(function (r) {
+        r.addEventListener('change', function () {
+            const isCompany = this.value === 'company';
+            document.getElementById('companyPaymentSection').classList.toggle('hidden', !isCompany);
+            document.getElementById('customerPaymentSection').classList.toggle('hidden', isCompany);
+        });
+    });
+    // Bank dropdown toggle
+    document.querySelectorAll('#challanPaymentForm input[name="payment_mode"]').forEach(function (r) {
+        r.addEventListener('change', function () {
+            const isAccount = this.value === 'account';
+            const wrapper = document.getElementById('bankAccountWrapper');
+            const sel = document.getElementById('bank_account_select');
+            wrapper.classList.toggle('hidden', !isAccount);
+            if (sel) sel.required = isAccount;
         });
     });
 });

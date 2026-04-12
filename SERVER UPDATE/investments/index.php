@@ -51,7 +51,7 @@ require_once __DIR__ . '/../includes/header.php';
     <?php endif; ?>
 
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
             <h2 class="text-white font-light text-xl">EMI Management</h2>
             <p class="text-mb-subtle text-sm mt-0.5">Track vehicle purchases and EMI payments</p>
@@ -65,6 +65,26 @@ require_once __DIR__ . '/../includes/header.php';
         </a>
     </div>
 
+    <!-- Search Box -->
+    <?php if (!empty($investments)): ?>
+    <div class="relative">
+        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <svg class="w-4 h-4 text-mb-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+        </div>
+        <input type="text" id="emiSearch" placeholder="Search by title, lender, status..."
+            class="w-full bg-mb-surface border border-mb-subtle/20 rounded-xl pl-11 pr-10 py-3 text-white text-sm placeholder-mb-subtle/50 focus:outline-none focus:border-mb-accent/50 transition-colors"
+            autocomplete="off">
+        <button type="button" id="emiSearchClear" class="absolute inset-y-0 right-0 pr-4 flex items-center text-mb-subtle hover:text-white transition-colors hidden" onclick="document.getElementById('emiSearch').value=''; filterEMIs(); this.classList.add('hidden');">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+        <p id="emiSearchCount" class="text-xs text-mb-subtle mt-1.5 ml-1 hidden"></p>
+    </div>
+    <?php endif; ?>
+
     <?php if (empty($investments)): ?>
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl py-20 text-center">
             <svg class="w-14 h-14 text-mb-subtle/20 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,7 +97,7 @@ require_once __DIR__ . '/../includes/header.php';
                 your first investment</a>
         </div>
     <?php else: ?>
-        <div class="grid grid-cols-1 gap-4">
+        <div class="grid grid-cols-1 gap-4" id="emiGrid">
             <?php foreach ($investments as $inv):
                 $paidEmis = (int) $inv['paid_emis'];
                 $totalEmis = (int) $inv['total_emis'];
@@ -101,7 +121,11 @@ require_once __DIR__ . '/../includes/header.php';
                     }
                 }
                 ?>
-                <div class="bg-mb-surface border <?= ($nextDue && $nextDue <= $today && !$completed) ? 'border-red-500/30' : 'border-mb-subtle/20' ?> rounded-xl p-5 hover:border-mb-subtle/40 transition-colors">
+                <?php
+                $searchText = strtolower($inv['title'] . ' ' . ($inv['lender'] ?? '') . ' ' . ($completed ? 'completed' : 'ongoing') . ' ' . $inv['emi_amount']);
+                ?>
+                <div class="emi-card bg-mb-surface border <?= ($nextDue && $nextDue <= $today && !$completed) ? 'border-red-500/30' : 'border-mb-subtle/20' ?> rounded-xl p-5 hover:border-mb-subtle/40 transition-colors"
+                    data-search="<?= e($searchText) ?>">
                     <div class="flex items-start justify-between gap-4">
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
@@ -165,5 +189,42 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     <?php endif; ?>
 </div>
+
+<script>
+function filterEMIs() {
+    const input = document.getElementById('emiSearch');
+    const clearBtn = document.getElementById('emiSearchClear');
+    const countEl = document.getElementById('emiSearchCount');
+    const cards = document.querySelectorAll('.emi-card');
+    if (!input || !cards.length) return;
+
+    const query = input.value.trim().toLowerCase();
+    clearBtn.classList.toggle('hidden', query === '');
+
+    let visible = 0;
+    cards.forEach(card => {
+        const text = (card.dataset.search || '').toLowerCase();
+        const match = query === '' || text.includes(query);
+        card.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+
+    if (query === '') {
+        countEl.classList.add('hidden');
+    } else {
+        countEl.classList.remove('hidden');
+        countEl.textContent = visible === 0
+            ? 'No investments match your search.'
+            : visible + ' of ' + cards.length + ' investment' + (cards.length !== 1 ? 's' : '') + ' shown';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('emiSearch');
+    if (input) {
+        input.addEventListener('input', filterEMIs);
+    }
+});
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

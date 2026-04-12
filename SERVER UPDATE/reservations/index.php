@@ -81,7 +81,7 @@ $baseFrom  = 'FROM reservations r
         JOIN vehicles v ON r.vehicle_id = v.id
         WHERE ' . implode(' AND ', $where);
 $countSql  = 'SELECT COUNT(*) ' . $baseFrom;
-$sql       = 'SELECT r.*, c.name AS client_name, v.brand, v.model, v.license_plate, v.daily_rate ' . $baseFrom . ' ORDER BY r.created_at DESC';
+$sql       = 'SELECT r.*, c.name AS client_name, v.brand, v.model, v.license_plate, v.daily_rate ' . $baseFrom . ' ORDER BY (r.status = \'active\') DESC, r.created_at DESC';
 $pgResult     = paginate_query($pdo, $sql, $countSql, $params, $page, $perPage);
 $reservations = $pgResult['rows'];
 

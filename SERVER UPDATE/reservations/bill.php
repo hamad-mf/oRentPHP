@@ -284,6 +284,14 @@ function fdt(?string $dt): string
                 <div class="days-badge"><?= $days ?> Day<?= $days > 1 ? 's' : '' ?></div>
             </div>
 
+            <!-- Reservation Note -->
+            <?php if (!empty($r['note'])): ?>
+                <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:16px 20px;margin-bottom:28px">
+                    <h4 style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#92400e;margin-bottom:8px">📝 Reservation Note</h4>
+                    <div style="font-size:13px;color:#78350f;line-height:1.6"><?= nl2br(e($r['note'])) ?></div>
+                </div>
+            <?php endif; ?>
+
             <!-- Inspections -->
             <?php if ($delivery || $return): ?>
                 <div class="inspection-row">

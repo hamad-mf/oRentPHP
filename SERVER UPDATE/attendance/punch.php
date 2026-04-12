@@ -252,6 +252,18 @@ if ($action === 'punch_out') {
         $pdo->prepare('UPDATE staff_attendance SET punch_out=?,pout_warning=?,early_punchout_reason=?,
             punch_out_lat=?,punch_out_lng=?,punch_out_address=? WHERE user_id=? AND date=?')
             ->execute([$nowDt,$warning?1:0,$earlyReason,$lat,$lng,$address,$user['id'],$todayIst]);
+        
+        // Mark staff as offline when they punch out
+        try {
+            $pdo->prepare('UPDATE users SET is_online = 0 WHERE id = ?')->execute([$user['id']]);
+        } catch (Throwable $e) {
+            // Log but don't block punch out
+            app_log('ERROR', 'Failed to update offline status on punch out', [
+                'user_id' => $user['id'],
+                'error' => $e->getMessage()
+            ]);
+        }
+        
         $msg = "Punched out at $displayTime";
         if ($openBreak) $msg .= ' (break auto-closed)';
         if ($isEarly)   $msg .= '  Early';

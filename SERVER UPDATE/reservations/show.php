@@ -62,6 +62,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     redirect("show.php?id=$id");
 }
 
+// ── POST: save additional information ─────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_additional_info') {
+    $additionalInfoReservationId = (int) ($_POST['reservation_id'] ?? 0);
+    if ($additionalInfoReservationId !== $id) {
+        flash('error', 'Invalid request.');
+        redirect("show.php?id=$id");
+    }
+    
+    // Extract and validate fields
+    $deliveryLocation = trim($_POST['delivery_location'] ?? '');
+    $returnLocation = trim($_POST['return_location'] ?? '');
+    $additionalNote = trim($_POST['additional_note'] ?? '');
+    
+    // Validate character limits
+    if (strlen($deliveryLocation) > 255) {
+        flash('error', 'Delivery location cannot exceed 255 characters.');
+        redirect("show.php?id=$id");
+    }
+    if (strlen($returnLocation) > 255) {
+        flash('error', 'Return location cannot exceed 255 characters.');
+        redirect("show.php?id=$id");
+    }
+    if (strlen($additionalNote) > 1000) {
+        flash('error', 'Additional note cannot exceed 1000 characters.');
+        redirect("show.php?id=$id");
+    }
+    
+    // Convert empty strings to NULL
+    $deliveryLocation = $deliveryLocation === '' ? null : $deliveryLocation;
+    $returnLocation = $returnLocation === '' ? null : $returnLocation;
+    $additionalNote = $additionalNote === '' ? null : $additionalNote;
+    
+    // Update database
+    $pdo->prepare('UPDATE reservations SET delivery_location=?, return_location=?, additional_note=? WHERE id=?')
+        ->execute([$deliveryLocation, $returnLocation, $additionalNote, $id]);
+    
+    flash('success', 'Additional information saved.');
+    redirect("show.php?id=$id");
+}
+
 $rStmt = $pdo->prepare('SELECT r.*, c.name AS client_name, c.id AS cid, c.phone AS client_phone, c.alternative_number AS client_alt_phone, v.brand, v.model, v.license_plate, v.daily_rate, v.image_url FROM reservations r JOIN clients c ON r.client_id=c.id JOIN vehicles v ON r.vehicle_id=v.id WHERE r.id=?');
 $rStmt->execute([$id]);
 $r = $rStmt->fetch();
@@ -87,6 +127,34 @@ foreach ($inspections as &$ins) {
     $ins['photos'] = $pStmt->fetchAll();
 }
 unset($ins);
+
+// Fetch who delivered and returned this reservation from activity log
+$deliveredByUser = null;
+$returnedByUser = null;
+try {
+    $hasActivityLog = (bool) $pdo->query("SHOW TABLES LIKE 'staff_activity_log'")->fetchColumn();
+    if ($hasActivityLog) {
+        $actStmt = $pdo->prepare(
+            "SELECT sal.action, sal.created_at, u.name AS user_name, u.role AS user_role
+             FROM staff_activity_log sal
+             JOIN users u ON sal.user_id = u.id
+             WHERE sal.entity_type = 'reservation' AND sal.entity_id = ?
+               AND sal.action IN ('delivery', 'return')
+             ORDER BY sal.created_at ASC"
+        );
+        $actStmt->execute([$id]);
+        foreach ($actStmt->fetchAll(PDO::FETCH_ASSOC) as $act) {
+            if ($act['action'] === 'delivery' && !$deliveredByUser) {
+                $deliveredByUser = $act;
+            }
+            if ($act['action'] === 'return' && !$returnedByUser) {
+                $returnedByUser = $act;
+            }
+        }
+    }
+} catch (Throwable $e) {
+    // Graceful degradation
+}
 
 // Fetch scratch photos
 $scratchPhotos = [];
@@ -234,8 +302,16 @@ function fuelBar(int $pct): string
                 <a href="extend.php?id=<?= $id ?>"
                     class="border border-mb-subtle/30 text-mb-silver px-4 py-2 rounded-full hover:border-white/30 hover:text-white transition-all text-sm">Extend</a>
             <?php endif; ?>
-            <?php if ($r['status'] === 'active'): ?>
-                <a href="cancel.php?id=<?= $id ?>" onclick="return confirm('Cancel this active reservation?')" class="border border-red-500/30 text-red-400 px-4 py-2 rounded-full hover:bg-red-500/10 transition-colors text-sm"> Cancel Reservation</a>
+            <?php if (in_array($r['status'], ['pending', 'confirmed', 'active'])): ?>
+                <?php
+                $hasFinancialActivity = $advancePaid > 0 || $voucherApplied > 0 || $deliveryPrepaid > 0 || $r['status'] === 'active';
+                if ($hasFinancialActivity): ?>
+                    <a href="cancel.php?id=<?= $id ?>" onclick="return confirm('Cancel this reservation? You will be able to set a refund amount.')"
+                        class="border border-red-500/30 text-red-400 px-4 py-2 rounded-full hover:bg-red-500/10 transition-colors text-sm">✕ Cancel Reservation</a>
+                <?php else: ?>
+                    <a href="delete.php?id=<?= $id ?>" onclick="return confirm('Remove this reservation? No financial transactions to reverse.')"
+                        class="border border-red-500/30 text-red-400 px-4 py-2 rounded-full hover:bg-red-500/10 transition-colors text-sm">✕ Remove</a>
+                <?php endif; ?>
             <?php endif; ?>
             <?php if (in_array($r['status'], ['pending', 'confirmed'])): ?>
                 <a href="bill.php?id=<?= $id ?>" target="_blank"
@@ -255,10 +331,6 @@ function fuelBar(int $pct): string
                 <button onclick="shareBill(<?= $id ?>)"
                     class="border border-purple-500/40 text-purple-400 px-5 py-2 rounded-full hover:bg-purple-500/10 transition-colors text-sm font-medium">↗
                     Share</button>
-            <?php endif; ?>
-            <?php if (!in_array($r['status'], ['active', 'completed'])): ?>
-                <a href="delete.php?id=<?= $id ?>" onclick="return confirm('Cancel this reservation?')"
-                    class="border border-red-500/30 text-red-400 px-4 py-2 rounded-full hover:bg-red-500/10 transition-colors text-sm">Cancel</a>
             <?php endif; ?>
         </div>
     </div>
@@ -362,6 +434,39 @@ function fuelBar(int $pct): string
                     <p class="text-mb-accent text-xl font-light">$<?= number_format($r['daily_rate'], 0) ?></p>
                 </div>
             </div>
+
+            <?php if ($deliveredByUser || $returnedByUser): ?>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <?php if ($deliveredByUser): ?>
+                <div class="bg-mb-black/40 rounded-xl p-4">
+                    <p class="text-mb-subtle text-xs uppercase mb-1">Delivered By</p>
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center">
+                            <svg class="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        </div>
+                        <div>
+                            <p class="text-white text-sm"><?= e($deliveredByUser['user_name']) ?></p>
+                            <p class="text-mb-subtle text-xs capitalize"><?= e($deliveredByUser['user_role']) ?> · <?= date('d M Y, h:i A', strtotime($deliveredByUser['created_at'])) ?></p>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+                <?php if ($returnedByUser): ?>
+                <div class="bg-mb-black/40 rounded-xl p-4">
+                    <p class="text-mb-subtle text-xs uppercase mb-1">Returned By</p>
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+                            <svg class="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        </div>
+                        <div>
+                            <p class="text-white text-sm"><?= e($returnedByUser['user_name']) ?></p>
+                            <p class="text-mb-subtle text-xs capitalize"><?= e($returnedByUser['user_role']) ?> · <?= date('d M Y, h:i A', strtotime($returnedByUser['created_at'])) ?></p>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
             <?php if (!empty($r['note'])): ?>
             <div class="mt-4 bg-mb-black/40 rounded-xl p-4 border-l-2 border-mb-accent">
                 <p class="text-mb-subtle text-xs uppercase mb-1">Reservation Note</p>
@@ -627,6 +732,145 @@ function fuelBar(int $pct): string
             </div>
         </div>
     </div>
+
+    <!-- Additional Information -->
+    <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-white font-light border-l-2 border-orange-500 pl-3">Additional Information</h3>
+            <button onclick="toggleAdditionalInfoEdit()" class="text-mb-accent hover:text-orange-400 text-sm transition-colors">
+                <span id="editAdditionalInfoBtn">✏️ Edit</span>
+            </button>
+        </div>
+
+        <!-- Display Mode -->
+        <div id="additionalInfoDisplay">
+            <?php 
+            $hasAdditionalInfo = !empty($r['delivery_location']) || !empty($r['return_location']) || !empty($r['additional_note']);
+            if (!$hasAdditionalInfo): 
+            ?>
+                <p class="text-mb-subtle text-sm">No additional information recorded.</p>
+            <?php else: ?>
+                <div class="space-y-3 text-sm">
+                    <?php if (!empty($r['delivery_location'])): ?>
+                        <div>
+                            <p class="text-mb-subtle text-xs uppercase mb-1">Delivery Location</p>
+                            <p class="text-white"><?= e($r['delivery_location']) ?></p>
+                        </div>
+                    <?php endif; ?>
+                    <?php if (!empty($r['return_location'])): ?>
+                        <div>
+                            <p class="text-mb-subtle text-xs uppercase mb-1">Return Location</p>
+                            <p class="text-white"><?= e($r['return_location']) ?></p>
+                        </div>
+                    <?php endif; ?>
+                    <?php if (!empty($r['additional_note'])): ?>
+                        <div>
+                            <p class="text-mb-subtle text-xs uppercase mb-1">Note</p>
+                            <p class="text-white whitespace-pre-wrap"><?= e($r['additional_note']) ?></p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- Edit Mode -->
+        <div id="additionalInfoEdit" style="display: none;">
+            <form method="POST" action="show.php?id=<?= $id ?>" class="space-y-4">
+                <input type="hidden" name="action" value="save_additional_info">
+                <input type="hidden" name="reservation_id" value="<?= $id ?>">
+                
+                <div>
+                    <label class="block text-mb-subtle text-xs uppercase mb-2">
+                        Delivery Location <span class="text-mb-subtle/60">(max 255 characters)</span>
+                    </label>
+                    <input type="text" name="delivery_location" id="delivery_location" maxlength="255"
+                           value="<?= e($r['delivery_location'] ?? '') ?>"
+                           class="w-full bg-white border border-mb-subtle/30 rounded-lg px-4 py-2 text-gray-900 focus:border-mb-accent focus:outline-none">
+                    <p class="text-xs text-mb-subtle/60 mt-1">
+                        <span id="deliveryLocationCount">0</span>/255 characters
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-mb-subtle text-xs uppercase mb-2">
+                        Return Location <span class="text-mb-subtle/60">(max 255 characters)</span>
+                    </label>
+                    <input type="text" name="return_location" id="return_location" maxlength="255"
+                           value="<?= e($r['return_location'] ?? '') ?>"
+                           class="w-full bg-white border border-mb-subtle/30 rounded-lg px-4 py-2 text-gray-900 focus:border-mb-accent focus:outline-none">
+                    <p class="text-xs text-mb-subtle/60 mt-1">
+                        <span id="returnLocationCount">0</span>/255 characters
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-mb-subtle text-xs uppercase mb-2">
+                        Additional Note <span class="text-mb-subtle/60">(max 1000 characters)</span>
+                    </label>
+                    <textarea name="additional_note" id="additional_note" maxlength="1000" rows="4"
+                              class="w-full bg-white border border-mb-subtle/30 rounded-lg px-4 py-2 text-gray-900 focus:border-mb-accent focus:outline-none resize-y"><?= e($r['additional_note'] ?? '') ?></textarea>
+                    <p class="text-xs text-mb-subtle/60 mt-1">
+                        <span id="additionalNoteCount">0</span>/1000 characters
+                    </p>
+                </div>
+
+                <div class="flex gap-3">
+                    <button type="submit" class="bg-mb-accent hover:bg-orange-600 text-white px-6 py-2 rounded-lg transition-colors">
+                        Save
+                    </button>
+                    <button type="button" onclick="toggleAdditionalInfoEdit()" class="bg-mb-subtle/20 hover:bg-mb-subtle/30 text-white px-6 py-2 rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    function toggleAdditionalInfoEdit() {
+        const display = document.getElementById('additionalInfoDisplay');
+        const edit = document.getElementById('additionalInfoEdit');
+        const btn = document.getElementById('editAdditionalInfoBtn');
+        
+        if (edit.style.display === 'none') {
+            display.style.display = 'none';
+            edit.style.display = 'block';
+            btn.textContent = '✖️ Cancel';
+            updateCharacterCounts();
+        } else {
+            display.style.display = 'block';
+            edit.style.display = 'none';
+            btn.textContent = '✏️ Edit';
+        }
+    }
+
+    function updateCharacterCounts() {
+        const deliveryLocation = document.getElementById('delivery_location');
+        const returnLocation = document.getElementById('return_location');
+        const additionalNote = document.getElementById('additional_note');
+        
+        if (deliveryLocation) {
+            document.getElementById('deliveryLocationCount').textContent = deliveryLocation.value.length;
+            deliveryLocation.addEventListener('input', function() {
+                document.getElementById('deliveryLocationCount').textContent = this.value.length;
+            });
+        }
+        
+        if (returnLocation) {
+            document.getElementById('returnLocationCount').textContent = returnLocation.value.length;
+            returnLocation.addEventListener('input', function() {
+                document.getElementById('returnLocationCount').textContent = this.value.length;
+            });
+        }
+        
+        if (additionalNote) {
+            document.getElementById('additionalNoteCount').textContent = additionalNote.value.length;
+            additionalNote.addEventListener('input', function() {
+                document.getElementById('additionalNoteCount').textContent = this.value.length;
+            });
+        }
+    }
+    </script>
 
     <!-- ═══════════════════════════════════════════════════════════════════════
          HELD DEPOSIT MANAGEMENT SECTION

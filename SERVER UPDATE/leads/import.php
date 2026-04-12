@@ -324,6 +324,9 @@ function lead_import_status(string $rawValue, string $default): string
     if ($norm === 'contacted') {
         return 'contacted';
     }
+    if ($norm === 'interested') {
+        return 'interested';
+    }
     if ($norm === 'future' || $norm === 'booklater' || $norm === 'later') {
         return 'future';
     }
@@ -431,7 +434,7 @@ if (($_GET['action'] ?? '') === 'template') {
 }
 
 $allowedInquiryTypes = ['daily', 'weekly', 'monthly', 'wedding_rental', 'other'];
-$allowedInitialStatuses = ['new', 'contacted', 'future'];
+$allowedInitialStatuses = ['new', 'contacted', 'interested', 'future'];
 $stage = $_POST['stage'] ?? $_GET['stage'] ?? 'upload';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $stage === 'prepare') {
@@ -930,6 +933,7 @@ require_once __DIR__ . '/../includes/header.php';
                             class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-mb-accent transition-colors">
                             <option value="new" selected>New</option>
                             <option value="contacted">Contacted</option>
+                            <option value="interested">Interested</option>
                             <option value="future">Book Later</option>
                         </select>
                     </div>

@@ -77,10 +77,19 @@ $requestedStaffFilter = (int) ($_GET['staff_filter'] ?? 0);
 $filterStaff = $isStaffScopeLocked ? $currentUserId : $requestedStaffFilter;
 $filterDateFrom = trim($_GET['date_from'] ?? '');
 $filterDateTo = trim($_GET['date_to'] ?? '');
+$filterSource = trim($_GET['source_filter'] ?? '');
+$filterFollowup = trim($_GET['followup_filter'] ?? '');
+if ($filterFollowup !== '' && !in_array($filterFollowup, ['overdue', 'today', 'tomorrow', 'all'], true)) {
+    $filterFollowup = '';
+}
 // Time range switch: 'today' (default), 'yesterday', or 'all'
 $timeRange = trim($_GET['time_range'] ?? 'today');
 if (!in_array($timeRange, ['today', 'yesterday', 'all'], true)) {
     $timeRange = 'today';
+}
+// If followup_filter is set, default to 'all' time range to show all leads with matching follow-ups
+if ($filterFollowup !== '' && !isset($_GET['time_range'])) {
+    $timeRange = 'all';
 }
 // If date_from/date_to are explicitly set, treat as 'all' (custom range)
 if ($filterDateFrom !== '' || $filterDateTo !== '') {
@@ -97,7 +106,6 @@ if ($timeRange === 'yesterday' && $filterDateFrom === '' && $filterDateTo === ''
     $filterDateFrom = $yesterday;
     $filterDateTo   = $yesterday;
 }
-$filterSource = trim($_GET['source_filter'] ?? '');
 $filterStatus = trim((string) ($_GET['status_filter'] ?? ''));
 if ($filterStatus !== '' && !in_array($filterStatus, $stages, true)) {
     $filterStatus = '';
@@ -167,6 +175,15 @@ if ($filterSearch !== '') {
     $term = '%' . $filterSearch . '%';
     $params = array_merge($params, [$term, $term, $term, $term, $term]);
 }
+// Follow-up filter
+if ($filterFollowup === 'overdue') {
+    $where[] = 'EXISTS (SELECT 1 FROM lead_followups WHERE lead_id = l.id AND scheduled_at < ? AND is_done = 0)';
+    $params[] = app_now_sql();
+} elseif ($filterFollowup === 'today') {
+    $where[] = 'EXISTS (SELECT 1 FROM lead_followups WHERE lead_id = l.id AND DATE(scheduled_at) = CURDATE() AND is_done = 0)';
+} elseif ($filterFollowup === 'tomorrow') {
+    $where[] = 'EXISTS (SELECT 1 FROM lead_followups WHERE lead_id = l.id AND DATE(scheduled_at) = DATE_ADD(CURDATE(), INTERVAL 1 DAY) AND is_done = 0)';
+}
 
 $whereSql = implode(' AND ', $where);
 $baseFrom = 'FROM leads l
@@ -226,6 +243,7 @@ $viewStateParams = array_filter(
         'date_to' => $filterDateTo,
         'time_range' => $timeRange !== 'today' ? $timeRange : null,
         'source_filter' => $filterSource,
+        'followup_filter' => $filterFollowup !== '' ? $filterFollowup : null,
         'status_filter' => $filterStatus,
         'inquiry_filter' => $filterInquiry,
         'q' => $filterSearch,
@@ -483,6 +501,23 @@ require_once __DIR__ . '/../includes/header.php';
                         <?= e($label) ?>
                     </option>
                 <?php endforeach; ?>
+            </select>
+        </div>
+
+        <div class="w-px h-5 bg-mb-subtle/20"></div>
+
+        <!-- Follow-up Filter -->
+        <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 <?= $filterFollowup === 'overdue' ? 'text-red-400' : 'text-mb-subtle' ?> flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <select name="followup_filter" onchange="document.getElementById('pipelineFilters').submit()"
+                class="bg-mb-black border <?= $filterFollowup === 'overdue' ? 'border-red-500/40 text-red-400' : 'border-mb-subtle/20 text-white' ?> rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-mb-accent transition-colors cursor-pointer">
+                <option value="" <?= $filterFollowup === '' ? 'selected' : '' ?>>All Follow-ups</option>
+                <option value="overdue" <?= $filterFollowup === 'overdue' ? 'selected' : '' ?>>Overdue</option>
+                <option value="today" <?= $filterFollowup === 'today' ? 'selected' : '' ?>>Today</option>
+                <option value="tomorrow" <?= $filterFollowup === 'tomorrow' ? 'selected' : '' ?>>Tomorrow</option>
             </select>
         </div>
 

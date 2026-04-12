@@ -52,36 +52,41 @@ $reservationPaymentStmt = $pdo->prepare("SELECT COUNT(*) FROM staff_activity_log
 $reservationPaymentStmt->execute([$selectedDate]);
 $reservationPaymentActions = (int) $reservationPaymentStmt->fetchColumn();
 
-// Active Status Calculation Function
-function getActiveStatus($lastActivity) {
-    if (!$lastActivity) {
-        return ['status' => 'inactive', 'text' => 'No activity', 'color' => 'red'];
+// Online Status Calculation Function (Session + Attendance Based)
+function getOnlineStatus($user, $todayAttendance) {
+    // For admin: Only check login status
+    if ($user['role'] === 'admin') {
+        if ($user['is_online']) {
+            return ['status' => 'online', 'text' => 'Online', 'color' => 'green'];
+        } else {
+            return ['status' => 'offline', 'text' => 'Offline', 'color' => 'gray'];
+        }
     }
     
-    $lastTime = strtotime($lastActivity);
-    $now = time();
-    $diffMinutes = floor(($now - $lastTime) / 60);
+    // For staff: Check login AND attendance
+    // Staff is offline if:
+    // 1. Logged out (is_online = 0)
+    // 2. Punched out (even if still logged in)
+    // 3. Not punched in today
     
-    if ($diffMinutes <= 15) {
-        return ['status' => 'active', 'text' => 'Active Now', 'color' => 'green'];
+    if (!$user['is_online']) {
+        return ['status' => 'offline', 'text' => 'Logged out', 'color' => 'gray'];
     }
     
-    // Format relative time
-    if ($diffMinutes < 60) {
-        $text = "Last seen {$diffMinutes}m ago";
-    } elseif ($diffMinutes < 1440) {
-        $hours = floor($diffMinutes / 60);
-        $text = "Last seen {$hours}h ago";
-    } else {
-        $days = floor($diffMinutes / 1440);
-        $text = "Last seen {$days}d ago";
+    if (!$todayAttendance || !$todayAttendance['punch_in']) {
+        return ['status' => 'offline', 'text' => 'Not punched in', 'color' => 'gray'];
     }
     
-    return ['status' => 'inactive', 'text' => $text, 'color' => 'red'];
+    if ($todayAttendance['punch_out']) {
+        return ['status' => 'offline', 'text' => 'Punched out', 'color' => 'gray'];
+    }
+    
+    // Staff is logged in and punched in (not punched out)
+    return ['status' => 'online', 'text' => 'Online', 'color' => 'green'];
 }
 
-// Staff Activity Aggregation Query
-// Join users, staff, and staff_activity_log tables
+// Staff Activity Aggregation Query with Online Status
+// Join users, staff, attendance, and staff_activity_log tables
 // Group by user_id and count actions by category
 // Calculate last_activity timestamp per staff member
 // Filter for active staff members only
@@ -89,8 +94,13 @@ $staffDataStmt = $pdo->prepare("
     SELECT 
         u.id as user_id,
         u.username,
+        u.is_online,
+        u.last_login_at,
+        u.last_logout_at,
         COALESCE(s.name, u.username) as name,
         COALESCE(s.role, u.role) as role,
+        sa.punch_in,
+        sa.punch_out,
         COUNT(sal.id) as total_actions,
         COALESCE(SUM(CASE WHEN sal.action LIKE '%lead%' THEN 1 ELSE 0 END), 0) as lead_actions,
         COALESCE(SUM(CASE WHEN sal.action LIKE '%reservation%' THEN 1 ELSE 0 END), 0) as reservation_actions,
@@ -98,12 +108,13 @@ $staffDataStmt = $pdo->prepare("
         MAX(sal.created_at) as last_activity
     FROM users u
     LEFT JOIN staff s ON s.id = u.staff_id
+    LEFT JOIN staff_attendance sa ON sa.user_id = u.id AND sa.date = ?
     LEFT JOIN staff_activity_log sal ON sal.user_id = u.id AND DATE(sal.created_at) = ?
     WHERE u.is_active = 1
-    GROUP BY u.id, u.username, s.name, s.role
+    GROUP BY u.id, u.username, u.is_online, u.last_login_at, u.last_logout_at, s.name, s.role, sa.punch_in, sa.punch_out
     ORDER BY total_actions DESC, COALESCE(s.name, u.username) ASC
 ");
-$staffDataStmt->execute([$selectedDate]);
+$staffDataStmt->execute([$selectedDate, $selectedDate]);
 $staffMembers = $staffDataStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $pageTitle = 'Staff Monitor Dashboard';
@@ -187,7 +198,11 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <?php foreach ($staffMembers as $staff): ?>
                 <?php
-                $activeStatus = getActiveStatus($staff['last_activity']);
+                $todayAttendance = [
+                    'punch_in' => $staff['punch_in'],
+                    'punch_out' => $staff['punch_out']
+                ];
+                $onlineStatus = getOnlineStatus($staff, $todayAttendance);
                 $initials = '';
                 $nameParts = explode(' ', $staff['name']);
                 foreach ($nameParts as $part) {
@@ -214,9 +229,9 @@ require_once __DIR__ . '/../includes/header.php';
                         
                         <!-- Active Status Indicator -->
                         <div class="flex items-center gap-1.5 flex-shrink-0">
-                            <div class="w-2 h-2 rounded-full <?= $activeStatus['color'] === 'green' ? 'bg-green-500' : 'bg-red-500' ?>"></div>
-                            <span class="text-xs <?= $activeStatus['color'] === 'green' ? 'text-green-400' : 'text-red-400' ?>">
-                                <?= e($activeStatus['text']) ?>
+                            <div class="w-2 h-2 rounded-full <?= $onlineStatus['color'] === 'green' ? 'bg-green-500' : 'bg-gray-500' ?>"></div>
+                            <span class="text-xs <?= $onlineStatus['color'] === 'green' ? 'text-green-400' : 'text-gray-400' ?>">
+                                <?= e($onlineStatus['text']) ?>
                             </span>
                         </div>
                     </div>

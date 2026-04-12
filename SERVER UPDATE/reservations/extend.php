@@ -1,4 +1,9 @@
 <?php
+// Force no-cache to ensure JavaScript updates are loaded
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
+
 require_once __DIR__ . '/../config/db.php';
 if (!auth_has_perm('add_reservations') && !auth_has_perm('do_delivery') && !auth_has_perm('do_return')) {
     flash('error', 'You do not have permission to extend reservations.');
@@ -104,7 +109,7 @@ function calc_extension(DateTimeInterface $baseStart, ?DateTimeInterface $desire
         $result['new_end_dt'] = $end;
         return $result;
     }
-    $days = (int) (ceil($diffSec / 86400) ?: 1) + 1;
+    $days = (int) (ceil($diffSec / 86400) ?: 1);
 
     if ($rentalType === 'monthly') {
         $monthRate = $monthly > 0 ? $monthly : $daily;
@@ -468,6 +473,7 @@ require_once __DIR__ . '/../includes/header.php';
                         </label>
                     <?php endforeach; ?>
                 </div>
+                <p id="rentalTypeHint" class="text-xs text-amber-400/80 mt-2 hidden">📦 Fixed package — end date is auto-calculated. Use <strong>Daily</strong> or <strong>Monthly</strong> for custom dates.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -646,6 +652,7 @@ require_once __DIR__ . '/../includes/header.php';
     data-base-start-ts="<?= (int) ($baseStartDt->getTimestamp() * 1000) ?>"></div>
 
 <script>
+// Cache-bust: v2026-04-08-003 - Triple force enable with event listeners
 const rateData = document.getElementById('rateData');
 const DAILY = parseFloat(rateData.dataset.daily || '0');
 const MONTHLY = parseFloat(rateData.dataset.monthly || '0');
@@ -705,14 +712,26 @@ function updateOutputs(days, rate, total) {
     document.getElementById('extensionAmount').value = total.toFixed(2);
 }
 
+function updateSummaryEnd(dt) {
+    const summaryEnd = document.getElementById('summaryEnd');
+    if (summaryEnd && dt) {
+        summaryEnd.textContent = dt.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+}
+
 function calcExtension() {
     const type = getSelectedType();
     const FIXED_DAYS = { '1day': 1, '7day': 7, '15day': 15, '30day': 30 };
     const base = new Date(BASE_START_TS);
     let days = 0, rate = DAILY, total = 0;
     let end = getEndDateFromInputs();
+    const hint = document.getElementById('rentalTypeHint');
 
     if (FIXED_DAYS[type]) {
+        // Fixed package: disable date editing, show hint
+        setEndInputsDisabled(true);
+        if (hint) hint.classList.remove('hidden');
+
         days = FIXED_DAYS[type];
         const pkgRate = PKG[type] || 0;
         if (pkgRate > 0) { total = pkgRate; rate = pkgRate / days; }
@@ -720,20 +739,28 @@ function calcExtension() {
         end = new Date(base);
         end.setDate(end.getDate() + days);
         setEndInputs(end);
-        setEndInputsDisabled(true);
+        updateSummaryEnd(end);
     } else if (type === 'monthly') {
+        // Monthly: enable date editing, hide hint, live update
         setEndInputsDisabled(false);
-        if (!end || end <= base) { updateOutputs(0, 0, 0); return; }
+        if (hint) hint.classList.add('hidden');
+
+        if (!end || end <= base) { updateOutputs(0, 0, 0); updateSummaryEnd(null); return; }
         days = Math.ceil((end - base) / 86400000) || 1;
         const monthRate = MONTHLY > 0 ? MONTHLY : DAILY;
         total = monthRate * (days / 30 || 1);
         rate = days > 0 ? (total / days) : 0;
+        updateSummaryEnd(end);
     } else {
+        // Daily: enable date editing, hide hint, live update
         setEndInputsDisabled(false);
-        if (!end || end <= base) { updateOutputs(0, 0, 0); return; }
+        if (hint) hint.classList.add('hidden');
+
+        if (!end || end <= base) { updateOutputs(0, 0, 0); updateSummaryEnd(null); return; }
         days = Math.ceil((end - base) / 86400000) || 1;
         rate = DAILY;
         total = days * DAILY;
+        updateSummaryEnd(end);
     }
 
     updateOutputs(days, rate, total);
@@ -815,6 +842,7 @@ document.querySelectorAll('input[name="rental_type"]').forEach(el => el.addEvent
     if (radio) radio.checked = true;
 })();
 
+// Initialize on page load — calcExtension handles enable/disable per type
 calcExtension();
 </script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

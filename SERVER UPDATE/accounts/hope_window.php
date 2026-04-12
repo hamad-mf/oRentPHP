@@ -262,16 +262,16 @@ function hope_render_breakdown(array $breakdownMap, string $date): string
     
     $html = '<div class="space-y-1.5">';
     foreach ($items as $item) {
-        $html .= '<div class="flex items-center justify-between text-sm group">';
+        $html .= '<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs sm:text-sm group">';
         if ($item['link']) {
-            $html .= '<a href="' . e($item['link']) . '" class="text-mb-silver hover:text-mb-accent transition-colors hover:underline">' . $item['label'] . '</a>';
+            $html .= '<a href="' . e($item['link']) . '" class="text-mb-silver hover:text-mb-accent transition-colors hover:underline min-w-0 truncate max-w-[70%] sm:max-w-none">' . $item['label'] . '</a>';
         } else {
-            $html .= '<span class="text-mb-silver">' . $item['label'] . '</span>';
+            $html .= '<span class="text-mb-silver min-w-0 truncate max-w-[70%] sm:max-w-none">' . $item['label'] . '</span>';
         }
-        $html .= '<span class="text-green-400 font-medium">' . hope_format_currency($item['amount']) . '</span>';
+        $html .= '<span class="text-green-400 font-medium flex-shrink-0">' . hope_format_currency($item['amount']) . '</span>';
         $html .= '</div>';
     }
-    $html .= '<div class="flex items-center justify-between text-sm pt-2 mt-2 border-t border-mb-subtle/20">';
+    $html .= '<div class="flex items-center justify-between text-xs sm:text-sm pt-2 mt-2 border-t border-mb-subtle/20">';
     $html .= '<span class="text-white font-medium">Total Expected</span>';
     $html .= '<span class="text-green-400 font-bold">' . hope_format_currency($breakdown['total']) . '</span>';
     $html .= '</div>';
@@ -291,16 +291,17 @@ function hope_fetch_actual_breakdown(PDO $pdo, string $date): array
         }
         
         $kpiClause = ledger_kpi_exclusion_clause();
+        // Fetch income entries
         $stmt = $pdo->prepare(
-            "SELECT le.id, le.amount, le.description, le.source_type, le.source_id, le.source_event,
+            "SELECT le.id, le.amount, le.txn_type, le.description, le.source_type, le.source_id, le.source_event,
                     COALESCE(c.name, 'Unknown Client') AS client_name
              FROM ledger_entries le
              LEFT JOIN reservations r ON le.source_type = 'reservation' AND le.source_id = r.id
              LEFT JOIN clients c ON r.client_id = c.id
-             WHERE le.txn_type = 'income'
+             WHERE ((le.txn_type = 'income') OR (le.txn_type = 'expense' AND le.source_type = 'reservation' AND le.source_event = 'cancellation'))
                AND $kpiClause
                AND DATE(le.posted_at) = ?
-             ORDER BY le.amount DESC"
+             ORDER BY le.txn_type ASC, le.amount DESC"
         );
         $stmt->execute([$date]);
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -322,7 +323,13 @@ function hope_render_actual_breakdown(array $items): string
     
     foreach ($items as $item) {
         $amount = (float) $item['amount'];
-        $total += $amount;
+        $isExpense = ($item['txn_type'] ?? 'income') === 'expense';
+        
+        if ($isExpense) {
+            $total -= $amount;
+        } else {
+            $total += $amount;
+        }
         
         $label = '';
         $link = null;
@@ -337,7 +344,7 @@ function hope_render_actual_breakdown(array $items): string
                 'delivery' => 'Delivery',
                 'return' => 'Return',
                 'extension' => 'Extension',
-                'cancellation' => 'Cancellation',
+                'cancellation' => 'Cancellation Refund',
                 default => ucfirst($event),
             };
             
@@ -348,17 +355,21 @@ function hope_render_actual_breakdown(array $items): string
             $label = e($desc);
         }
         
-        $html .= '<div class="flex items-center justify-between text-sm group">';
+        $html .= '<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs sm:text-sm group">';
         if ($link) {
-            $html .= '<a href="' . e($link) . '" class="text-mb-silver hover:text-mb-accent transition-colors hover:underline">' . $label . '</a>';
+            $html .= '<a href="' . e($link) . '" class="text-mb-silver hover:text-mb-accent transition-colors hover:underline min-w-0 truncate max-w-[70%] sm:max-w-none">' . $label . '</a>';
         } else {
-            $html .= '<span class="text-mb-silver">' . $label . '</span>';
+            $html .= '<span class="text-mb-silver min-w-0 truncate max-w-[70%] sm:max-w-none">' . $label . '</span>';
         }
-        $html .= '<span class="text-blue-400 font-medium">' . hope_format_currency($amount) . '</span>';
+        if ($isExpense) {
+            $html .= '<span class="text-red-400 font-medium flex-shrink-0">-' . hope_format_currency($amount) . '</span>';
+        } else {
+            $html .= '<span class="text-blue-400 font-medium flex-shrink-0">' . hope_format_currency($amount) . '</span>';
+        }
         $html .= '</div>';
     }
     
-    $html .= '<div class="flex items-center justify-between text-sm pt-2 mt-2 border-t border-mb-subtle/20">';
+    $html .= '<div class="flex items-center justify-between text-xs sm:text-sm pt-2 mt-2 border-t border-mb-subtle/20">';
     $html .= '<span class="text-white font-medium">Total Actual</span>';
     $html .= '<span class="text-blue-400 font-bold">' . hope_format_currency($total) . '</span>';
     $html .= '</div>';
@@ -724,10 +735,14 @@ try {
 if ($hasLedgerTable) {
     try {
         $kpiClause = ledger_kpi_exclusion_clause();
+        // Net actual: income minus reservation cancellation refund expenses
         $actualStmt = $pdo->prepare(
-            "SELECT DATE(posted_at) AS day, COALESCE(SUM(amount), 0) AS total
+            "SELECT DATE(posted_at) AS day,
+                    COALESCE(SUM(CASE WHEN txn_type = 'income' THEN amount
+                                      WHEN txn_type = 'expense' AND source_type = 'reservation' AND source_event = 'cancellation' THEN -amount
+                                      ELSE 0 END), 0) AS total
              FROM ledger_entries
-             WHERE txn_type = 'income'
+             WHERE ((txn_type = 'income') OR (txn_type = 'expense' AND source_type = 'reservation' AND source_event = 'cancellation'))
                AND $kpiClause
                AND DATE(posted_at) BETWEEN ? AND ?
              GROUP BY DATE(posted_at)"
@@ -796,42 +811,44 @@ $pageTitle = 'Hope Window';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<div class="space-y-6 max-w-7xl mx-auto">
-    <div class="flex items-center justify-between flex-wrap gap-3">
-        <div>
-            <h2 class="text-white text-2xl font-light">Hope Window</h2>
-            <p class="text-mb-subtle text-sm mt-1">Expected income is projected from reservation schedule (booking, delivery, return, extensions) plus custom predictions.</p>
+<div class="space-y-6 max-w-7xl mx-auto px-4 sm:px-0">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div class="w-full sm:w-auto">
+            <h2 class="text-white text-xl sm:text-2xl font-light">Hope Window</h2>
+            <p class="text-mb-subtle text-xs sm:text-sm mt-1">Expected income is projected from reservation schedule (booking, delivery, return, extensions) plus custom predictions.</p>
         </div>
-        <form method="GET" class="flex items-center gap-2">
-            <input type="hidden" name="view" value="<?= e($view) ?>">
-            <?php if ($view === 'day'): ?>
-                <input type="hidden" name="d" value="<?= e($selectedDate) ?>">
-            <?php endif; ?>
-            <select name="m" class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
-                <?php
-                foreach (range(1, 12) as $mVal):
-                    $mNext = $mVal === 12 ? 1 : $mVal + 1;
-                    $mLabel = '15 ' . date('M', mktime(0,0,0,$mVal,1)) . ' – 14 ' . date('M', mktime(0,0,0,$mNext,1));
-                ?>
-                    <option value="<?= $mVal ?>" <?= $selM === $mVal ? 'selected' : '' ?>><?= $mLabel ?></option>
-                <?php endforeach; ?>
-            </select>
-            <select name="y" class="bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
-                <?php for ($y = (int) $now->format('Y') - 1; $y <= (int) $now->format('Y') + 1; $y++): ?>
-                    <option value="<?= $y ?>" <?= $selY === $y ? 'selected' : '' ?>><?= $y ?></option>
-                <?php endfor; ?>
-            </select>
-            <button type="submit" class="bg-mb-accent text-white px-4 py-2 rounded-lg text-sm hover:bg-mb-accent/80 transition-colors">Go</button>
-        </form>
-        <div class="flex items-center bg-mb-black/60 border border-mb-subtle/20 rounded-lg p-1">
-            <a href="hope_window.php?m=<?= $selM ?>&y=<?= $selY ?>&view=list"
-               class="px-3 py-1.5 text-xs rounded-md <?= $view === 'list' ? 'bg-mb-accent text-white' : 'text-mb-subtle hover:text-white' ?>">
-                List View
-            </a>
-            <a href="hope_window.php?m=<?= $selM ?>&y=<?= $selY ?>&view=day&d=<?= e($selectedDate) ?>"
-               class="px-3 py-1.5 text-xs rounded-md <?= $view === 'day' ? 'bg-mb-accent text-white' : 'text-mb-subtle hover:text-white' ?>">
-                Day View
-            </a>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <form method="GET" class="flex items-center gap-2">
+                <input type="hidden" name="view" value="<?= e($view) ?>">
+                <?php if ($view === 'day'): ?>
+                    <input type="hidden" name="d" value="<?= e($selectedDate) ?>">
+                <?php endif; ?>
+                <select name="m" class="bg-mb-black border border-mb-subtle/20 rounded-lg px-2 sm:px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent flex-1 sm:flex-none">
+                    <?php
+                    foreach (range(1, 12) as $mVal):
+                        $mNext = $mVal === 12 ? 1 : $mVal + 1;
+                        $mLabel = '15 ' . date('M', mktime(0,0,0,$mVal,1)) . ' – 14 ' . date('M', mktime(0,0,0,$mNext,1));
+                    ?>
+                        <option value="<?= $mVal ?>" <?= $selM === $mVal ? 'selected' : '' ?>><?= $mLabel ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <select name="y" class="bg-mb-black border border-mb-subtle/20 rounded-lg px-2 sm:px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
+                    <?php for ($y = (int) $now->format('Y') - 1; $y <= (int) $now->format('Y') + 1; $y++): ?>
+                        <option value="<?= $y ?>" <?= $selY === $y ? 'selected' : '' ?>><?= $y ?></option>
+                    <?php endfor; ?>
+                </select>
+                <button type="submit" class="bg-mb-accent text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm hover:bg-mb-accent/80 transition-colors whitespace-nowrap">Go</button>
+            </form>
+            <div class="flex items-center bg-mb-black/60 border border-mb-subtle/20 rounded-lg p-1">
+                <a href="hope_window.php?m=<?= $selM ?>&y=<?= $selY ?>&view=list"
+                   class="px-2 sm:px-3 py-1.5 text-xs rounded-md <?= $view === 'list' ? 'bg-mb-accent text-white' : 'text-mb-subtle hover:text-white' ?> flex-1 text-center">
+                    List
+                </a>
+                <a href="hope_window.php?m=<?= $selM ?>&y=<?= $selY ?>&view=day&d=<?= e($selectedDate) ?>"
+                   class="px-2 sm:px-3 py-1.5 text-xs rounded-md <?= $view === 'day' ? 'bg-mb-accent text-white' : 'text-mb-subtle hover:text-white' ?> flex-1 text-center">
+                    Day
+                </a>
+            </div>
         </div>
     </div>
 
@@ -856,34 +873,34 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     <?php endif; ?>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-4 sm:p-5">
             <p class="text-xs text-mb-subtle uppercase tracking-wider">Month</p>
-            <p class="text-white text-lg mt-1"><?= e($monthLabel) ?></p>
+            <p class="text-white text-base sm:text-lg mt-1"><?= e($monthLabel) ?></p>
             <p class="text-mb-subtle text-xs mt-2">Range: <?= e($rangeStart) ?> to <?= e($rangeEnd) ?></p>
         </div>
-        <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5">
+        <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-4 sm:p-5">
             <p class="text-xs text-mb-subtle uppercase tracking-wider">Default Daily Target</p>
             <?php if ($isAdmin): ?>
                 <form method="POST" class="mt-2 flex items-center gap-2">
                     <input type="hidden" name="action" value="save_default">
                     <input type="number" step="0.01" min="0" name="default_target" value="<?= number_format($defaultTarget, 2, '.', '') ?>"
-                        class="w-36 bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
-                    <button type="submit" class="bg-mb-accent text-white px-3 py-2 rounded-lg text-xs hover:bg-mb-accent/80 transition-colors">Save</button>
+                        class="w-28 sm:w-36 bg-mb-black border border-mb-subtle/20 rounded-lg px-2 sm:px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
+                    <button type="submit" class="bg-mb-accent text-white px-2 sm:px-3 py-2 rounded-lg text-xs hover:bg-mb-accent/80 transition-colors">Save</button>
                 </form>
             <?php else: ?>
-                <p class="text-white text-lg mt-2">$<?= number_format($defaultTarget, 2) ?></p>
+                <p class="text-white text-base sm:text-lg mt-2">$<?= number_format($defaultTarget, 2) ?></p>
             <?php endif; ?>
             <p class="text-mb-subtle text-xs mt-2">Used when no per-day override exists.</p>
         </div>
-        <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-5">
+        <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-4 sm:p-5 sm:col-span-2 lg:col-span-1">
             <p class="text-xs text-mb-subtle uppercase tracking-wider">Total Expected Income</p>
             <?php $totalExpected = array_sum(array_map(static fn($d) => $d['expected'], $days)); ?>
-            <p class="text-green-400 text-lg mt-2">$<?= number_format($totalExpected, 2) ?></p>
+            <p class="text-green-400 text-base sm:text-lg mt-2">$<?= number_format($totalExpected, 2) ?></p>
             <p class="text-mb-subtle text-xs mt-2">Sum of scheduled reservation collections + predictions for <?= e($monthLabel) ?>.</p>
         </div>
         <a href="vehicle_targets.php?m=<?= $selM ?>&y=<?= $selY ?>" 
-           class="block bg-mb-surface border border-mb-subtle/20 rounded-xl p-5 hover:border-mb-accent/50 transition-colors">
+           class="block bg-mb-surface border border-mb-subtle/20 rounded-xl p-4 sm:p-5 hover:border-mb-accent/50 transition-colors sm:col-span-2 lg:col-span-3">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-xs text-mb-subtle uppercase tracking-wider mb-2">Vehicle Breakdown</p>
@@ -897,12 +914,12 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl overflow-hidden">
-        <div class="px-5 py-4 border-b border-mb-subtle/10 flex items-center justify-between flex-wrap gap-3">
+        <div class="px-4 sm:px-5 py-3 sm:py-4 border-b border-mb-subtle/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-                <h3 class="text-white font-light text-lg">Daily Targets</h3>
+                <h3 class="text-white font-light text-base sm:text-lg">Daily Targets</h3>
                 <p class="text-mb-subtle text-xs mt-1">Edit targets per day. Click a row to add custom predictions.</p>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
                 <?php if ($view === 'day' && $selectedDay): ?>
                     <?php if ($prevDate): ?>
                         <a href="hope_window.php?m=<?= $selM ?>&y=<?= $selY ?>&view=day&d=<?= e($prevDate) ?>"
@@ -923,11 +940,12 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         </div>
 
-        <form method="POST" class="p-4 space-y-3">
+        <form method="POST" class="p-3 sm:p-4 space-y-3">
             <input type="hidden" name="action" value="save_overrides">
             <?php if ($view === 'list'): ?>
                 <div class="grid grid-cols-1 gap-2">
-                    <div class="grid grid-cols-12 text-xs text-mb-subtle px-3">
+                    <!-- Desktop Header - Hidden on mobile -->
+                    <div class="hidden md:grid grid-cols-12 text-xs text-mb-subtle px-3">
                         <div class="col-span-2">Date</div>
                         <div class="col-span-2">Target</div>
                         <div class="col-span-2">Expected</div>
@@ -943,7 +961,57 @@ require_once __DIR__ . '/../includes/header.php';
                         $gapClass = $gap >= 0 ? 'text-green-400' : 'text-red-400';
                         $rowClass = 'border-mb-accent/60 bg-mb-accent/10';
                     ?>
-                        <div class="grid grid-cols-12 items-center border <?= $rowClass ?> rounded-lg px-3 py-2 text-sm hope-row cursor-pointer" data-pred-toggle="<?= e($row['date']) ?>">
+                        <!-- Today Mobile Card -->
+                        <div class="md:hidden border <?= $rowClass ?> rounded-lg p-3 text-sm hope-row cursor-pointer" data-pred-toggle="<?= e($row['date']) ?>">
+                            <div class="flex items-center justify-between mb-2">
+                                <div>
+                                    <p class="text-white font-medium"><?= e($row['label']) ?></p>
+                                    <span class="text-xs text-mb-accent">Today</span>
+                                </div>
+                                <div class="text-right">
+                                    <?php
+                                        $variance = $row['actual'] - $row['expected'];
+                                        $varianceClass = $variance >= 0 ? 'text-green-400' : 'text-red-400';
+                                        $varianceSign  = $variance >= 0 ? '+' : '-';
+                                    ?>
+                                    <span class="<?= $varianceClass ?> font-medium">
+                                        <?= $varianceSign ?>$<?= number_format(abs($variance), 2) ?>
+                                    </span>
+                                    <p class="text-xs text-mb-subtle">Variance</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                    <p class="text-mb-subtle">Target</p>
+                                    <?php if ($isAdmin): ?>
+                                        <input type="number" step="0.01" min="0" name="target[<?= e($row['date']) ?>]"
+                                            value="<?= number_format($row['target'], 2, '.', '') ?>"
+                                            class="w-full mt-1 bg-mb-black border border-mb-subtle/20 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-mb-accent">
+                                    <?php else: ?>
+                                        <p class="text-white mt-1">$<?= number_format($row['target'], 2) ?></p>
+                                    <?php endif; ?>
+                                </div>
+                                <div>
+                                    <p class="text-mb-subtle">Expected</p>
+                                    <p class="text-green-400 mt-1">$<?= number_format($row['expected'], 2) ?></p>
+                                </div>
+                                <div>
+                                    <p class="text-mb-subtle">Actual</p>
+                                    <p class="text-blue-400 mt-1">$<?= number_format($row['actual'], 2) ?></p>
+                                </div>
+                                <div>
+                                    <p class="text-mb-subtle">Predictions</p>
+                                    <p class="text-white mt-1">
+                                        <?= (int) $row['prediction_count'] ?>
+                                        <?php if ($row['prediction_sum'] > 0): ?>
+                                            <span class="text-mb-subtle ml-1">($<?= number_format($row['prediction_sum'], 2) ?>)</span>
+                                        <?php endif; ?>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Today Desktop Grid -->
+                        <div class="hidden md:grid grid-cols-12 items-center border <?= $rowClass ?> rounded-lg px-3 py-2 text-sm hope-row cursor-pointer" data-pred-toggle="<?= e($row['date']) ?>">
                             <div class="col-span-2">
                                 <p class="text-white"><?= e($row['label']) ?></p>
                                 <span class="text-xs text-mb-accent">Today</span>
@@ -980,23 +1048,23 @@ require_once __DIR__ . '/../includes/header.php';
                                 </span>
                             </div>
                         </div>
-                        <div id="pred-<?= e($row['date']) ?>" class="hidden border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-4 py-3 text-sm">
+                        <div id="pred-<?= e($row['date']) ?>" class="hidden border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-3 sm:px-4 py-3 text-sm">
                             <!-- Expected Income Breakdown -->
                             <div class="mb-4 pb-4 border-b border-mb-subtle/10">
-                                <p class="text-white font-medium mb-3">Expected Income Breakdown</p>
+                                <p class="text-white font-medium mb-3 text-sm">Expected Income Breakdown</p>
                                 <?= hope_render_breakdown($breakdownMap, $row['date']) ?>
                             </div>
                             
                             <!-- Actual Income Breakdown -->
                             <div class="mb-4 pb-4 border-b border-mb-subtle/10">
-                                <p class="text-white font-medium mb-3">Actual Income Breakdown</p>
+                                <p class="text-white font-medium mb-3 text-sm">Actual Income Breakdown</p>
                                 <?= hope_render_actual_breakdown(hope_fetch_actual_breakdown($pdo, $row['date'])) ?>
                             </div>
                             
                             <!-- Predictions Section -->
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <p class="text-white font-medium">Predictions for <?= e($row['label']) ?></p>
+                                    <p class="text-white font-medium text-sm">Predictions for <?= e($row['label']) ?></p>
                                     <p class="text-mb-subtle text-xs">Add your own expected deals to include in projected income.</p>
                                 </div>
                             </div>
@@ -1004,16 +1072,16 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php if (!empty($row['predictions'])): ?>
                                     <?php foreach ($row['predictions'] as $pred): ?>
                                         <?php if ($isAdmin): ?>
-                                            <div class="grid grid-cols-12 gap-2 items-center">
-                                                <div class="col-span-7">
+                                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                                                <div class="sm:col-span-7">
                                                     <input type="text" name="pred_label[<?= (int) $pred['id'] ?>]" value="<?= e($pred['label']) ?>"
-                                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
                                                 </div>
-                                                <div class="col-span-3">
+                                                <div class="sm:col-span-3">
                                                     <input type="number" step="0.01" min="0" name="pred_amount[<?= (int) $pred['id'] ?>]" value="<?= number_format($pred['amount'], 2, '.', '') ?>"
-                                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
                                                 </div>
-                                                <div class="col-span-2 flex items-center gap-2">
+                                                <div class="sm:col-span-2 flex items-center gap-2">
                                                     <label class="flex items-center gap-2 text-xs text-mb-subtle">
                                                         <input type="checkbox" name="pred_delete[<?= (int) $pred['id'] ?>]" class="accent-red-500">
                                                         Remove
@@ -1021,7 +1089,7 @@ require_once __DIR__ . '/../includes/header.php';
                                                 </div>
                                             </div>
                                         <?php else: ?>
-                                            <div class="flex items-center justify-between text-sm">
+                                            <div class="flex items-center justify-between text-xs sm:text-sm">
                                                 <span class="text-white"><?= e($pred['label']) ?></span>
                                                 <span class="text-green-400">$<?= number_format($pred['amount'], 2) ?></span>
                                             </div>
@@ -1032,16 +1100,16 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php endif; ?>
                             </div>
                             <?php if ($isAdmin): ?>
-                                <div class="mt-4 grid grid-cols-12 gap-2 items-center">
-                                    <div class="col-span-7">
+                                <div class="mt-4 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                                    <div class="sm:col-span-7">
                                         <input type="text" name="pred_new_label[<?= e($row['date']) ?>]" placeholder="Prediction note (e.g., Tesla booking)"
-                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
                                     </div>
-                                    <div class="col-span-3">
+                                    <div class="sm:col-span-3">
                                         <input type="number" step="0.01" min="0" name="pred_new_amount[<?= e($row['date']) ?>]" placeholder="0.00"
-                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
                                     </div>
-                                    <div class="col-span-2">
+                                    <div class="sm:col-span-2">
                                         <button type="submit"
                                             class="w-full bg-mb-accent text-white px-3 py-2 rounded-lg text-xs hover:bg-mb-accent/80 transition-colors">
                                             Add & Save
@@ -1056,7 +1124,79 @@ require_once __DIR__ . '/../includes/header.php';
                         $gapClass = $gap >= 0 ? 'text-green-400' : 'text-red-400';
                         $rowClass = $row['is_today'] ? 'border-mb-accent/60 bg-mb-accent/10' : 'border-mb-subtle/10 bg-mb-black/30';
                     ?>
-                        <div class="grid grid-cols-12 items-center border <?= $rowClass ?> rounded-lg px-3 py-2 text-sm hope-row cursor-pointer" data-pred-toggle="<?= e($row['date']) ?>">
+                        <!-- Mobile Card Layout -->
+                        <div class="md:hidden border <?= $rowClass ?> rounded-lg p-3 text-sm hope-row cursor-pointer" data-pred-toggle="<?= e($row['date']) ?>">
+                            <div class="flex items-center justify-between mb-2">
+                                <div>
+                                    <p class="text-white font-medium"><?= e($row['label']) ?></p>
+                                    <?php if ($row['override']): ?>
+                                        <span class="text-xs text-mb-accent">Custom</span>
+                                    <?php elseif ($row['is_today']): ?>
+                                        <span class="text-xs text-mb-accent">Today</span>
+                                    <?php else: ?>
+                                        <span class="text-xs text-mb-subtle">Default</span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="text-right">
+                                    <?php if ($row['date'] <= $today): ?>
+                                        <?php
+                                            $variance = $row['actual'] - $row['expected'];
+                                            $varianceClass = $variance >= 0 ? 'text-green-400' : 'text-red-400';
+                                            $varianceSign  = $variance >= 0 ? '+' : '-';
+                                        ?>
+                                        <span class="<?= $varianceClass ?> font-medium">
+                                            <?= $varianceSign ?>$<?= number_format(abs($variance), 2) ?>
+                                        </span>
+                                        <p class="text-xs text-mb-subtle">Variance</p>
+                                    <?php else: ?>
+                                        <?php
+                                            $gap = $row['expected'] - $row['target'];
+                                            $gapClass = $gap >= 0 ? 'text-green-400' : 'text-red-400';
+                                        ?>
+                                        <span class="<?= $gapClass ?> font-medium">
+                                            <?= $gap >= 0 ? '+' : '-' ?>$<?= number_format(abs($gap), 2) ?>
+                                        </span>
+                                        <p class="text-xs text-mb-subtle">Gap</p>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                    <p class="text-mb-subtle">Target</p>
+                                    <?php if ($isAdmin): ?>
+                                        <input type="number" step="0.01" min="0" name="target[<?= e($row['date']) ?>]"
+                                            value="<?= number_format($row['target'], 2, '.', '') ?>"
+                                            class="w-full mt-1 bg-mb-black border border-mb-subtle/20 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-mb-accent">
+                                    <?php else: ?>
+                                        <p class="text-white mt-1">$<?= number_format($row['target'], 2) ?></p>
+                                    <?php endif; ?>
+                                </div>
+                                <div>
+                                    <p class="text-mb-subtle">Expected</p>
+                                    <p class="text-green-400 mt-1">$<?= number_format($row['expected'], 2) ?></p>
+                                </div>
+                                <div>
+                                    <p class="text-mb-subtle">Actual</p>
+                                    <?php if ($row['date'] <= $today): ?>
+                                        <p class="text-blue-400 mt-1">$<?= number_format($row['actual'], 2) ?></p>
+                                    <?php else: ?>
+                                        <p class="text-mb-subtle/40 mt-1">—</p>
+                                    <?php endif; ?>
+                                </div>
+                                <div>
+                                    <p class="text-mb-subtle">Predictions</p>
+                                    <p class="text-white mt-1">
+                                        <?= (int) $row['prediction_count'] ?>
+                                        <?php if ($row['prediction_sum'] > 0): ?>
+                                            <span class="text-mb-subtle ml-1">($<?= number_format($row['prediction_sum'], 2) ?>)</span>
+                                        <?php endif; ?>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Desktop Grid Layout -->
+                        <div class="hidden md:grid grid-cols-12 items-center border <?= $rowClass ?> rounded-lg px-3 py-2 text-sm hope-row cursor-pointer" data-pred-toggle="<?= e($row['date']) ?>">
                             <div class="col-span-2">
                                 <p class="text-white"><?= e($row['label']) ?></p>
                                 <?php if ($row['override']): ?>
@@ -1113,17 +1253,17 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php endif; ?>
                             </div>
                         </div>
-                        <div id="pred-<?= e($row['date']) ?>" class="hidden border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-4 py-3 text-sm">
+                        <div id="pred-<?= e($row['date']) ?>" class="hidden border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-3 sm:px-4 py-3 text-sm">
                             <!-- Expected Income Breakdown -->
                             <div class="mb-4 pb-4 border-b border-mb-subtle/10">
-                                <p class="text-white font-medium mb-3">Expected Income Breakdown</p>
+                                <p class="text-white font-medium mb-3 text-sm">Expected Income Breakdown</p>
                                 <?= hope_render_breakdown($breakdownMap, $row['date']) ?>
                             </div>
                             
                             <?php if ($row['date'] <= $today): ?>
                             <!-- Actual Income Breakdown -->
                             <div class="mb-4 pb-4 border-b border-mb-subtle/10">
-                                <p class="text-white font-medium mb-3">Actual Income Breakdown</p>
+                                <p class="text-white font-medium mb-3 text-sm">Actual Income Breakdown</p>
                                 <?= hope_render_actual_breakdown(hope_fetch_actual_breakdown($pdo, $row['date'])) ?>
                             </div>
                             <?php endif; ?>
@@ -1131,7 +1271,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <!-- Predictions Section -->
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <p class="text-white font-medium">Predictions for <?= e($row['label']) ?></p>
+                                    <p class="text-white font-medium text-sm">Predictions for <?= e($row['label']) ?></p>
                                     <p class="text-mb-subtle text-xs">Add your own expected deals to include in projected income.</p>
                                 </div>
                             </div>
@@ -1139,16 +1279,16 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php if (!empty($row['predictions'])): ?>
                                     <?php foreach ($row['predictions'] as $pred): ?>
                                         <?php if ($isAdmin): ?>
-                                            <div class="grid grid-cols-12 gap-2 items-center">
-                                                <div class="col-span-7">
+                                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                                                <div class="sm:col-span-7">
                                                     <input type="text" name="pred_label[<?= (int) $pred['id'] ?>]" value="<?= e($pred['label']) ?>"
-                                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
                                                 </div>
-                                                <div class="col-span-3">
+                                                <div class="sm:col-span-3">
                                                     <input type="number" step="0.01" min="0" name="pred_amount[<?= (int) $pred['id'] ?>]" value="<?= number_format($pred['amount'], 2, '.', '') ?>"
-                                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
                                                 </div>
-                                                <div class="col-span-2 flex items-center gap-2">
+                                                <div class="sm:col-span-2 flex items-center gap-2">
                                                     <label class="flex items-center gap-2 text-xs text-mb-subtle">
                                                         <input type="checkbox" name="pred_delete[<?= (int) $pred['id'] ?>]" class="accent-red-500">
                                                         Remove
@@ -1156,7 +1296,7 @@ require_once __DIR__ . '/../includes/header.php';
                                                 </div>
                                             </div>
                                         <?php else: ?>
-                                            <div class="flex items-center justify-between text-sm">
+                                            <div class="flex items-center justify-between text-xs sm:text-sm">
                                                 <span class="text-white"><?= e($pred['label']) ?></span>
                                                 <span class="text-green-400">$<?= number_format($pred['amount'], 2) ?></span>
                                             </div>
@@ -1167,16 +1307,16 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php endif; ?>
                             </div>
                             <?php if ($isAdmin): ?>
-                                <div class="mt-4 grid grid-cols-12 gap-2 items-center">
-                                    <div class="col-span-7">
+                                <div class="mt-4 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                                    <div class="sm:col-span-7">
                                         <input type="text" name="pred_new_label[<?= e($row['date']) ?>]" placeholder="Prediction note (e.g., Tesla booking)"
-                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
                                     </div>
-                                    <div class="col-span-3">
+                                    <div class="sm:col-span-3">
                                         <input type="number" step="0.01" min="0" name="pred_new_amount[<?= e($row['date']) ?>]" placeholder="0.00"
-                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                            class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
                                     </div>
-                                    <div class="col-span-2">
+                                    <div class="sm:col-span-2">
                                         <button type="submit"
                                             class="w-full bg-mb-accent text-white px-3 py-2 rounded-lg text-xs hover:bg-mb-accent/80 transition-colors">
                                             Add & Save
@@ -1192,25 +1332,25 @@ require_once __DIR__ . '/../includes/header.php';
                     $gap = $selectedDay['expected'] - $selectedDay['target'];
                     $gapClass = $gap >= 0 ? 'text-green-400' : 'text-red-400';
                 ?>
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                    <div class="bg-mb-black/40 rounded-lg p-4">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
+                    <div class="bg-mb-black/40 rounded-lg p-3 sm:p-4">
                         <p class="text-xs text-mb-subtle uppercase">Target</p>
                         <?php if ($isAdmin): ?>
                             <input type="number" step="0.01" min="0" name="target[<?= e($selectedDay['date']) ?>]"
                                 value="<?= number_format($selectedDay['target'], 2, '.', '') ?>"
-                                class="mt-2 w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                class="mt-2 w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-2 sm:px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
                         <?php else: ?>
-                            <p class="text-white text-lg mt-2">$<?= number_format($selectedDay['target'], 2) ?></p>
+                            <p class="text-white text-base sm:text-lg mt-2">$<?= number_format($selectedDay['target'], 2) ?></p>
                         <?php endif; ?>
                     </div>
-                    <div class="bg-mb-black/40 rounded-lg p-4">
-                        <p class="text-xs text-mb-subtle uppercase">Expected Income</p>
-                        <p class="text-green-400 text-lg mt-2">$<?= number_format($selectedDay['expected'], 2) ?></p>
+                    <div class="bg-mb-black/40 rounded-lg p-3 sm:p-4">
+                        <p class="text-xs text-mb-subtle uppercase">Expected</p>
+                        <p class="text-green-400 text-base sm:text-lg mt-2">$<?= number_format($selectedDay['expected'], 2) ?></p>
                     </div>
                     <?php if ($selectedDay['date'] <= $today): ?>
-                    <div class="bg-mb-black/40 border border-mb-subtle/10 rounded-xl p-4">
-                        <p class="text-xs text-mb-subtle uppercase tracking-wider">Actual Income</p>
-                        <p class="text-blue-400 text-xl mt-2">$<?= number_format($selectedDay['actual'], 2) ?></p>
+                    <div class="bg-mb-black/40 border border-mb-subtle/10 rounded-xl p-3 sm:p-4">
+                        <p class="text-xs text-mb-subtle uppercase tracking-wider">Actual</p>
+                        <p class="text-blue-400 text-base sm:text-xl mt-2">$<?= number_format($selectedDay['actual'], 2) ?></p>
                         <p class="text-mb-subtle text-xs mt-1">Collected on this day.</p>
                     </div>
                     <?php endif; ?>
@@ -1220,45 +1360,45 @@ require_once __DIR__ . '/../includes/header.php';
                             $dayVarianceClass = $dayVariance >= 0 ? 'text-green-400' : 'text-red-400';
                             $dayVarianceSign  = $dayVariance >= 0 ? '+' : '-';
                         ?>
-                        <div class="bg-mb-black/40 border border-mb-subtle/10 rounded-xl p-4">
+                        <div class="bg-mb-black/40 border border-mb-subtle/10 rounded-xl p-3 sm:p-4">
                             <p class="text-xs text-mb-subtle uppercase tracking-wider">Variance</p>
-                            <p class="<?= $dayVarianceClass ?> text-xl mt-2"><?= $dayVarianceSign ?>$<?= number_format(abs($dayVariance), 2) ?></p>
-                            <p class="text-mb-subtle text-xs mt-1">Actual vs expected income.</p>
+                            <p class="<?= $dayVarianceClass ?> text-base sm:text-xl mt-2"><?= $dayVarianceSign ?>$<?= number_format(abs($dayVariance), 2) ?></p>
+                            <p class="text-mb-subtle text-xs mt-1">Actual vs expected.</p>
                         </div>
                     <?php endif; ?>
-                    <div class="bg-mb-black/40 rounded-lg p-4">
+                    <div class="bg-mb-black/40 rounded-lg p-3 sm:p-4">
                         <p class="text-xs text-mb-subtle uppercase">Predictions</p>
-                        <p class="text-white text-lg mt-2"><?= (int) $selectedDay['prediction_count'] ?></p>
+                        <p class="text-white text-base sm:text-lg mt-2"><?= (int) $selectedDay['prediction_count'] ?></p>
                         <?php if ($selectedDay['prediction_sum'] > 0): ?>
                             <p class="text-xs text-mb-subtle mt-1">$<?= number_format($selectedDay['prediction_sum'], 2) ?> total</p>
                         <?php endif; ?>
                     </div>
-                    <div class="bg-mb-black/40 rounded-lg p-4">
+                    <div class="bg-mb-black/40 rounded-lg p-3 sm:p-4">
                         <p class="text-xs text-mb-subtle uppercase">Gap</p>
-                        <p class="<?= $gapClass ?> text-lg mt-2">
+                        <p class="<?= $gapClass ?> text-base sm:text-lg mt-2">
                             <?= $gap >= 0 ? '+' : '-' ?>$<?= number_format(abs($gap), 2) ?>
                         </p>
                     </div>
                 </div>
                 
                 <!-- Expected Income Breakdown -->
-                <div class="mt-4 border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-4 py-3">
+                <div class="mt-4 border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-3 sm:px-4 py-3">
                     <p class="text-white font-medium text-sm mb-3">Expected Income Breakdown</p>
                     <?= hope_render_breakdown($breakdownMap, $selectedDay['date']) ?>
                 </div>
                 
                 <?php if ($selectedDay['date'] <= $today): ?>
                 <!-- Actual Income Breakdown -->
-                <div class="mt-4 border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-4 py-3">
+                <div class="mt-4 border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-3 sm:px-4 py-3">
                     <p class="text-white font-medium text-sm mb-3">Actual Income Breakdown</p>
                     <?= hope_render_actual_breakdown(hope_fetch_actual_breakdown($pdo, $selectedDay['date'])) ?>
                 </div>
                 <?php endif; ?>
                 
-                <div class="mt-4 border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-4 py-3 text-sm">
+                <div class="mt-4 border border-mb-subtle/10 bg-mb-black/40 rounded-lg px-3 sm:px-4 py-3 text-sm">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-white font-medium">Predictions for <?= e($selectedDay['label']) ?></p>
+                            <p class="text-white font-medium text-sm">Predictions for <?= e($selectedDay['label']) ?></p>
                             <p class="text-mb-subtle text-xs">Add your own expected deals to include in projected income.</p>
                         </div>
                     </div>
@@ -1266,16 +1406,16 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php if (!empty($selectedDay['predictions'])): ?>
                             <?php foreach ($selectedDay['predictions'] as $pred): ?>
                                 <?php if ($isAdmin): ?>
-                                    <div class="grid grid-cols-12 gap-2 items-center">
-                                        <div class="col-span-7">
+                                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                                        <div class="sm:col-span-7">
                                             <input type="text" name="pred_label[<?= (int) $pred['id'] ?>]" value="<?= e($pred['label']) ?>"
-                                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
                                         </div>
-                                        <div class="col-span-3">
+                                        <div class="sm:col-span-3">
                                             <input type="number" step="0.01" min="0" name="pred_amount[<?= (int) $pred['id'] ?>]" value="<?= number_format($pred['amount'], 2, '.', '') ?>"
-                                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                                class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
                                         </div>
-                                        <div class="col-span-2 flex items-center gap-2">
+                                        <div class="sm:col-span-2 flex items-center gap-2">
                                             <label class="flex items-center gap-2 text-xs text-mb-subtle">
                                                 <input type="checkbox" name="pred_delete[<?= (int) $pred['id'] ?>]" class="accent-red-500">
                                                 Remove
@@ -1283,7 +1423,7 @@ require_once __DIR__ . '/../includes/header.php';
                                         </div>
                                     </div>
                                 <?php else: ?>
-                                    <div class="flex items-center justify-between text-sm">
+                                    <div class="flex items-center justify-between text-xs sm:text-sm">
                                         <span class="text-white"><?= e($pred['label']) ?></span>
                                         <span class="text-green-400">$<?= number_format($pred['amount'], 2) ?></span>
                                     </div>
@@ -1294,16 +1434,16 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php endif; ?>
                     </div>
                     <?php if ($isAdmin): ?>
-                        <div class="mt-4 grid grid-cols-12 gap-2 items-center">
-                            <div class="col-span-7">
+                        <div class="mt-4 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                            <div class="sm:col-span-7">
                                 <input type="text" name="pred_new_label[<?= e($selectedDay['date']) ?>]" placeholder="Prediction note (e.g., Tesla booking)"
-                                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
                             </div>
-                            <div class="col-span-3">
+                            <div class="sm:col-span-3">
                                 <input type="number" step="0.01" min="0" name="pred_new_amount[<?= e($selectedDay['date']) ?>]" placeholder="0.00"
-                                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mb-accent">
+                                    class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-mb-accent">
                             </div>
-                            <div class="col-span-2">
+                            <div class="sm:col-span-2">
                                 <button type="submit"
                                     class="w-full bg-mb-accent text-white px-3 py-2 rounded-lg text-xs hover:bg-mb-accent/80 transition-colors">
                                     Add & Save
@@ -1315,9 +1455,9 @@ require_once __DIR__ . '/../includes/header.php';
             <?php endif; ?>
 
             <?php if ($isAdmin): ?>
-                <div class="flex justify-end pt-2">
+                <div class="flex justify-end pt-2 px-1">
                     <button type="submit"
-                        class="bg-mb-accent text-white px-5 py-2 rounded-lg text-sm hover:bg-mb-accent/80 transition-colors">
+                        class="w-full sm:w-auto bg-mb-accent text-white px-4 sm:px-5 py-2 rounded-lg text-sm hover:bg-mb-accent/80 transition-colors">
                         Save Daily Targets
                     </button>
                 </div>

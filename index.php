@@ -497,10 +497,18 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
     ?>
     <section>
         <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg px-4 py-3">
-            <div class="flex items-center gap-3 mb-2">
-                <span class="text-blue-400 text-xs font-semibold uppercase tracking-wider">🚗 Upcoming Deliveries</span>
-                <span class="bg-blue-500/20 text-blue-400 text-xs font-bold px-2 py-0.5 rounded-full"><?= $deliveryAlertCount ?></span>
-                <span class="text-blue-400/60 text-xs">due within <?= $deliveryAlertThreshold ?> day<?= $deliveryAlertThreshold !== 1 ? 's' : '' ?></span>
+            <div class="flex items-center justify-between gap-3 mb-2">
+                <div class="flex items-center gap-3">
+                    <span class="text-blue-400 text-xs font-semibold uppercase tracking-wider">🚗 Upcoming Deliveries</span>
+                    <span class="bg-blue-500/20 text-blue-400 text-xs font-bold px-2 py-0.5 rounded-full"><?= $deliveryAlertCount ?></span>
+                    <span class="text-blue-400/60 text-xs">due within <?= $deliveryAlertThreshold ?> day<?= $deliveryAlertThreshold !== 1 ? 's' : '' ?></span>
+                </div>
+                <a href="deliveries/upcoming.php" class="text-blue-400 hover:text-blue-300 text-xs font-medium transition-colors flex items-center gap-1">
+                    View All
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </a>
             </div>
             <div class="space-y-1.5 max-h-40 overflow-y-auto">
                 <?php foreach ($upcomingDeliveries as $delivery):
@@ -559,7 +567,7 @@ function statCard(string $label,$val,string $href='',string $color='text-white',
         <h3 class="text-white text-lg font-light mb-4 uppercase tracking-wider border-l-2 border-mb-accent pl-2">CRM <span class="text-mb-subtle text-sm normal-case tracking-normal">Lead Pipeline</span></h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <a href="leads/pipeline.php" class="bg-mb-surface border border-mb-subtle/20 p-6 rounded-lg flex items-center justify-between hover:bg-mb-black/30 transition-colors cursor-pointer"><div><p class="text-mb-silver text-sm uppercase mb-1">Active Leads</p><span class="text-3xl font-light text-white"><?= $activeLeads ?></span><p class="text-xs text-mb-subtle mt-1">In pipeline now</p></div><div class="w-12 h-12 rounded-full bg-mb-accent/10 flex items-center justify-center text-mb-accent"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></div></a>
-            <a href="leads/pipeline.php" class="bg-mb-surface border <?= $overdueFollowups>0?'border-red-500/40 bg-red-500/5':'border-mb-subtle/20' ?> p-6 rounded-lg flex items-center justify-between hover:bg-mb-black/30 transition-colors cursor-pointer"><div><p class="text-mb-silver text-sm uppercase mb-1">Overdue Follow-ups</p><span class="text-3xl font-light <?= $overdueFollowups>0?'text-red-400':'text-white' ?>"><?= $overdueFollowups ?></span><?php if($overdueFollowups>0):?><p class="text-xs text-red-400/70 mt-1 animate-pulse">&#x26A0; Action required</p><?php else:?><p class="text-xs text-mb-subtle mt-1">All clear</p><?php endif;?></div><div class="w-12 h-12 rounded-full <?= $overdueFollowups>0?'bg-red-500/10 text-red-400':'bg-mb-subtle/10 text-mb-silver' ?> flex items-center justify-center"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div></a>
+            <a href="leads/pipeline.php?followup_filter=overdue" class="bg-mb-surface border <?= $overdueFollowups>0?'border-red-500/40 bg-red-500/5':'border-mb-subtle/20' ?> p-6 rounded-lg flex items-center justify-between hover:bg-mb-black/30 transition-colors cursor-pointer"><div><p class="text-mb-silver text-sm uppercase mb-1">Overdue Follow-ups</p><span class="text-3xl font-light <?= $overdueFollowups>0?'text-red-400':'text-white' ?>"><?= $overdueFollowups ?></span><?php if($overdueFollowups>0):?><p class="text-xs text-red-400/70 mt-1 animate-pulse">&#x26A0; Action required</p><?php else:?><p class="text-xs text-mb-subtle mt-1">All clear</p><?php endif;?></div><div class="w-12 h-12 rounded-full <?= $overdueFollowups>0?'bg-red-500/10 text-red-400':'bg-mb-subtle/10 text-mb-silver' ?> flex items-center justify-center"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div></a>
         </div>
     </section>
 

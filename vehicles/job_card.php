@@ -163,6 +163,24 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Deprecation Notice -->
+    <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-6">
+        <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-yellow-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div>
+                <h3 class="text-yellow-400 font-medium mb-1">This page has been replaced</h3>
+                <p class="text-yellow-200/80 text-sm">
+                    This page is now part of the unified 
+                    <a href="inspection.php" class="underline hover:text-yellow-100">Vehicle Inspection</a> page. 
+                    This legacy page remains accessible for backward compatibility but is no longer linked in the navigation menu.
+                </p>
+            </div>
+        </div>
+    </div>
+
     <!-- Company Header -->
     <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 mb-6">
         <div class="flex items-center justify-between">

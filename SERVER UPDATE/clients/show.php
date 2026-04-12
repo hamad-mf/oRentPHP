@@ -293,6 +293,17 @@ require_once __DIR__ . '/../includes/header.php';
                         <p class="text-2xl font-light text-mb-silver"><?= $completedCount ?></p>
                         <p class="text-mb-subtle text-xs">Completed</p>
                     </div>
+                    <?php
+                    // Show voucher balance if exists
+                    require_once __DIR__ . '/../includes/voucher_helpers.php';
+                    $voucherBalance = voucher_get_balance($pdo, $id);
+                    if ($voucherBalance > 0):
+                    ?>
+                    <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-center col-span-2">
+                        <p class="text-2xl font-light text-amber-400">$<?= number_format($voucherBalance, 2) ?></p>
+                        <p class="text-amber-300/80 text-xs">Voucher Credit Available</p>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
 

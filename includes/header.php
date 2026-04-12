@@ -390,6 +390,7 @@ $_notifs = notif_all($pdo);
                 'reports',
                 'dashboard',
                 'staff_monitor',
+                'deliveries',
             ];
             $moduleIdx = null;
             foreach ($segments as $i => $seg) {
@@ -450,8 +451,7 @@ $_notifs = notif_all($pdo);
                 }
                 if ($isAdmin || in_array('add_vehicles', $cuPerms, true)) {
                     echo '<a href="' . $root . 'vehicles/challans.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'challans.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Challans</a>';
-                    echo '<a href="' . $root . 'vehicles/job_card.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'job_card.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Job Card</a>';
-                    echo '<a href="' . $root . 'vehicles/permanent_scratches.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'permanent_scratches.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Permanent Scratches</a>';
+                    echo '<a href="' . $root . 'vehicles/inspection.php" class="block text-xs px-3 py-1.5 rounded-lg ' . ($currentPage === 'inspection.php' ? 'text-mb-accent bg-mb-accent/10' : 'text-white/75 hover:text-white hover:bg-mb-accent/10') . ' transition-colors">Job Card & Scratches</a>';
                 }
                 echo '</div>';
             }
