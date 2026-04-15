@@ -134,19 +134,19 @@ if ($isAdmin) {
         'screen' => 'index.php',
     ]);
     }
-    // Monthly accounts (current 15th-to-15th billing period)
+    // Monthly accounts (current 16th-to-15th billing period)
     $accMonth=['total'=>0.0,'cash'=>0.0,'ac'=>0.0,'credit'=>0.0];
     $accPeriodLabel='';
     try{
         $istD=(int)$istNow->format('d');$istMn=(int)$istNow->format('n');$istYr=(int)$istNow->format('Y');
-        if($istD>=15){
-            $mPS=sprintf('%04d-%02d-15',$istYr,$istMn);
+        if($istD>=16){
+            $mPS=sprintf('%04d-%02d-16',$istYr,$istMn);
             $nMn=$istMn===12?1:$istMn+1;$nYr=$istMn===12?$istYr+1:$istYr;
-            $mPE=sprintf('%04d-%02d-14',$nYr,$nMn);
+            $mPE=sprintf('%04d-%02d-15',$nYr,$nMn);
         }else{
             $pm=$istMn===1?12:$istMn-1;$py=$istMn===1?$istYr-1:$istYr;
-            $mPS=sprintf('%04d-%02d-15',$py,$pm);
-            $mPE=sprintf('%04d-%02d-14',$istYr,$istMn);
+            $mPS=sprintf('%04d-%02d-16',$py,$pm);
+            $mPE=sprintf('%04d-%02d-15',$istYr,$istMn);
         }
         $accPeriodLabel=date('d M',strtotime($mPS)).' – '.date('d M',strtotime($mPE));
         // Bank (AC) monthly net = income - expense via payment_mode='account'

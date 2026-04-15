@@ -319,11 +319,11 @@ $creditBalance = $creditIncome - $creditExpense;
 $accountsTotal = (float) array_sum(array_column($accounts, 'balance'));
 $overallTotal = $accountsTotal + $cashBalance + $creditBalance;
 
-// Monthly 15th-to-15th calculations (IST)
+// Monthly 16th-to-15th calculations (IST)
 $_istA = new DateTime('now', new DateTimeZone('Asia/Kolkata'));
 $_dA=(int)$_istA->format('d'); $_mnA=(int)$_istA->format('n'); $_yrA=(int)$_istA->format('Y');
-if($_dA>=15){ $accMPS=sprintf('%04d-%02d-15',$_yrA,$_mnA); $_n=$_mnA===12?1:$_mnA+1; $_y=$_mnA===12?$_yrA+1:$_yrA; $accMPE=sprintf('%04d-%02d-14',$_y,$_n); }
-else{ $_p=$_mnA===1?12:$_mnA-1; $_y=$_mnA===1?$_yrA-1:$_yrA; $accMPS=sprintf('%04d-%02d-15',$_y,$_p); $accMPE=sprintf('%04d-%02d-14',$_yrA,$_mnA); }
+if($_dA>=16){ $accMPS=sprintf('%04d-%02d-16',$_yrA,$_mnA); $_n=$_mnA===12?1:$_mnA+1; $_y=$_mnA===12?$_yrA+1:$_yrA; $accMPE=sprintf('%04d-%02d-15',$_y,$_n); }
+else{ $_p=$_mnA===1?12:$_mnA-1; $_y=$_mnA===1?$_yrA-1:$_yrA; $accMPS=sprintf('%04d-%02d-16',$_y,$_p); $accMPE=sprintf('%04d-%02d-15',$_yrA,$_mnA); }
 $accPeriodLabel=date('d M',strtotime($accMPS)).' – '.date('d M',strtotime($accMPE));
 $_mq=$pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM ledger_entries WHERE payment_mode='cash' AND txn_type='income' AND voided_at IS NULL AND DATE(posted_at) BETWEEN ? AND ?");
 $_mq->execute([$accMPS,$accMPE]); $mCashI=(float)$_mq->fetchColumn();

@@ -803,7 +803,7 @@ require_once __DIR__ . '/../includes/header.php';
                             $mn = $m === 12 ? 1 : $m + 1;
                         ?>
                             <option value="<?= $m ?>" <?= $m === $month ? 'selected' : '' ?>>
-                                15 <?= date('M', mktime(0,0,0,$m,1)) ?> – 14 <?= date('M', mktime(0,0,0,$mn,1)) ?>
+                                16 <?= date('M', mktime(0,0,0,$m,1)) ?> – 15 <?= date('M', mktime(0,0,0,$mn,1)) ?>
                             </option>
                         <?php endfor; ?>
                     </select>
@@ -984,7 +984,7 @@ require_once __DIR__ . '/../includes/header.php';
                             $mn = $m === 12 ? 1 : $m + 1;
                         ?>
                             <option value="<?= $m ?>" <?= $m === (int) date('n') ? 'selected' : '' ?>>
-                                15 <?= date('M', mktime(0,0,0,$m,1)) ?> – 14 <?= date('M', mktime(0,0,0,$mn,1)) ?>
+                                16 <?= date('M', mktime(0,0,0,$m,1)) ?> – 15 <?= date('M', mktime(0,0,0,$mn,1)) ?>
                             </option>
                         <?php endfor; ?>
                     </select>

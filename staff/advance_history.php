@@ -116,7 +116,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 $yearNo = (int) ($row['year'] ?? 0);
                                 if ($monthNo >= 1 && $monthNo <= 12 && $yearNo > 0) {
                                     $monthNext = $monthNo === 12 ? 1 : $monthNo + 1;
-                                    $periodLabel = '15 ' . date('M', mktime(0,0,0,$monthNo,1)) . ' – 14 ' . date('M', mktime(0,0,0,$monthNext,1)) . ' ' . $yearNo;
+                                    $periodLabel = '16 ' . date('M', mktime(0,0,0,$monthNo,1)) . ' – 15 ' . date('M', mktime(0,0,0,$monthNext,1)) . ' ' . $yearNo;
                                 } else {
                                     $periodLabel = 'M' . $monthNo . ' ' . $yearNo;
                                 }

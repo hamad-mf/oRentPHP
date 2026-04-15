@@ -21,10 +21,10 @@ if (!$canView) {
 // Period calculation functions (15th to 14th next month)
 function vt_period_from_my(int $m, int $y): array
 {
-    $start = sprintf('%04d-%02d-15', $y, $m);
+    $start = sprintf('%04d-%02d-16', $y, $m);
     $nM = $m === 12 ? 1 : $m + 1;
     $nY = $m === 12 ? $y + 1 : $y;
-    return ['start' => $start, 'end' => sprintf('%04d-%02d-14', $nY, $nM)];
+    return ['start' => $start, 'end' => sprintf('%04d-%02d-15', $nY, $nM)];
 }
 
 function vt_period_for_today(): array
@@ -32,7 +32,7 @@ function vt_period_for_today(): array
     $d = (int) date('d');
     $m = (int) date('m');
     $y = (int) date('Y');
-    if ($d >= 15) {
+    if ($d >= 16) {
         return vt_period_from_my($m, $y);
     }
     $pm = $m === 1 ? 12 : $m - 1;
@@ -629,7 +629,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php
                     foreach (range(1, 12) as $mVal):
                         $mNext = $mVal === 12 ? 1 : $mVal + 1;
-                        $mLabel = '15 ' . date('M', mktime(0,0,0,$mVal,1)) . ' – 14 ' . date('M', mktime(0,0,0,$mNext,1));
+                        $mLabel = '16 ' . date('M', mktime(0,0,0,$mVal,1)) . ' – 15 ' . date('M', mktime(0,0,0,$mNext,1));
                     ?>
                         <option value="<?= $mVal ?>" <?= $selM === $mVal ? 'selected' : '' ?>><?= $mLabel ?></option>
                     <?php endforeach; ?>

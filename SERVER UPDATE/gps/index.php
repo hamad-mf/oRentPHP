@@ -650,6 +650,9 @@ require_once __DIR__ . '/../includes/header.php';
                                         <span class="text-xs font-medium <?= $summaryTone ?>"><?= $completedCount ?>/3 checks</span>
                                         <?php if ($latestStatus !== null): ?>
                                             <span class="text-[11px] text-mb-silver">Last: <?= $latestStatus === 1 ? 'Yes' : 'No' ?></span>
+                                            <?php if ($latestStatus === 0 && !empty($latestCheck['notes'])): ?>
+                                                <span class="text-[11px] text-red-400 italic mt-0.5">Reason: <?= e($latestCheck['notes']) ?></span>
+                                            <?php endif; ?>
                                         <?php else: ?>
                                             <span class="text-[11px] text-mb-subtle">Not checked today</span>
                                         <?php endif; ?>

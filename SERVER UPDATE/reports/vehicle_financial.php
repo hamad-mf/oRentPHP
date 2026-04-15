@@ -388,7 +388,7 @@ require_once __DIR__ . '/../includes/header.php';
                     class="appearance-none bg-mb-surface border border-mb-subtle/30 rounded-lg pl-3 pr-8 py-2 text-white text-sm focus:outline-none focus:border-mb-accent cursor-pointer">
                     <?php for ($i=1;$i<=12;$i++):
                         $iN = $i === 12 ? 1 : $i + 1;
-                        $iLabel = '15 ' . date('M', mktime(0,0,0,$i,1)) . ' – 14 ' . date('M', mktime(0,0,0,$iN,1));
+                        $iLabel = '16 ' . date('M', mktime(0,0,0,$i,1)) . ' – 15 ' . date('M', mktime(0,0,0,$iN,1));
                     ?>
                     <option value="<?=$i?>" <?=$i===$selM?'selected':''?> class="bg-[#1f1f1f] text-white"><?= $iLabel ?></option>
                     <?php endfor; ?>
@@ -585,7 +585,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 class="appearance-none bg-mb-surface border border-mb-subtle/30 rounded-lg pl-3 pr-8 py-2 text-white text-sm focus:outline-none focus:border-mb-accent cursor-pointer">
                                 <?php for ($i=1;$i<=12;$i++):
                                     $iN = $i === 12 ? 1 : $i + 1;
-                                    $iLabel = '15 ' . date('M', mktime(0,0,0,$i,1)) . ' – 14 ' . date('M', mktime(0,0,0,$iN,1));
+                                    $iLabel = '16 ' . date('M', mktime(0,0,0,$i,1)) . ' – 15 ' . date('M', mktime(0,0,0,$iN,1));
                                 ?>
                                 <option value="<?=$i?>" <?=$i===$selM?'selected':''?> class="bg-[#1f1f1f] text-white"><?= $iLabel ?></option>
                                 <?php endfor; ?>

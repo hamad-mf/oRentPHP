@@ -962,20 +962,19 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
                 </div>
                 <div>
-                    <label for="fuel_level" class="block text-sm font-medium text-mb-silver mb-2">Return Fuel Level
-                        (%)</label>
-                    <div class="relative pt-1">
-                        <input type="range" name="fuel_level" id="fuelSlider" min="0" max="100"
-                            value="<?= e($_POST['fuel_level'] ?? 100) ?>"
-                            class="w-full h-2 bg-mb-subtle/50 rounded-lg appearance-none cursor-pointer accent-green-500"
-                            oninput="document.getElementById('fuel-val').innerText = this.value + '%'">
-                        <span id="fuel-val"
-                            class="absolute right-0 top-0 text-green-500 text-sm font-bold"><?= e($_POST['fuel_level'] ?? 100) ?>%</span>
+                    <label class="block text-sm font-medium text-mb-silver mb-2">Return Fuel Level</label>
+                    <input type="hidden" name="fuel_level" id="fuelSlider" value="<?= e($_POST['fuel_level'] ?? 100) ?>">
+                    <div class="flex items-center gap-2">
+                        <?php foreach ([0,20,40,60,80,100] as $fv): ?>
+                        <button type="button"
+                            onclick="setFuelBlock(<?= $fv ?>)"
+                            data-fuel="<?= $fv ?>"
+                            class="fuel-block flex-1 h-10 rounded-lg border-2 border-mb-subtle/30 text-xs font-semibold transition-all <?= ((int)($_POST['fuel_level'] ?? 100)) >= $fv && $fv > 0 ? 'bg-green-500 border-green-500 text-white' : ($fv === 0 ? 'bg-mb-black border-mb-subtle/30 text-mb-subtle' : 'bg-mb-black border-mb-subtle/30 text-mb-subtle') ?>">
+                            <?= $fv === 0 ? 'E' : $fv.'%' ?>
+                        </button>
+                        <?php endforeach; ?>
                     </div>
-                    <div class="h-2 bg-mb-black/60 rounded-full overflow-hidden mt-3">
-                        <div id="fuelBar" class="h-2 bg-green-500 rounded-full transition-all"
-                            style="width:<?= e($_POST['fuel_level'] ?? 100) ?>%"></div>
-                    </div>
+                    <p class="text-xs text-mb-subtle mt-2">Selected: <span id="fuel-val" class="text-white font-semibold"><?= e($_POST['fuel_level'] ?? 100) ?>%</span></p>
                 </div>
                 <div>
                     <label for="notes" class="block text-sm font-medium text-mb-silver mb-2">Return Inspection
@@ -2059,12 +2058,24 @@ function updateSummary(){
     // Keep deposit max-deductible hint in sync with live charge totals
     _updateDepositMaxDeductible(totalBeforeDiscount);
 }
-const slider=document.getElementById("fuelSlider");
-const valEl=document.getElementById("fuel-val");
-const barEl=document.getElementById("fuelBar");
-function updateFuel(v){valEl.textContent=v+"%";barEl.style.width=v+"%";barEl.className="h-2 rounded-full "+(v>=75?"bg-green-500":v>=50?"bg-yellow-400":v>=25?"bg-orange-400":"bg-red-500");}
-slider.addEventListener("input",()=>updateFuel(slider.value));
-updateFuel(slider.value);
+function updateFuel(v){
+    v=parseInt(v);
+    document.getElementById(\'fuel-val\').textContent=v+"%";
+    document.getElementById(\'fuelSlider\').value=v;
+    document.querySelectorAll(\'.fuel-block\').forEach(btn=>{
+        const bv=parseInt(btn.dataset.fuel);
+        if(bv===0){
+            const isEmpty=v===0;
+            btn.className=\'fuel-block flex-1 h-10 rounded-lg border-2 text-xs font-semibold transition-all \'+(isEmpty?\'bg-red-500 border-red-500 text-white\':\'bg-mb-black border-mb-subtle/30 text-mb-subtle\');
+        }else{
+            const active=v>=bv;
+            const color=v>=80?\'bg-green-500 border-green-500\':v>=60?\'bg-yellow-400 border-yellow-400\':v>=40?\'bg-orange-400 border-orange-400\':\'bg-red-500 border-red-500\';
+            btn.className=\'fuel-block flex-1 h-10 rounded-lg border-2 text-xs font-semibold transition-all \'+(active?color+\' text-white\':\'bg-mb-black border-mb-subtle/30 text-mb-subtle\');
+        }
+    });
+}
+function setFuelBlock(v){updateFuel(v);}
+updateFuel(parseInt(document.getElementById(\'fuelSlider\').value)||100);
 
 const returnVoucherInput=document.getElementById("returnVoucherAmount");
 if(returnVoucherInput){

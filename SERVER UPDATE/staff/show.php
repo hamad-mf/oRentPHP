@@ -354,7 +354,7 @@ $s = getFlash('success');
                                 // Use already-calculated default period from above
                                 for ($am = 1; $am <= 12; $am++):
                                     $amNext = $am === 12 ? 1 : $am + 1;
-                                    $amLabel = '15 ' . date('M', mktime(0,0,0,$am,1)) . ' – 14 ' . date('M', mktime(0,0,0,$amNext,1));
+                                    $amLabel = '16 ' . date('M', mktime(0,0,0,$am,1)) . ' – 15 ' . date('M', mktime(0,0,0,$amNext,1));
                                 ?>
                                     <option value="<?= $am ?>" <?= $am === $defAdv_m ? 'selected' : '' ?>>
                                         <?= $amLabel ?>
@@ -421,7 +421,7 @@ $s = getFlash('success');
                                         $advY = (int)($adv['year'] ?? 0);
                                         if ($advM >= 1 && $advM <= 12 && $advY > 0):
                                             $advMNext = $advM === 12 ? 1 : $advM + 1;
-                                            $advPeriod = '15 ' . date('M', mktime(0,0,0,$advM,1)) . ' – 14 ' . date('M', mktime(0,0,0,$advMNext,1)) . ' ' . $advY;
+                                            $advPeriod = '16 ' . date('M', mktime(0,0,0,$advM,1)) . ' – 15 ' . date('M', mktime(0,0,0,$advMNext,1)) . ' ' . $advY;
                                     ?>
                                         <p class="text-mb-subtle/80 mt-0.5">Period: <?= $advPeriod ?></p>
                                     <?php endif; ?>
@@ -459,7 +459,7 @@ $s = getFlash('success');
                                 // Reuse already-calculated defaults from above
                                 for ($im = 1; $im <= 12; $im++):
                                     $imNext = $im === 12 ? 1 : $im + 1;
-                                    $imLabel = '15 ' . date('M', mktime(0,0,0,$im,1)) . ' – 14 ' . date('M', mktime(0,0,0,$imNext,1));
+                                    $imLabel = '16 ' . date('M', mktime(0,0,0,$im,1)) . ' – 15 ' . date('M', mktime(0,0,0,$imNext,1));
                                 ?>
                                     <option value="<?= $im ?>" <?= $im === $defInc_m ? 'selected' : '' ?>>
                                         <?= $imLabel ?>
@@ -516,7 +516,7 @@ $s = getFlash('success');
                                         $incY = (int)($inc['year'] ?? 0);
                                         if ($incM >= 1 && $incM <= 12 && $incY > 0):
                                             $incMNext = $incM === 12 ? 1 : $incM + 1;
-                                            $incPeriod = '15 ' . date('M', mktime(0,0,0,$incM,1)) . ' – 14 ' . date('M', mktime(0,0,0,$incMNext,1)) . ' ' . $incY;
+                                            $incPeriod = '16 ' . date('M', mktime(0,0,0,$incM,1)) . ' – 15 ' . date('M', mktime(0,0,0,$incMNext,1)) . ' ' . $incY;
                                     ?>
                                         <p class="text-mb-subtle/80 mt-0.5">Period: <?= $incPeriod ?></p>
                                     <?php endif; ?>

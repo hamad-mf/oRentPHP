@@ -10,7 +10,7 @@ if (!auth_has_perm('add_vehicles')) {
 $pdo = db();
 vehicle_ensure_schema($pdo);
 
-$errors = [];
+$errors = [];yyy
 $old = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -59,16 +59,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['daily_rate'] = 'Daily rate must be greater than 0.';
     if (!in_array($status, ['available', 'rented', 'maintenance']))
         $errors['status'] = 'Invalid status.';
-    if ($insuranceType !== null && !in_array($insuranceType, ['third class', 'first class', 'bumper to bumper'], true)) {
+
+    // Required fields
+    if (empty($insuranceType))
+        $errors['insurance_type'] = 'Insurance type is required.';
+    elseif (!in_array($insuranceType, ['third class', 'first class', 'bumper to bumper'], true))
         $errors['insurance_type'] = 'Invalid insurance type.';
-    }
-    if ($insuranceExpiryDate !== null) {
+    if (empty($insuranceExpiryDate))
+        $errors['insurance_expiry_date'] = 'Insurance expiry date is required.';
+    if (empty($pollutionExpiryDate))
+        $errors['pollution_expiry_date'] = 'Pollution expiry date is required.';
+    if (empty($secondKeyLocation))
+        $errors['second_key_location'] = 'Second key location is required.';
+    if (empty($originalDocsLocation))
+        $errors['original_documents_location'] = 'Original documents location is required.';
+    // Insurance docs: at least 1 file required
+    $hasInsuranceDoc = !empty($_FILES['insurance_docs']['name'][0]) && $_FILES['insurance_docs']['error'][0] === UPLOAD_ERR_OK;
+    if (!$hasInsuranceDoc)
+        $errors['insurance_docs'] = 'At least one insurance document photo is required.';
+    // Pollution docs: at least 1 file required
+    $hasPollutionDoc = !empty($_FILES['pollution_docs']['name'][0]) && $_FILES['pollution_docs']['error'][0] === UPLOAD_ERR_OK;
+    if (!$hasPollutionDoc)
+        $errors['pollution_docs'] = 'At least one pollution document photo is required.';
+
+    if ($insuranceExpiryDate !== null && $insuranceExpiryDate !== '') {
         $dateObj = DateTime::createFromFormat('Y-m-d', $insuranceExpiryDate);
         if (!$dateObj || $dateObj->format('Y-m-d') !== $insuranceExpiryDate) {
             $errors['insurance_expiry_date'] = 'Invalid insurance expiry date.';
         }
     }
-    if ($pollutionExpiryDate !== null) {
+    if ($pollutionExpiryDate !== null && $pollutionExpiryDate !== '') {
         $dateObj = DateTime::createFromFormat('Y-m-d', $pollutionExpiryDate);
         if (!$dateObj || $dateObj->format('Y-m-d') !== $pollutionExpiryDate) {
             $errors['pollution_expiry_date'] = 'Invalid pollution expiry date.';
@@ -84,20 +104,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $maintenanceExpectedReturn = null;
         $maintenanceWorkshopName = null;
     } else {
-        if ($maintenanceExpectedReturn !== '') {
+        if ($maintenanceExpectedReturn === '')
+            $errors['maintenance_expected_return'] = 'Expected return date is required for maintenance status.';
+        else {
             $dateObj = DateTime::createFromFormat('Y-m-d', $maintenanceExpectedReturn);
             if (!$dateObj || $dateObj->format('Y-m-d') !== $maintenanceExpectedReturn) {
                 $errors['maintenance_expected_return'] = 'Invalid expected return date.';
             }
-        } else {
-            $maintenanceExpectedReturn = null;
         }
-
-        if ($maintenanceWorkshopName === '') {
-            $maintenanceWorkshopName = null;
-        } elseif (mb_strlen($maintenanceWorkshopName) > 255) {
+        if ($maintenanceWorkshopName === '')
+            $errors['maintenance_workshop_name'] = 'Workshop name is required for maintenance status.';
+        elseif (mb_strlen($maintenanceWorkshopName) > 255)
             $errors['maintenance_workshop_name'] = 'Workshop name is too long (max 255 characters).';
-        }
     }
 
     if (!isset($errors['license_plate'])) {
@@ -276,16 +294,14 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
                 <div id="maintenanceMetaWrap"
                     style="<?= (($_POST['status'] ?? 'available') === 'maintenance') ? '' : 'display:none' ?>">
-                    <label class="block text-sm text-mb-silver mb-2">Expected Return from Workshop <span
-                            class="text-mb-subtle text-xs">(optional)</span></label>
+                    <label class="block text-sm text-mb-silver mb-2">Expected Return from Workshop <span class="text-red-400">*</span></label>
                     <input type="date" name="maintenance_expected_return"
                         value="<?= e($_POST['maintenance_expected_return'] ?? '') ?>"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
                     <?php if (!empty($errors['maintenance_expected_return'])): ?>
                         <p class="text-red-400 text-xs mt-1"><?= e($errors['maintenance_expected_return']) ?></p>
                     <?php endif; ?>
-                    <label class="block text-sm text-mb-silver mt-3 mb-2">Workshop Name <span
-                            class="text-mb-subtle text-xs">(optional)</span></label>
+                    <label class="block text-sm text-mb-silver mt-3 mb-2">Workshop Name <span class="text-red-400">*</span></label>
                     <input type="text" name="maintenance_workshop_name" maxlength="255"
                         value="<?= e($_POST['maintenance_workshop_name'] ?? '') ?>" placeholder="Enter workshop name"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
@@ -366,20 +382,18 @@ require_once __DIR__ . '/../includes/header.php';
             <p class="text-mb-subtle text-sm">Upload photos of registration, insurance, or any other documents.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm text-mb-silver mb-2">Second Key Stored At <span
-                            class="text-mb-subtle text-xs">(optional)</span></label>
+                    <label class="block text-sm text-mb-silver mb-2">Second Key Stored At <span class="text-red-400">*</span></label>
                     <input type="text" name="second_key_location" value="<?= e($_POST['second_key_location'] ?? '') ?>"
-                        placeholder="Key cabinet A / Office safe"
+                        placeholder="Key cabinet A / Office safe" required
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
                     <?php if (!empty($errors['second_key_location'])): ?>
                         <p class="text-red-400 text-xs mt-1"><?= e($errors['second_key_location']) ?></p>
                     <?php endif; ?>
                 </div>
                 <div>
-                    <label class="block text-sm text-mb-silver mb-2">Original Documents Stored At <span
-                            class="text-mb-subtle text-xs">(optional)</span></label>
+                    <label class="block text-sm text-mb-silver mb-2">Original Documents Stored At <span class="text-red-400">*</span></label>
                     <input type="text" name="original_documents_location" value="<?= e($_POST['original_documents_location'] ?? '') ?>"
-                        placeholder="Main office drawer / Bank locker"
+                        placeholder="Main office drawer / Bank locker" required
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
                     <?php if (!empty($errors['original_documents_location'])): ?>
                         <p class="text-red-400 text-xs mt-1"><?= e($errors['original_documents_location']) ?></p>
@@ -410,7 +424,7 @@ require_once __DIR__ . '/../includes/header.php';
 
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-4">
             <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Insurance Docs <span
-                    class="text-sm text-mb-subtle font-normal">- optional, up to 5</span></h3>
+                    class="text-sm text-mb-subtle font-normal">- up to 5</span></h3>
             <p class="text-mb-subtle text-sm">Upload insurance document images for this vehicle.</p>
             <?php
             $insuranceTypeValue = strtolower(trim((string) ($_POST['insurance_type'] ?? '')));
@@ -422,9 +436,8 @@ require_once __DIR__ . '/../includes/header.php';
             ?>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm text-mb-silver mb-2">Insurance Type <span
-                            class="text-mb-subtle text-xs">(optional)</span></label>
-                    <select name="insurance_type"
+                    <label class="block text-sm text-mb-silver mb-2">Insurance Type <span class="text-red-400">*</span></label>
+                    <select name="insurance_type" required
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
                         <option value="">Select type</option>
                         <option value="third class" <?= $insuranceTypeValue === 'third class' ? 'selected' : '' ?>>Third Class</option>
@@ -436,9 +449,8 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
                 </div>
                 <div>
-                    <label class="block text-sm text-mb-silver mb-2">Insurance Expiry Date <span
-                            class="text-mb-subtle text-xs">(optional)</span></label>
-                    <input type="date" name="insurance_expiry_date"
+                    <label class="block text-sm text-mb-silver mb-2">Insurance Expiry Date <span class="text-red-400">*</span></label>
+                    <input type="date" name="insurance_expiry_date" required
                         value="<?= e($_POST['insurance_expiry_date'] ?? '') ?>"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
                     <?php if (!empty($errors['insurance_expiry_date'])): ?>
@@ -465,16 +477,18 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
             <p id="insurance-doc-count" class="text-xs text-mb-subtle" style="display:none"></p>
             <div id="insurance-file-list" style="display:none" class="space-y-1"></div>
+            <?php if (!empty($errors['insurance_docs'])): ?>
+                <p class="text-red-400 text-xs"><?= e($errors['insurance_docs']) ?></p>
+            <?php endif; ?>
         </div>
 
         <div class="bg-mb-surface border border-mb-subtle/20 rounded-xl p-6 space-y-4">
             <h3 class="text-white font-light text-lg border-l-2 border-mb-accent pl-3">Pollution Docs <span
-                    class="text-sm text-mb-subtle font-normal">- optional, up to 5</span></h3>
+                    class="text-sm text-mb-subtle font-normal">- up to 5</span></h3>
             <p class="text-mb-subtle text-sm">Upload pollution certificate images for this vehicle.</p>
             <div>
-                <label class="block text-sm text-mb-silver mb-2">Pollution Expiry Date <span
-                        class="text-mb-subtle text-xs">(optional)</span></label>
-                <input type="date" name="pollution_expiry_date"
+                <label class="block text-sm text-mb-silver mb-2">Pollution Expiry Date <span class="text-red-400">*</span></label>
+                <input type="date" name="pollution_expiry_date" required
                     value="<?= e($_POST['pollution_expiry_date'] ?? '') ?>"
                     class="w-full bg-mb-black border border-mb-subtle/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-mb-accent transition-colors text-sm">
                 <?php if (!empty($errors['pollution_expiry_date'])): ?>
@@ -500,6 +514,9 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
             <p id="pollution-doc-count" class="text-xs text-mb-subtle" style="display:none"></p>
             <div id="pollution-file-list" style="display:none" class="space-y-1"></div>
+            <?php if (!empty($errors['pollution_docs'])): ?>
+                <p class="text-red-400 text-xs"><?= e($errors['pollution_docs']) ?></p>
+            <?php endif; ?>
         </div>
 
         <!-- Vehicle Challans -->
