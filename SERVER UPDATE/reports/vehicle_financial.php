@@ -12,17 +12,17 @@ require_once __DIR__ . '/../includes/settings_helpers.php';
 
 $isAdmin = ($_currentUser['role'] ?? '') === 'admin';
 
-// Period calculation functions (15th to 14th next month)
+// Period calculation functions (16th to 15th next month)
 function period_from_my(int $m, int $y): array {
-    $start = sprintf('%04d-%02d-15', $y, $m);
+    $start = sprintf('%04d-%02d-16', $y, $m);
     $nM = $m === 12 ? 1 : $m + 1;
     $nY = $m === 12 ? $y + 1 : $y;
-    return ['start' => $start, 'end' => sprintf('%04d-%02d-14', $nY, $nM)];
+    return ['start' => $start, 'end' => sprintf('%04d-%02d-15', $nY, $nM)];
 }
 
 function period_for_today(): array {
     $d = (int)date('d'); $m = (int)date('m'); $y = (int)date('Y');
-    if ($d >= 15) return period_from_my($m, $y);
+    if ($d >= 16) return period_from_my($m, $y);
     $pm = $m === 1 ? 12 : $m - 1;
     $py = $m === 1 ? $y - 1 : $y;
     return period_from_my($pm, $py);

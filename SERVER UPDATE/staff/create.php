@@ -27,7 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $role_field = $_POST['role_field'] ?? 'staff';
     $phone = trim($_POST['phone'] ?? '');
     $email = trim($_POST['email'] ?? '');
+    $salary_type = $_POST['salary_type'] ?? 'fixed';
     $salary = $_POST['salary'] ?? '';
+    $hourly_rate = $_POST['hourly_rate'] ?? '';
     $joined = $_POST['joined_date'] ?? '';
     $notes = trim($_POST['notes'] ?? '');
     $perms = $_POST['permissions'] ?? [];
@@ -73,13 +75,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->beginTransaction();
         try {
             // Insert staff record
-            $is = $pdo->prepare("INSERT INTO staff (name, role, phone, email, salary, joined_date, notes, id_proof_path) VALUES (?,?,?,?,?,?,?,?)");
+            $is = $pdo->prepare("INSERT INTO staff (name, role, phone, email, salary_type, salary, hourly_rate, joined_date, notes, id_proof_path) VALUES (?,?,?,?,?,?,?,?,?,?)");
             $is->execute([
                 $name,
                 $role_field === 'admin' ? 'Admin' : trim($_POST['staff_role'] ?? ''),
                 $phone ?: null,
                 $email ?: null,
-                $salary !== '' ? (float) $salary : null,
+                $salary_type,
+                $salary_type === 'fixed' && $salary !== '' ? (float) $salary : null,
+                $salary_type === 'hourly' && $hourly_rate !== '' ? (float) $hourly_rate : null,
                 $joined ?: null,
                 $notes ?: null,
                 $proofPath,
@@ -173,9 +177,30 @@ require_once __DIR__ . '/../includes/header.php';
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-xl px-4 py-3 text-white placeholder:text-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm"
                         placeholder="staff@example.com">
                 </div>
-                <div>
-                    <label class="block text-sm text-mb-silver mb-1.5">Salary</label>
+                <div class="sm:col-span-2">
+                    <label class="block text-sm text-mb-silver mb-1.5">Salary Type</label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="salary_type" value="fixed" checked onchange="toggleSalaryFields()"
+                                class="w-4 h-4 accent-mb-accent">
+                            <span class="text-sm text-mb-silver">Fixed Monthly Salary</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="salary_type" value="hourly" onchange="toggleSalaryFields()"
+                                class="w-4 h-4 accent-mb-accent">
+                            <span class="text-sm text-mb-silver">Hourly Rate</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="salary_field">
+                    <label class="block text-sm text-mb-silver mb-1.5">Monthly Salary</label>
                     <input type="number" name="salary" value="<?= old('salary') ?>" min="0" step="0.01"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-xl px-4 py-3 text-white placeholder:text-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm"
+                        placeholder="0.00">
+                </div>
+                <div id="hourly_rate_field" style="display: none;">
+                    <label class="block text-sm text-mb-silver mb-1.5">Hourly Rate</label>
+                    <input type="number" name="hourly_rate" value="<?= old('hourly_rate') ?>" min="0" step="0.01"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-xl px-4 py-3 text-white placeholder:text-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm"
                         placeholder="0.00">
                 </div>
@@ -298,6 +323,19 @@ require_once __DIR__ . '/../includes/header.php';
     function togglePerms() {
         const role = document.getElementById('role_field').value;
         document.getElementById('perms-section').style.display = role === 'admin' ? 'none' : '';
+    }
+    function toggleSalaryFields() {
+        const salaryType = document.querySelector('input[name="salary_type"]:checked').value;
+        const salaryField = document.getElementById('salary_field');
+        const hourlyRateField = document.getElementById('hourly_rate_field');
+        
+        if (salaryType === 'fixed') {
+            salaryField.style.display = '';
+            hourlyRateField.style.display = 'none';
+        } else {
+            salaryField.style.display = 'none';
+            hourlyRateField.style.display = '';
+        }
     }
     togglePerms();
 </script>

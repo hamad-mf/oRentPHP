@@ -466,14 +466,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <div>
                     <p class="text-white font-medium">Cash Account</p>
                     <p class="text-xs text-mb-subtle mt-0.5">All cash transactions</p>
-                    <!-- Monthly value (default shown) -->
-                    <p id="cashValMonthly"
-                        class="acc-monthly text-lg font-light mt-2 <?= $mCashBalance >= 0 ? 'text-green-400' : 'text-red-400' ?>">
-                        $<?= number_format($mCashBalance, 2) ?>
-                    </p>
-                    <!-- All-time value (hidden by default) -->
-                    <p id="cashValAlltime"
-                        class="acc-alltime hidden text-lg font-light mt-2 <?= $cashBalance >= 0 ? 'text-green-400' : 'text-red-400' ?>">
+                    <p class="text-lg font-light mt-2 <?= $cashBalance >= 0 ? 'text-green-400' : 'text-red-400' ?>">
                         $<?= number_format($cashBalance, 2) ?>
                     </p>
                 </div>
@@ -488,14 +481,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <div>
                     <p class="text-white font-medium">Credit Account</p>
                     <p class="text-xs text-mb-subtle mt-0.5">Unpaid / credit transactions</p>
-                    <!-- Monthly value (default shown) -->
-                    <p id="creditValMonthly"
-                        class="acc-monthly text-lg font-light mt-2 text-amber-400">
-                        $<?= number_format($mCreditBalance, 2) ?>
-                    </p>
-                    <!-- All-time value (hidden by default) -->
-                    <p id="creditValAlltime"
-                        class="acc-alltime hidden text-lg font-light mt-2 text-amber-400">
+                    <p class="text-lg font-light mt-2 text-amber-400">
                         $<?= number_format($creditBalance, 2) ?>
                     </p>
                 </div>

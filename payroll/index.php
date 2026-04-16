@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/db.php';
 auth_require_admin();
 require_once __DIR__ . '/../includes/ledger_helpers.php';
 require_once __DIR__ . '/../includes/settings_helpers.php';
+require_once __DIR__ . '/../includes/payroll_helpers.php';
 
 $pdo = db();
 
@@ -76,11 +77,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'prepare_payroll') {
     $prepareMonth = (int) ($_POST['month'] ?? date('n'));
     $prepareYear = (int) ($_POST['year'] ?? date('Y'));
 
-    // Compute 15th-to-15th billing period for this month/year
-    $payPeriodStart = sprintf('%04d-%02d-15', $prepareYear, $prepareMonth);
+    // Compute 16th-to-15th billing period for this month/year
+    $payPeriodStart = sprintf('%04d-%02d-16', $prepareYear, $prepareMonth);
     $payPeriodNextM = $prepareMonth === 12 ? 1 : $prepareMonth + 1;
     $payPeriodNextY = $prepareMonth === 12 ? $prepareYear + 1 : $prepareYear;
-    $payPeriodEnd   = sprintf('%04d-%02d-14', $payPeriodNextY, $payPeriodNextM);
+    $payPeriodEnd   = sprintf('%04d-%02d-15', $payPeriodNextY, $payPeriodNextM);
 
     // Block duplicates
     $chk = $pdo->prepare("SELECT COUNT(*) FROM payroll WHERE month = ? AND year = ?");
@@ -93,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'prepare_payroll') {
     // Fetch all active staff with their salary from the staff table
     $stmt = $pdo->prepare("
         SELECT u.id AS user_id, u.name, s.salary AS basic_salary,
-               s.role AS staff_role
+               s.role AS staff_role, s.salary_type, s.hourly_rate
         FROM users u
         JOIN staff s ON s.id = u.staff_id
         WHERE u.is_active = 1
@@ -233,6 +234,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'prepare_payroll') {
         $staffRow['overtime_pay']        = $ot ? $ot['overtime_pay'] : 0;
     }
     unset($staffRow);
+
+    // ── Hourly salary calculation ──────────────────────────────────────────────
+    // Requirements: 4.1, 4.4, 4.6, 8.1, 8.5
+    foreach ($batchStaff as &$staffRow) {
+        $salaryType = $staffRow['salary_type'] ?? null;
+        
+        // Requirement 8.5: Handle NULL salary_type by defaulting to 'fixed' behavior
+        if ($salaryType === null) {
+            app_log('WARNING', "Staff user_id={$staffRow['user_id']} has NULL salary_type, defaulting to fixed");
+            $salaryType = 'fixed';
+        }
+        
+        if ($salaryType === 'hourly') {
+            $hourlyRate = $staffRow['hourly_rate'] ?? null;
+            
+            // Requirement 8.1: Handle NULL hourly_rate by logging error and setting basic_salary to 0.00
+            if ($hourlyRate === null) {
+                app_log('ERROR', "Hourly staff user_id={$staffRow['user_id']} has NULL hourly_rate");
+                $staffRow['hours_worked'] = 0.0;
+                $staffRow['basic_salary'] = 0.00;
+                continue;
+            }
+            
+            // Requirement 4.1: For salary_type='hourly', call calculate_hours_worked() for billing period
+            $hoursWorked = calculate_hours_worked($pdo, $staffRow['user_id'], $payPeriodStart, $payPeriodEnd);
+            
+            // Requirement 4.1: For salary_type='hourly', call calculate_hourly_payment() with hours and rate
+            $basicSalary = calculate_hourly_payment($hoursWorked, $hourlyRate);
+            
+            // Requirement 4.1: Store hours_worked and hourly_rate in batch data for display
+            $staffRow['hours_worked'] = $hoursWorked;
+            $staffRow['basic_salary'] = $basicSalary;
+        } else {
+            // Requirement 4.4: For salary_type='fixed', use existing staff.salary logic
+            $staffRow['hours_worked'] = null;
+            // basic_salary already set from query
+        }
+    }
+    unset($staffRow);
     // Don't redirect - render the batch form below
 }
 
@@ -253,13 +293,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save_payroll') {
 
         foreach ($staffIds as $uid) {
             $uid = (int) $uid;
-            $s = $pdo->prepare("SELECT s.salary FROM users u JOIN staff s ON s.id = u.staff_id WHERE u.id = ?");
+            $s = $pdo->prepare("SELECT s.salary, s.salary_type, s.hourly_rate FROM users u JOIN staff s ON s.id = u.staff_id WHERE u.id = ?");
             $s->execute([$uid]);
             $row = $s->fetch();
             if (!$row)
                 continue;
 
-            $basic = (float) ($row['salary'] ?? 0);
+            // Calculate basic salary based on salary type
+            $salaryType = $row['salary_type'] ?? 'fixed';
+            $hoursWorked = null; // NULL for fixed salary staff
+            
+            if ($salaryType === 'hourly') {
+                $hourlyRate = $row['hourly_rate'] ?? null;
+                if ($hourlyRate === null) {
+                    app_log('ERROR', "Hourly staff user_id={$uid} has NULL hourly_rate during save");
+                    $basic = 0.00;
+                    $hoursWorked = 0.0;
+                } else {
+                    // Recalculate hours and payment for the billing period
+                    $payPeriodStart = sprintf('%04d-%02d-16', $year, $month);
+                    $payPeriodNextM = $month === 12 ? 1 : $month + 1;
+                    $payPeriodNextY = $month === 12 ? $year + 1 : $year;
+                    $payPeriodEnd   = sprintf('%04d-%02d-15', $payPeriodNextY, $payPeriodNextM);
+                    
+                    $hoursWorked = calculate_hours_worked($pdo, $uid, $payPeriodStart, $payPeriodEnd);
+                    $basic = calculate_hourly_payment($hoursWorked, $hourlyRate);
+                }
+            } else {
+                $basic = (float) ($row['salary'] ?? 0);
+            }
+
             $manualIncentive = (float) ($incentives[$uid] ?? 0);
             $tableIncentive = 0.0;
             if ($hasIncentiveTable) {
@@ -277,14 +340,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save_payroll') {
 
             if ($advanceSchemaReady) {
                 $pdo->prepare("
-                    INSERT INTO payroll (user_id, month, year, basic_salary, incentive, overtime_pay, allowances, deductions, advance_deducted, net_salary, payable_salary, notes, created_by, status)
-                    VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, 'Pending')
-                ")->execute([$uid, $month, $year, $basic, $incentive, $overtimePay, $net, $net, $notesList[$uid] ?? null, current_user()['id']]);
+                    INSERT INTO payroll (user_id, month, year, basic_salary, hours_worked, incentive, overtime_pay, allowances, deductions, advance_deducted, net_salary, payable_salary, notes, created_by, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, 'Pending')
+                ")->execute([$uid, $month, $year, $basic, $hoursWorked, $incentive, $overtimePay, $net, $net, $notesList[$uid] ?? null, current_user()['id']]);
             } else {
                 $pdo->prepare("
-                    INSERT INTO payroll (user_id, month, year, basic_salary, incentive, overtime_pay, allowances, deductions, net_salary, notes, created_by, status)
-                    VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, 'Pending')
-                ")->execute([$uid, $month, $year, $basic, $incentive, $overtimePay, $net, $notesList[$uid] ?? null, current_user()['id']]);
+                    INSERT INTO payroll (user_id, month, year, basic_salary, hours_worked, incentive, overtime_pay, allowances, deductions, net_salary, notes, created_by, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, 'Pending')
+                ")->execute([$uid, $month, $year, $basic, $hoursWorked, $incentive, $overtimePay, $net, $notesList[$uid] ?? null, current_user()['id']]);
             }
             $count++;
         }
@@ -545,12 +608,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'pay') {
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
 
-$listPeriodStart = sprintf('%04d-%02d-15', $year, $month);
+$listPeriodStart = sprintf('%04d-%02d-16', $year, $month);
 $listPeriodNextM = $month === 12 ? 1 : $month + 1;
 $listPeriodNextY = $month === 12 ? $year + 1 : $year;
-$listPeriodEnd   = sprintf('%04d-%02d-14', $listPeriodNextY, $listPeriodNextM);
+$listPeriodEnd   = sprintf('%04d-%02d-15', $listPeriodNextY, $listPeriodNextM);
 
-$_pySql  = "SELECT p.*, u.name AS staff_name, s.role AS staff_role, ba.name AS paid_from_name FROM payroll p JOIN users u ON u.id=p.user_id JOIN staff s ON s.id=u.staff_id LEFT JOIN bank_accounts ba ON ba.id=p.paid_from_account_id WHERE p.month=? AND p.year=? ORDER BY u.name";
+$_pySql  = "SELECT p.*, u.name AS staff_name, s.role AS staff_role, s.salary_type, s.hourly_rate, ba.name AS paid_from_name FROM payroll p JOIN users u ON u.id=p.user_id JOIN staff s ON s.id=u.staff_id LEFT JOIN bank_accounts ba ON ba.id=p.paid_from_account_id WHERE p.month=? AND p.year=? ORDER BY u.name";
 $_pyCnt  = "SELECT COUNT(*) FROM payroll p JOIN users u ON u.id=p.user_id JOIN staff s ON s.id=u.staff_id WHERE p.month=? AND p.year=?";
 $pgPayroll   = paginate_query($pdo, $_pySql, $_pyCnt, [$month, $year], $page, $perPage);
 $payrollRows = $pgPayroll['rows'];
@@ -736,7 +799,29 @@ require_once __DIR__ . '/../includes/header.php';
                                 <td class="px-6 py-4 text-center">
                                     <?php if ($deliveries > 0): ?><span class="inline-flex items-center gap-1 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-full px-2.5 py-0.5 text-xs font-medium"><?= $deliveries ?> del</span><?php if ($delivBonusPer > 0): ?><p class="text-xs text-orange-400/70 mt-0.5">+$<?= number_format($deliveryBonus, 2) ?></p><?php endif; ?><?php else: ?><span class="text-mb-subtle/40 text-xs">-</span><?php endif; ?>
                                 </td>
-                                <td class="px-6 py-4 text-right text-mb-silver">$<?= number_format($basic, 2) ?></td>
+                                <td class="px-6 py-4 text-right text-mb-silver">
+                                    <?php 
+                                    $salaryType = $s['salary_type'] ?? 'fixed';
+                                    if ($salaryType === 'hourly'): 
+                                        $hoursWorked = $s['hours_worked'] ?? 0.0;
+                                        $hourlyRate = $s['hourly_rate'] ?? 0.0;
+                                        $belowThreshold = $hoursWorked < 1.0;
+                                    ?>
+                                        <div class="text-right">
+                                            <span class="text-mb-silver">$<?= number_format($basic, 2) ?></span>
+                                            <p class="text-xs text-cyan-400 mt-0.5">
+                                                <?= number_format($hoursWorked, 2) ?>h × $<?= number_format($hourlyRate, 2) ?>/h
+                                            </p>
+                                            <?php if ($belowThreshold): ?>
+                                                <span class="inline-flex items-center gap-1 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-full px-2 py-0.5 text-[10px] font-medium mt-1">
+                                                    Below 1hr threshold
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        $<?= number_format($basic, 2) ?>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="px-6 py-4 text-right"><input type="number" name="incentive[<?= $s['user_id'] ?>]" class="incentive-input bg-mb-black border border-mb-subtle/20 rounded-lg px-2 py-1.5 text-white text-sm w-28 text-right focus:outline-none focus:border-mb-accent" value="<?= $autoIncentive + $tableIncentive ?>" min="0" step="0.01" data-basic="<?= $basic ?>" data-auto="<?= $autoIncentive + $tableIncentive ?>" data-table="<?= $tableIncentive ?>" data-overtime="<?= $s['overtime_pay'] ?>" oninput="updateNet(this)"><?php if($tableIncentive > 0):?><p class="text-[10px] text-green-400/70 mt-0.5">+<?= $tableIncentive ?> from profile</p><?php endif;?></td>
                                 <td class="px-6 py-4 text-right">
                                     <input type="hidden" name="overtime[<?= $s['user_id'] ?>]" value="<?= $s['overtime_pay'] ?>">
@@ -893,8 +978,28 @@ require_once __DIR__ . '/../includes/header.php';
                                     <td class="px-6 py-4 text-mb-subtle">
                                         <?= e($row['staff_role'] ?? '--') ?>
                                     </td>
-                                    <td class="px-6 py-4 text-right text-mb-silver">$
-                                        <?= number_format($row['basic_salary'], 2) ?>
+                                    <td class="px-6 py-4 text-right text-mb-silver">
+                                        <?php 
+                                        $salaryType = $row['salary_type'] ?? 'fixed';
+                                        if ($salaryType === 'hourly' && isset($row['hours_worked'])): 
+                                            $hoursWorked = (float) $row['hours_worked'];
+                                            $hourlyRate = (float) ($row['hourly_rate'] ?? 0);
+                                            $belowThreshold = $hoursWorked < 1.0;
+                                        ?>
+                                            <div class="text-right">
+                                                <span class="text-mb-silver">$<?= number_format($row['basic_salary'], 2) ?></span>
+                                                <p class="text-xs text-cyan-400 mt-0.5">
+                                                    <?= number_format($hoursWorked, 2) ?>h × $<?= number_format($hourlyRate, 2) ?>/h
+                                                </p>
+                                                <?php if ($belowThreshold): ?>
+                                                    <span class="inline-flex items-center gap-1 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-full px-2 py-0.5 text-[10px] font-medium mt-1">
+                                                        Below 1hr threshold
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php else: ?>
+                                            $<?= number_format($row['basic_salary'], 2) ?>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="px-6 py-4 text-right text-blue-400">+$
                                         <?= number_format($row['incentive'], 2) ?>

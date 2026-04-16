@@ -48,7 +48,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $isActive   = isset($_POST['is_active']) ? 1 : 0;
     $phone      = trim($_POST['phone'] ?? '');
     $email      = trim($_POST['email'] ?? '');
+    $salary_type = $_POST['salary_type'] ?? 'fixed';
     $salary     = $_POST['salary'] ?? '';
+    $hourly_rate = $_POST['hourly_rate'] ?? '';
     $joined     = $_POST['joined_date'] ?? '';
     $notes      = trim($_POST['notes'] ?? '');
     $perms      = $_POST['permissions'] ?? [];
@@ -57,6 +59,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$name)     $errors[] = 'Name is required.';
     if (!$username) $errors[] = 'Username is required.';
     if ($newPassword && strlen($newPassword) < 6) $errors[] = 'New password must be at least 6 characters.';
+    
+    // Validate salary based on salary_type (Requirements 2.5, 2.6)
+    if ($salary_type === 'hourly') {
+        if ($hourly_rate !== '' && (float)$hourly_rate <= 0) {
+            $errors[] = 'Hourly rate must be a positive number.';
+        }
+    } else {
+        if ($salary !== '' && (float)$salary <= 0) {
+            $errors[] = 'Salary must be a positive number.';
+        }
+    }
 
     // Validate and sync permissions based on dependency rules
     $perms = validate_and_sync_permissions($perms);
@@ -92,8 +105,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->beginTransaction();
         try {
             // Update staff
-            $us = $pdo->prepare("UPDATE staff SET name=?, role=?, phone=?, email=?, salary=?, joined_date=?, notes=?, id_proof_path=?, enable_admin_dashboard=?, updated_at=? WHERE id=?");
-            $us->execute([$name, $staffRole ?: null, $phone ?: null, $email ?: null, $salary !== '' ? (float)$salary : null, $joined ?: null, $notes ?: null, $proofPath, $enableAdminDash, app_now_sql(), $id]);
+            $us = $pdo->prepare("UPDATE staff SET name=?, role=?, phone=?, email=?, salary_type=?, salary=?, hourly_rate=?, joined_date=?, notes=?, id_proof_path=?, enable_admin_dashboard=?, updated_at=? WHERE id=?");
+            $us->execute([
+                $name, 
+                $staffRole ?: null, 
+                $phone ?: null, 
+                $email ?: null, 
+                $salary_type,
+                $salary_type === 'fixed' && $salary !== '' ? (float)$salary : null,
+                $salary_type === 'hourly' && $hourly_rate !== '' ? (float)$hourly_rate : null,
+                $joined ?: null, 
+                $notes ?: null, 
+                $proofPath, 
+                $enableAdminDash, 
+                app_now_sql(), 
+                $id
+            ]);
 
             // Update user
             if ($userId) {
@@ -182,10 +209,34 @@ require_once __DIR__ . '/../includes/header.php';
                     <input type="email" name="email" value="<?= e($staff['email'] ?? '') ?>"
                         class="w-full bg-mb-black border border-mb-subtle/20 rounded-xl px-4 py-3 text-white placeholder:text-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm">
                 </div>
-                <div>
-                    <label class="block text-sm text-mb-silver mb-1.5">Salary</label>
+            </div>
+            <div class="sm:col-span-2">
+                <label class="block text-sm text-mb-silver mb-1.5">Salary Type</label>
+                <div class="flex gap-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="salary_type" value="fixed" <?= ($staff['salary_type'] ?? 'fixed') === 'fixed' ? 'checked' : '' ?> onchange="toggleSalaryFields()"
+                            class="w-4 h-4 accent-mb-accent">
+                        <span class="text-sm text-mb-silver">Fixed Monthly Salary</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="salary_type" value="hourly" <?= ($staff['salary_type'] ?? 'fixed') === 'hourly' ? 'checked' : '' ?> onchange="toggleSalaryFields()"
+                            class="w-4 h-4 accent-mb-accent">
+                        <span class="text-sm text-mb-silver">Hourly Rate</span>
+                    </label>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <div id="salary_field">
+                    <label class="block text-sm text-mb-silver mb-1.5">Monthly Salary</label>
                     <input type="number" name="salary" value="<?= e($staff['salary'] ?? '') ?>" min="0" step="0.01"
-                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-xl px-4 py-3 text-white placeholder:text-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm">
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-xl px-4 py-3 text-white placeholder:text-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm"
+                        placeholder="0.00">
+                </div>
+                <div id="hourly_rate_field" style="display: none;">
+                    <label class="block text-sm text-mb-silver mb-1.5">Hourly Rate</label>
+                    <input type="number" name="hourly_rate" value="<?= e($staff['hourly_rate'] ?? '') ?>" min="0" step="0.01"
+                        class="w-full bg-mb-black border border-mb-subtle/20 rounded-xl px-4 py-3 text-white placeholder:text-mb-subtle focus:outline-none focus:border-mb-accent transition-colors text-sm"
+                        placeholder="0.00">
                 </div>
                 <div>
                     <label class="block text-sm text-mb-silver mb-1.5">Joined Date</label>
@@ -343,7 +394,23 @@ function togglePerms() {
     const role = document.getElementById('role_field').value;
     document.getElementById('perms-section').style.display = role === 'admin' ? 'none' : '';
 }
+
+function toggleSalaryFields() {
+    const salaryType = document.querySelector('input[name="salary_type"]:checked').value;
+    const salaryField = document.getElementById('salary_field');
+    const hourlyRateField = document.getElementById('hourly_rate_field');
+    
+    if (salaryType === 'fixed') {
+        salaryField.style.display = '';
+        hourlyRateField.style.display = 'none';
+    } else {
+        salaryField.style.display = 'none';
+        hourlyRateField.style.display = '';
+    }
+}
+
 togglePerms();
+toggleSalaryFields();
 
 // ────── Permission Dependency Validation ──────────
 const permDependencies = {
