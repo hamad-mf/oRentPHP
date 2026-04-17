@@ -10,7 +10,7 @@ if (!auth_has_perm('add_vehicles')) {
 $pdo = db();
 vehicle_ensure_schema($pdo);
 
-$errors = [];yyy
+$errors = [];
 $old = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

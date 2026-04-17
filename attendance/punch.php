@@ -48,6 +48,7 @@ try {
         'punch_out_lat'         => "ALTER TABLE staff_attendance ADD COLUMN punch_out_lat DECIMAL(10,7) DEFAULT NULL",
         'punch_out_lng'         => "ALTER TABLE staff_attendance ADD COLUMN punch_out_lng DECIMAL(10,7) DEFAULT NULL",
         'punch_out_address'     => "ALTER TABLE staff_attendance ADD COLUMN punch_out_address VARCHAR(500) DEFAULT NULL",
+        'hourly_rate_snapshot'  => "ALTER TABLE staff_attendance ADD COLUMN hourly_rate_snapshot DECIMAL(10,2) DEFAULT NULL COMMENT 'Hourly rate at time of punch-in'",
     ];
     foreach ($toAdd as $col => $sql) {
         if (!in_array($col, $cols, true)) $pdo->exec($sql);
@@ -144,14 +145,21 @@ if ($action === 'punch_in') {
         }
     }
     try {
+        // Get staff hourly rate for snapshot
+        $staffInfo = $pdo->prepare('SELECT s.hourly_rate, s.salary_type FROM staff s JOIN users u ON u.staff_id = s.id WHERE u.id = ?');
+        $staffInfo->execute([$user['id']]);
+        $staffData = $staffInfo->fetch();
+        $hourlyRateSnapshot = ($staffData && $staffData['salary_type'] === 'hourly') ? $staffData['hourly_rate'] : null;
+        
         $pdo->prepare('INSERT INTO staff_attendance
-            (user_id,date,punch_in,pin_warning,late_reason,punch_in_lat,punch_in_lng,punch_in_address)
-            VALUES(?,?,?,?,?,?,?,?)
+            (user_id,date,punch_in,pin_warning,late_reason,punch_in_lat,punch_in_lng,punch_in_address,hourly_rate_snapshot)
+            VALUES(?,?,?,?,?,?,?,?,?)
             ON DUPLICATE KEY UPDATE
             punch_in=VALUES(punch_in),pin_warning=VALUES(pin_warning),
             late_reason=VALUES(late_reason),punch_in_lat=VALUES(punch_in_lat),
-            punch_in_lng=VALUES(punch_in_lng),punch_in_address=VALUES(punch_in_address)')
-            ->execute([$user['id'],$todayIst,$nowDt,$warning?1:0,$lateReason,$lat,$lng,$address]);
+            punch_in_lng=VALUES(punch_in_lng),punch_in_address=VALUES(punch_in_address),
+            hourly_rate_snapshot=VALUES(hourly_rate_snapshot)')
+            ->execute([$user['id'],$todayIst,$nowDt,$warning?1:0,$lateReason,$lat,$lng,$address,$hourlyRateSnapshot]);
         $msg = "Punched in at $displayTime" . ($warning ? ($isLate ? '  Late' : '  Early') : '');
         echo json_encode(['ok'=>true,'message'=>$msg,'warning'=>$warning,'state'=>'punched_in']);
     } catch (Throwable $e) {

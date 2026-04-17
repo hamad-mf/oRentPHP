@@ -28,7 +28,7 @@ $search = trim($_GET['search'] ?? '');
 $searchWhere = $search !== '' ? "WHERE s.name LIKE ? OR s.role LIKE ?" : "";
 $searchParams = $search !== '' ? ["%$search%", "%$search%"] : [];
 $countSql = "SELECT COUNT(*) FROM staff s LEFT JOIN users u ON u.staff_id = s.id $searchWhere";
-$staffSql = "SELECT s.*, u.id as user_id, u.username, u.role as user_role, u.is_active FROM staff s LEFT JOIN users u ON u.staff_id = s.id $searchWhere ORDER BY s.name ASC";
+$staffSql = "SELECT s.*, u.id as user_id, u.username, u.role as user_role, u.is_active, s.salary_type, s.hourly_rate, s.salary FROM staff s LEFT JOIN users u ON u.staff_id = s.id $searchWhere ORDER BY s.name ASC";
 $pgResult  = paginate_query($pdo, $staffSql, $countSql, $searchParams, $page, $perPage);
 $staffList = $pgResult['rows'];
 
@@ -81,6 +81,8 @@ $s = getFlash('success');
                         <th class="px-6 py-4 font-medium">Name</th>
                         <th class="px-6 py-4 font-medium">Username</th>
                         <th class="px-6 py-4 font-medium">Role / Title</th>
+                        <th class="px-6 py-4 font-medium">Salary Type</th>
+                        <th class="px-6 py-4 font-medium">Rate/Salary</th>
                         <th class="px-6 py-4 font-medium">Account</th>
                         <th class="px-6 py-4 font-medium">Status</th>
                         <th class="px-6 py-4 font-medium text-right">Actions</th>
@@ -89,7 +91,7 @@ $s = getFlash('success');
                 <tbody class="divide-y divide-mb-subtle/10 text-sm">
                     <?php if (empty($staffList)): ?>
                         <tr>
-                            <td colspan="6" class="px-6 py-12 text-center text-mb-subtle italic">
+                            <td colspan="8" class="px-6 py-12 text-center text-mb-subtle italic">
                                 No staff members added yet.
                                 <?php if (($_currentUser['role'] ?? '') === 'admin'): ?>
                                     <a href="create.php" class="text-mb-accent hover:underline ml-1">Add one now.</a>
@@ -117,10 +119,32 @@ $s = getFlash('success');
                             </div>
                         </td>
                         <td class="px-6 py-4 text-mb-silver font-mono text-xs">
-                            <?= $m['username'] ? e($m['username']) : '<span class="text-mb-subtle italic"> ”</span>' ?>
+                            <?= $m['username'] ? e($m['username']) : '<span class="text-mb-subtle italic"> "</span>' ?>
                         </td>
                         <td class="px-6 py-4 text-mb-silver">
-                            <?= $m['role'] ? e($m['role']) : '<span class="text-mb-subtle"> ”</span>' ?>
+                            <?= $m['role'] ? e($m['role']) : '<span class="text-mb-subtle"> "</span>' ?>
+                        </td>
+                        <td class="px-6 py-4">
+                            <?php if ($m['salary_type'] === 'hourly'): ?>
+                                <span class="inline-flex items-center gap-1 text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full">
+                                    Hourly
+                                </span>
+                            <?php elseif ($m['salary_type'] === 'fixed'): ?>
+                                <span class="inline-flex items-center gap-1 text-xs bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full">
+                                    Fixed
+                                </span>
+                            <?php else: ?>
+                                <span class="text-xs text-mb-subtle italic">Not set</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="px-6 py-4 text-mb-silver">
+                            <?php if ($m['salary_type'] === 'hourly' && $m['hourly_rate']): ?>
+                                <span class="font-mono">$<?= number_format($m['hourly_rate'], 2) ?>/hr</span>
+                            <?php elseif ($m['salary_type'] === 'fixed' && $m['salary']): ?>
+                                <span class="font-mono">$<?= number_format($m['salary'], 2) ?>/mo</span>
+                            <?php else: ?>
+                                <span class="text-xs text-mb-subtle italic">Not set</span>
+                            <?php endif; ?>
                         </td>
                         <td class="px-6 py-4">
                             <?php if ($m['user_role'] === 'admin'): ?>
@@ -134,7 +158,7 @@ $s = getFlash('success');
                                     Staff
                                 </span>
                             <?php else: ?>
-                                <span class="text-xs text-mb-subtle italic"> ”</span>
+                                <span class="text-xs text-mb-subtle italic"> "</span>
                             <?php endif; ?>
                         </td>
                         <td class="px-6 py-4">
@@ -142,10 +166,10 @@ $s = getFlash('success');
                                 <?php if ($m['is_active']): ?>
                                     <span class="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full">Active</span>
                                 <?php else: ?>
-                                    <span class="text-xs bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full">Disabled</span>
+                                    <span class="text-xs bg-red-500/10 text-red-400 px-2 py-0-5 rounded-full">Disabled</span>
                                 <?php endif; ?>
                             <?php else: ?>
-                                <span class="text-xs text-mb-subtle"> ”</span>
+                                <span class="text-xs text-mb-subtle"> "</span>
                             <?php endif; ?>
                         </td>
                         <td class="px-6 py-4 text-right">

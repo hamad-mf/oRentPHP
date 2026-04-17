@@ -18,6 +18,7 @@ try {
         'punch_out_lat'         => "ALTER TABLE staff_attendance ADD COLUMN punch_out_lat DECIMAL(10,7) DEFAULT NULL",
         'punch_out_lng'         => "ALTER TABLE staff_attendance ADD COLUMN punch_out_lng DECIMAL(10,7) DEFAULT NULL",
         'punch_out_address'     => "ALTER TABLE staff_attendance ADD COLUMN punch_out_address VARCHAR(500) DEFAULT NULL",
+        'hourly_rate_snapshot'  => "ALTER TABLE staff_attendance ADD COLUMN hourly_rate_snapshot DECIMAL(10,2) DEFAULT NULL COMMENT 'Hourly rate at time of punch-in'",
     ];
     foreach ($toAdd as $col => $sql) {
         if (!in_array($col, $cols, true)) $pdo->exec($sql);
@@ -57,7 +58,13 @@ $todayIst = (new DateTime('now', $ist))->format('Y-m-d');
 $filterDate = trim($_GET['date'] ?? $todayIst);
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $filterDate)) $filterDate = $todayIst;
 
-$staff = $pdo->query("SELECT id, name FROM users WHERE role != 'admin' AND is_active = 1 ORDER BY name ASC")->fetchAll();
+$staff = $pdo->query("
+    SELECT u.id, u.name, s.hourly_rate, s.salary_type 
+    FROM users u 
+    LEFT JOIN staff s ON s.id = u.staff_id 
+    WHERE u.role != 'admin' AND u.is_active = 1 
+    ORDER BY u.name ASC
+")->fetchAll();
 
 $attStmt = $pdo->prepare('SELECT * FROM staff_attendance WHERE date = ?');
 $attStmt->execute([$filterDate]);
@@ -150,9 +157,10 @@ require_once __DIR__ . '/../includes/header.php';
 
     <div class="hidden md:grid grid-cols-12 gap-4 px-5 py-2 border-b border-mb-subtle/10 text-[10px] uppercase tracking-wider text-mb-subtle/60">
       <div class="col-span-2">Staff</div>
-      <div class="col-span-3">Punch In</div>
-      <div class="col-span-3">Punch Out</div>
-      <div class="col-span-2 text-right">Duration</div>
+      <div class="col-span-2">Punch In</div>
+      <div class="col-span-2">Punch Out</div>
+      <div class="col-span-2 text-right">Worked Hours</div>
+      <div class="col-span-2 text-right">Daily Salary</div>
       <div class="col-span-2 text-right px-2">Actions</div>
     </div>
 
@@ -180,11 +188,23 @@ require_once __DIR__ . '/../includes/header.php';
       else                                   $badge = '<span class="text-[10px] bg-yellow-500/15 text-yellow-400 px-2 py-0.5 rounded-full">&#x23F0; In Progress</span>';
 
       $workedStr = '';
+      $workedHours = 0;
+      $dailySalary = 0;
+      $historicalRate = null;
       if ($pinTime && $poutTime) {
           $secs = strtotime($poutTime) - strtotime($pinTime);
           foreach ($breaks as $b) { if ($b['break_end']) $secs -= strtotime($b['break_end']) - strtotime($b['break_start']); }
           $secs = max(0, $secs);
+          $workedHours = $secs / 3600; // Convert to hours
           $workedStr = floor($secs/3600).'h '.floor(($secs%3600)/60).'m';
+          
+          // Use historical rate if available, otherwise fall back to current rate
+          $historicalRate = $att['hourly_rate_snapshot'] ?? $s['hourly_rate'];
+          
+          // Calculate daily salary for hourly staff
+          if ($s['salary_type'] === 'hourly' && $historicalRate) {
+              $dailySalary = $workedHours * $historicalRate;
+          }
       }
     ?>
     <div class="border-b border-mb-subtle/10 last:border-0">
@@ -208,7 +228,7 @@ require_once __DIR__ . '/../includes/header.php';
           </div>
 
           <!-- Punch In -->
-          <div class="col-span-3 space-y-1">
+          <div class="col-span-2 space-y-1">
             <?php if ($pinTime): ?>
               <div class="flex items-center gap-1.5">
                 <span class="text-white text-sm font-medium"><?= fmt_t($pinTime) ?></span>
@@ -226,7 +246,7 @@ require_once __DIR__ . '/../includes/header.php';
           </div>
 
           <!-- Punch Out -->
-          <div class="col-span-3 space-y-1">
+          <div class="col-span-2 space-y-1">
             <?php if ($poutTime): ?>
               <div class="flex items-center gap-1.5">
                 <span class="text-white text-sm font-medium"><?= fmt_t($poutTime) ?></span>
@@ -243,7 +263,7 @@ require_once __DIR__ . '/../includes/header.php';
             <?php endif; ?>
           </div>
 
-          <!-- Duration -->
+          <!-- Worked Hours -->
           <div class="col-span-2 text-right px-2">
             <?php if ($workedStr): ?>
               <span class="text-mb-accent text-sm font-medium"><?= $workedStr ?></span>
@@ -251,6 +271,24 @@ require_once __DIR__ . '/../includes/header.php';
               <span class="text-amber-400 text-[11px]">On Break</span>
             <?php elseif ($pinTime): ?>
               <span class="text-mb-subtle text-[11px]">Ongoing</span>
+            <?php else: ?>
+              <span class="text-mb-subtle/40 text-sm">—</span>
+            <?php endif; ?>
+          </div>
+
+          <!-- Daily Salary -->
+          <div class="col-span-2 text-right px-2">
+            <?php if ($dailySalary > 0): ?>
+              <div class="flex flex-col items-end">
+                <span class="text-green-400 text-sm font-semibold">$<?= number_format($dailySalary, 2) ?></span>
+                <span class="text-xs text-yellow-400/80">$<?= number_format($historicalRate, 2) ?> × <?= number_format($workedHours, 1) ?>h</span>
+              </div>
+            <?php elseif ($s['salary_type'] === 'fixed'): ?>
+              <span class="text-[10px] text-purple-400/60">Fixed Salary</span>
+            <?php elseif (!$s['hourly_rate']): ?>
+              <span class="text-[10px] text-mb-subtle/40">No rate set</span>
+            <?php else: ?>
+              <span class="text-mb-subtle/40 text-sm">—</span>
             <?php endif; ?>
           </div>
 
